@@ -289,8 +289,8 @@ local function processPlayerRoll(player)
 	clearCenterStage()
 
 	-- roll dice
-	-- local roll = math.random(1, 6)
-	local roll = 3 -- rigged for testing
+	local roll = math.random(1, 6)
+	-- local roll = 3 -- rigged for testing
 
 	print("🎲 [Server] Roll result:", roll)
 	rollEvent:FireClient(player, roll) 
