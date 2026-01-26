@@ -55,32 +55,18 @@ local function resetCamera()
 	currentPitch = START_ANGLE -- reset pitch
 end
 
--- Connect Reset Button
-local function connectResetButton()
-	-- Search for button in PlayerGui
-	local btn = playerGui:FindFirstChild(BUTTON_NAME, true) 
+-- Connect Reset Event
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local resetCamEvent = ReplicatedStorage:WaitForChild("ResetCameraEvent", 10)
 
-	if btn then
-		print("✅ Reset Button connected!")
-		-- Clean up old connection tag if exists
-		if btn:FindFirstChild("Connected") then btn.Connected:Destroy() end
-
-		local tag = Instance.new("BoolValue", btn)
-		tag.Name = "Connected"
-
-		btn.MouseButton1Click:Connect(resetCamera)
-	else
-		warn("⚠️ Button '"..BUTTON_NAME.."' not found! Ensure it exists in StarterGui.")
-	end
+if not resetCamEvent then
+	resetCamEvent = Instance.new("BindableEvent")
+	resetCamEvent.Name = "ResetCameraEvent"
+	resetCamEvent.Parent = ReplicatedStorage
 end
 
--- Call initial connection
-connectResetButton()
--- Reconnect on character respawn (GUI might be recreated)
-player.CharacterAdded:Connect(function()
-	task.wait(1)
-	connectResetButton()
-end)
+resetCamEvent.Event:Connect(resetCamera)
+print("✅ BoardCamera connected to ResetCameraEvent")
 
 -- Utility Functions
 local function freezePlayer(actionName, inputState, inputObject)

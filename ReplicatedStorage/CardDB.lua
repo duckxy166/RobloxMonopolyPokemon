@@ -10,7 +10,7 @@
         - Defense: Self-protection (Shield, Cleanse)
         
     📁 Usage:
-        local CardDB = require(ServerStorage.CardDB)
+        local CardDB = require(ReplicatedStorage.CardDB)
         local card = CardDB.Cards["Potion"]
 ================================================================================
 --]]
@@ -38,10 +38,10 @@ CardDB.Cards = {
 		Draw = 2,
 	},
 	
-	["Pokeball Card"] = {
-		Name = "Pokeball Card",
-		Description = "Gain 2 Pokeballs",
-		AddBalls = 2,
+	["Nugget"] = {
+		Name = "Nugget",
+		Description = "Sell for 5 coins",
+		MoneyGain = 5,
 	},
 	
 	-- === ATTACK CARDS ===
@@ -92,7 +92,7 @@ function CardDB:BuildDeck()
 		["Potion"] = 10,
 		["Super Potion"] = 5,
 		["Lucky Draw"] = 5,
-		["Pokeball Card"] = 8,
+		["Nugget"] = 8,
 		["Robbery"] = 3,
 		["Push Back"] = 3,
 		["Sleep Powder"] = 2,

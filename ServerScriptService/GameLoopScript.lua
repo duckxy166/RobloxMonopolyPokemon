@@ -26,19 +26,45 @@ local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 
 
--- CARD REMOTE EVENTS
-local drawCardEvent = ReplicatedStorage:FindFirstChild("DrawCardEvent")   -- Draw card event
-local playCardEvent = ReplicatedStorage:FindFirstChild("PlayCardEvent")  -- Play card event
+-- 1. Initialize Events FIRST (to prevent client infinite yields)
+local function getOrCreateEvent(name)
+	local ev = ReplicatedStorage:FindFirstChild(name)
+	if not ev then
+		ev = Instance.new("RemoteEvent")
+		ev.Name = name
+		ev.Parent = ReplicatedStorage
+		print("🔹 Created RemoteEvent: " .. name)
+	end
+	return ev
+end
 
--- Initialize events if missing
-if not drawCardEvent then drawCardEvent = Instance.new("RemoteEvent", ReplicatedStorage); drawCardEvent.Name="DrawCardEvent" end
-if not playCardEvent then playCardEvent = Instance.new("RemoteEvent", ReplicatedStorage); playCardEvent.Name="PlayCardEvent" end
+local drawCardEvent = getOrCreateEvent("DrawCardEvent")
+local playCardEvent = getOrCreateEvent("PlayCardEvent")
+local rollEvent = getOrCreateEvent("RollDiceEvent") 
+local encounterEvent = getOrCreateEvent("EncounterEvent")
+local catchEvent = getOrCreateEvent("CatchPokemonEvent")
+local runEvent = getOrCreateEvent("RunEvent")
+local updateTurnEvent = getOrCreateEvent("UpdateTurnEvent")
+local notifyEvent = getOrCreateEvent("NotifyEvent")
+local shopEvent = getOrCreateEvent("ShopEvent")
+local useItemEvent = getOrCreateEvent("UseItemEvent")
 
+
+
+-- Deck variables
 
 
 -- CARD DATABASE MODULE
-local CardDB = require(ServerStorage:WaitForChild("CardDB"))
-
+-- Wait for it safely
+local CardDBModule = ReplicatedStorage:WaitForChild("CardDB", 10)
+if not CardDBModule then
+	warn("🚨 CRITICAL: CardDB not found in ReplicatedStorage! Please check file location.")
+	-- Create dummy to prevent crash
+	CardDBModule = Instance.new("ModuleScript")
+	CardDBModule.Name = "CardDB"
+	CardDBModule.Parent = ReplicatedStorage
+end
+local CardDB = require(CardDBModule)
 
 -- Deck variables
 local deck = {}         -- draw pile
@@ -87,15 +113,7 @@ local shopEvent = ReplicatedStorage:FindFirstChild("ShopEvent")
 local useItemEvent = ReplicatedStorage:FindFirstChild("UseItemEvent")
 local playerInShop = {} -- [userId] = true/false (Is player currently in shop UI)
 
--- Ensure essential events exist BEFORE connecting
-if not rollEvent then rollEvent = Instance.new("RemoteEvent", ReplicatedStorage); rollEvent.Name = "RollDiceEvent" end
-if not encounterEvent then encounterEvent = Instance.new("RemoteEvent", ReplicatedStorage); encounterEvent.Name = "EncounterEvent" end
-if not catchEvent then catchEvent = Instance.new("RemoteEvent", ReplicatedStorage); catchEvent.Name = "CatchPokemonEvent" end
-if not runEvent then runEvent = Instance.new("RemoteEvent", ReplicatedStorage); runEvent.Name = "RunEvent" end
-if not updateTurnEvent then updateTurnEvent = Instance.new("RemoteEvent", ReplicatedStorage); updateTurnEvent.Name = "UpdateTurnEvent" end
-if not notifyEvent then notifyEvent = Instance.new("RemoteEvent", ReplicatedStorage); notifyEvent.Name = "NotifyEvent" end
-if not shopEvent then shopEvent = Instance.new("RemoteEvent", ReplicatedStorage); shopEvent.Name = "ShopEvent" end
-if not useItemEvent then useItemEvent = Instance.new("RemoteEvent", ReplicatedStorage); useItemEvent.Name = "UseItemEvent" end
+-- Events are already initialized at the top!
 
 -- Item Usage Handler
 useItemEvent.OnServerEvent:Connect(function(player, itemName)
