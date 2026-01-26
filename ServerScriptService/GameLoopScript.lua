@@ -236,6 +236,8 @@ if not updateTurnEvent then updateTurnEvent = Instance.new("RemoteEvent", Replic
 -- ==========================================
 local tilesFolder = Workspace:WaitForChild("Tiles")
 local centerStage = Workspace:WaitForChild("CenterStage")
+centerStage.Transparency = 1 -- Hide by default
+centerStage.CanCollide = false
 local pokemonModels = ServerStorage:WaitForChild("PokemonModels")
 
 local playerPositions = {}
@@ -257,6 +259,7 @@ local DIFFICULTY = { ["Common"] = 2, ["Rare"] = 4, ["Legendary"] = 6 }
 -- Clear spawned pokemon from center stage
 local function clearCenterStage()
 	if currentSpawnedPokemon then currentSpawnedPokemon:Destroy(); currentSpawnedPokemon = nil end
+	centerStage.Transparency = 1 -- Hide stage
 end
 
 -- Walking Logic
@@ -293,7 +296,7 @@ local function processPlayerRoll(player)
 	-- local roll = 3 -- rigged for testing
 
 	print("🎲 [Server] Roll result:", roll)
-	rollEvent:FireClient(player, roll) 
+	rollEvent:FireAllClients(player, roll) 
 	task.wait(2.5) 
 
 	local character = player.Character
@@ -571,35 +574,31 @@ shopEvent.OnServerEvent:Connect(function(player, action)
 		local money = leaderstats and leaderstats:FindFirstChild("Money")
 		local balls = leaderstats and leaderstats:FindFirstChild("Pokeballs")
 
-		if not (money and balls) then return end
+		if money and balls then
+			local price = 2
+			if money.Value >= price then
+				money.Value -= price
+				balls.Value += 1
 
-		local price = 2
-		if money.Value >= price then
-			money.Value -= price
-			balls.Value += 1
-
-			-- Notify client of purchase result
-			if notifyEvent then
-				notifyEvent:FireClient(player, ("Bought Pokeball +1 (Money left: %d)"):format(money.Value))
-			end
-		else
-			if notifyEvent then
-				notifyEvent:FireClient(player, "Not enough money!")
+				-- Notify client of purchase result
+				if notifyEvent then
+					notifyEvent:FireClient(player, ("Bought Pokeball +1 (Money left: %d)"):format(money.Value))
+				end
+			else
+				if notifyEvent then
+					notifyEvent:FireClient(player, "Not enough money!")
+				end
 			end
 		end
-
-		-- Dont call nextTurn here, only on Exit
-
-	elseif action == "Exit" then
-		print("Player exited shop -> next turn")
-
-		-- Clear shop flag
-		playerInShop[player.UserId] = false
-
-		task.wait(0.2)
-		nextTurn()
 	end
+	
+	-- Functionally, both Buy (Yes) and Exit (No) close the UI (Client Side), so we must end the turn.
+	print("Player finished shop action: " .. tostring(action) .. " -> next turn")
+	playerInShop[player.UserId] = false
+	task.wait(0.2)
+	nextTurn()
 end)
+
 -- Pokemon Spawning (Physics based)
 -- Spawns pokemon above center stage and applies physics stabilizers
 function spawnPokemonEncounter(player)
@@ -607,6 +606,7 @@ function spawnPokemonEncounter(player)
 	local modelTemplate = pokemonModels:FindFirstChild(randomPoke.ModelName)
 
 	if modelTemplate then
+		centerStage.Transparency = 0 -- Show stage
 		local clonedModel = modelTemplate:Clone()
 
 		-- 1. Position above center stage
@@ -656,7 +656,7 @@ function spawnPokemonEncounter(player)
 		warn("⚠️ Model not found: " .. randomPoke.ModelName)
 	end
 
-	encounterEvent:FireClient(player, randomPoke)
+	encounterEvent:FireAllClients(player, randomPoke)
 end
 
 -- Lucky Cards & Items Logic
@@ -742,8 +742,7 @@ end)
 
 
 rollEvent.OnServerEvent:Connect(function(player) processPlayerRoll(player) end)
-runEvent.OnServerEvent:Connect(function(player) clearCenterStage(); nextTurn() end)
-catchEvent.OnServerEvent:Connect(function(player, pokeData)
+	catchEvent.OnServerEvent:Connect(function(player, pokeData)
 	local balls = player.leaderstats.Pokeballs
 	balls.Value = balls.Value - 1
 
@@ -762,16 +761,13 @@ catchEvent.OnServerEvent:Connect(function(player, pokeData)
 		
 		-- Bonus money
 		player.leaderstats.Money.Value = player.leaderstats.Money.Value + 5 
-		
-		-- Clear model physically
-		-- clearCenterStage() -- Let's wait until end of turn to clear visual
 	end
 
 	-- 3. Check finish condition
 	local isFinished = success or (balls.Value <= 0)
 
-	-- 4. Notify Client
-	catchEvent:FireClient(player, success, roll, target, isFinished)
+	-- 4. Notify Client (ALL CLIENTS)
+	catchEvent:FireAllClients(player, success, roll, target, isFinished)
 
 	-- 5. End turn if needed
 	if isFinished then 
@@ -779,4 +775,10 @@ catchEvent.OnServerEvent:Connect(function(player, pokeData)
 		clearCenterStage()
 		nextTurn() 
 	end
+end)
+
+runEvent.OnServerEvent:Connect(function(player) 
+	runEvent:FireAllClients(player) 
+	clearCenterStage()
+	nextTurn() 
 end)

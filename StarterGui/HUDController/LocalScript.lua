@@ -97,20 +97,32 @@ task.spawn(function()
 			rollButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0) 
 			timerLabel.Text = "YOUR TURN!" 
 			timerLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+			
+			-- FIX: Make sure button reappears!
+			rollButton.Visible = true
+			isRolling = false 
 		else
 			-- Enemy turn
 			rollButton.Text = "WAIT..."
 			rollButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
 			timerLabel.Text = "Waiting for " .. currentName
 			timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			
+			rollButton.Visible = true -- Visible but greyed out/disabled text
 		end
 	end)
 
 	-- Event: Roll Result (Animation)
-	rollEvent.OnClientEvent:Connect(function(rollResult)
-		if lockEvent then lockEvent:Fire(true) end
-		rollButton.Visible = false 
-		timerLabel.Text = "🎲 " .. rollResult .. "!"
+	rollEvent.OnClientEvent:Connect(function(roller, rollResult)
+		-- If I am the roller, update my UI
+		if roller == player then
+			if lockEvent then lockEvent:Fire(true) end
+			rollButton.Visible = false 
+			timerLabel.Text = "🎲 " .. rollResult .. "!"
+		else
+			-- If someone else rolled, just update text
+			timerLabel.Text = roller.Name .. " rolled " .. rollResult .. "!"
+		end
 
 		local dice
 		local diceTemplate = ReplicatedStorage:FindFirstChild("DiceModel")
@@ -149,7 +161,8 @@ task.spawn(function()
 
 		task.wait(1.5)
 		dice:Destroy()
-		if lockEvent then lockEvent:Fire(false) end
+		
+		if roller == player and lockEvent then lockEvent:Fire(false) end
 	end)
 end)
 

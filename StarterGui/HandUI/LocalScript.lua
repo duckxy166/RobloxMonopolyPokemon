@@ -199,12 +199,27 @@ end
 
 
 -- 4. Async Init
+-- 4. Async Init
 task.spawn(function()
+	print("🃏 [HandUI] Waiting for CardDB...")
     local cardDBModule = ReplicatedStorage:WaitForChild("CardDB", 10)
+    
     if cardDBModule then
-        CardDB = require(cardDBModule)
+        local success, result = pcall(function()
+			return require(cardDBModule)
+		end)
+		
+		if success then
+			CardDB = result
+			print("🃏 [HandUI] CardDB loaded successfully!")
+		else
+			warn("🃏 [HandUI] Failed to require CardDB: " .. tostring(result))
+			-- Fallback dummy DB
+			CardDB = { Cards = {} }
+		end
     else
-        warn("HandUI: CardDB not found!")
+        warn("🃏 [HandUI] CardDB module not found in ReplicatedStorage!")
+		CardDB = { Cards = {} }
     end
 
     connectHandListener()
@@ -213,6 +228,11 @@ task.spawn(function()
             connectHandListener()
         end
     end)
+	
+	-- Force check initially in case folder already exists
+	if player:FindFirstChild("Hand") then
+		renderHand()
+	end
 end)
 
 

@@ -14,11 +14,11 @@ end)
 -- 2. Click Yes (Purchase)
 yesButton.MouseButton1Click:Connect(function()
 	shopFrame.Visible = false -- Hide UI
-	shopEvent:FireServer(true) -- Tell server "Buy"
+	shopEvent:FireServer("Buy") -- Tell server "Buy"
 end)
 
 -- 3. Click No (Cancel)
 noButton.MouseButton1Click:Connect(function()
 	shopFrame.Visible = false -- Hide UI
-	shopEvent:FireServer(false) -- Tell server "Cancel"
+	shopEvent:FireServer("Exit") -- Tell server "Cancel"
 end)

@@ -34,12 +34,25 @@ local currentPokeData = nil
 local DIFFICULTY_TEXT = { ["Common"]="2+", ["Rare"]="4+", ["Legendary"]="6!" }
 
 -- 1. Handle Encounter Start
-encounterEvent.OnClientEvent:Connect(function(pokeData)
+-- 1. Handle Encounter Start
+encounterEvent.OnClientEvent:Connect(function(activePlayer, pokeData)
 	currentPokeData = pokeData 
-
+	
 	gui.Enabled = true
 	mainFrame.Visible = true
-	nameLabel.Text = pokeData.Name
+
+	-- Spectator check
+	local isMe = (activePlayer == player)
+
+	if isMe then
+		nameLabel.Text = pokeData.Name
+		catchBtn.Visible = true
+		runBtn.Visible = true
+	else
+		nameLabel.Text = activePlayer.Name .. " encountered " .. pokeData.Name .. "!"
+		catchBtn.Visible = false
+		runBtn.Visible = false
+	end
 
 	-- Display Pokemon Image if available
 	if imgLabel then
@@ -61,13 +74,14 @@ encounterEvent.OnClientEvent:Connect(function(pokeData)
 	end
 	if ballsLabel then ballsLabel.Text = "Balls: " .. playerBalls end
 
-	catchBtn.Visible = true
-	if playerBalls <= 0 then
-		catchBtn.Text = "NO BALLS!"
-		catchBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-	else
-		catchBtn.Text = "CATCH"
-		catchBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+	if isMe then
+		if playerBalls <= 0 then
+			catchBtn.Text = "NO BALLS!"
+			catchBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+		else
+			catchBtn.Text = "CATCH"
+			catchBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+		end
 	end
 end)
 
@@ -80,9 +94,20 @@ catchBtn.MouseButton1Click:Connect(function()
 end)
 
 -- 3. Catch Result (Server feedback)
-catchEvent.OnClientEvent:Connect(function(success, diceRoll, target, isFinished)
+catchEvent.OnClientEvent:Connect(function(activePlayer, success, diceRoll, target, isFinished)
+	-- Determine if we are the active player
+	local isMe = (activePlayer == player)
+	
 	-- 1. Start Animation: Rolling...
-	nameLabel.Text = "Throwing..."
+	local rollText = "Throwing..."
+	if not isMe then
+		rollText = activePlayer.Name .. " is throwing..."
+		-- Ensure visuals are visible for spectators too if they weren't already
+		gui.Enabled = true
+		mainFrame.Visible = true
+	end
+	
+	nameLabel.Text = rollText
 	
 	local dice
 	if diceTemplate then dice = diceTemplate:Clone() else dice = Instance.new("Part"); dice.Size = Vector3.new(3,3,3) end
@@ -111,16 +136,25 @@ catchEvent.OnClientEvent:Connect(function(success, diceRoll, target, isFinished)
 
 	-- 3. Show Text Result
 	if success then
-		nameLabel.Text = "CAUGHT! (Rolled " .. tostring(diceRoll) .. ")"
+		if isMe then
+			nameLabel.Text = "CAUGHT! (Rolled " .. tostring(diceRoll) .. ")"
+		else
+			nameLabel.Text = activePlayer.Name .. " CAUGHT IT! (Rolled " .. tostring(diceRoll) .. ")"
+		end
 		nameLabel.TextColor3 = Color3.new(0, 1, 0)
 	else
 		-- Catch failed
-		nameLabel.Text = "FAILED! (Rolled " .. tostring(diceRoll) .. ")"
+		if isMe then
+			nameLabel.Text = "FAILED! (Rolled " .. tostring(diceRoll) .. ")"
+		else
+			nameLabel.Text = activePlayer.Name .. " FAILED! (Rolled " .. tostring(diceRoll) .. ")"
+		end
 		nameLabel.TextColor3 = Color3.new(1, 0, 0)
 	end
 
-	-- Update remaining balls
-	if player.leaderstats and player.leaderstats:FindFirstChild("Pokeballs") then
+	-- Update remaining balls (Only if it's me do I care about my balls count updating here, 
+	-- but actually I should update if I am the active player)
+	if isMe and player.leaderstats and player.leaderstats:FindFirstChild("Pokeballs") then
 		local remainingBalls = player.leaderstats.Pokeballs.Value
 		if ballsLabel then ballsLabel.Text = "Balls: " .. remainingBalls end
 
@@ -139,10 +173,15 @@ catchEvent.OnClientEvent:Connect(function(success, diceRoll, target, isFinished)
 		nameLabel.Text = "" -- Clear text
 	else
 		-- Try again
-		nameLabel.Text = currentPokeData.Name 
-		nameLabel.TextColor3 = Color3.new(1, 1, 1)
-		catchBtn.Visible = true 
-		catchBtn.Text = "TRY AGAIN"
+		if isMe then
+			nameLabel.Text = currentPokeData.Name 
+			nameLabel.TextColor3 = Color3.new(1, 1, 1)
+			catchBtn.Visible = true 
+			catchBtn.Text = "TRY AGAIN"
+		else
+			nameLabel.Text = activePlayer.Name .. " is trying again..."
+			nameLabel.TextColor3 = Color3.new(1, 1, 1)
+		end
 	end
 end)
 
@@ -154,3 +193,21 @@ runBtn.MouseButton1Click:Connect(function()
 	runEvent:FireServer() 
 	print("Encounter escape sent to server")
 end)
+
+-- 5. Handle Run Event (Spectators too)
+runEvent.OnClientEvent:Connect(function(activePlayer)
+	nameLabel.Text = activePlayer.Name .. " ran away!"
+	task.wait(2)
+	gui.Enabled = false
+end)
+
+-- 6. Cleanup on New Turn (Safety Fallback)
+local updateTurnEvent = ReplicatedStorage:WaitForChild("UpdateTurnEvent", 5)
+if updateTurnEvent then
+	updateTurnEvent.OnClientEvent:Connect(function()
+		if gui.Enabled then
+			gui.Enabled = false
+			print("Encounter UI force closed due to turn change")
+		end
+	end)
+end
