@@ -8,10 +8,8 @@ local player = Players.LocalPlayer
 local camera = Workspace.CurrentCamera
 local playerGui = player:WaitForChild("PlayerGui")
 
--- ==========================================
--- ?? ???????
--- ==========================================
-local BUTTON_NAME = "ResetCamButton" -- ?? ???????? Reset ?????? (??????????)
+-- Constants
+local BUTTON_NAME = "ResetCamButton" -- Name of the Reset button in ScreenGui
 
 local MOVE_SPEED = 1.0     
 local ROTATE_SPEED = 0.2   
@@ -21,56 +19,50 @@ local MAX_ZOOM = 150
 local START_HEIGHT = 60    
 local START_ANGLE = math.rad(-45)
 
--- ==========================================
--- ?? ?????????? (State)
--- ==========================================
-local defaultFocus = Vector3.new(0, 0, 0) -- ??????????? (?????? Reset ??????)
-local cameraFocus = Vector3.new(0, 0, 0)  -- ???????????
+-- State
+local defaultFocus = Vector3.new(0, 0, 0) -- Target position for camera reset
+local cameraFocus = Vector3.new(0, 0, 0)  -- Current target position
 local cameraDistance = START_HEIGHT
 local currentYaw = 0
 local currentPitch = START_ANGLE
 
--- ?????????? (CenterStage)
+-- Initial focus point (CenterStage)
 local startPart = Workspace:FindFirstChild("CenterStage")
 if startPart then 
 	defaultFocus = startPart.Position 
-	cameraFocus = defaultFocus -- ??????????????
+	cameraFocus = defaultFocus -- Initial setup
 end
 
--- ==========================================
--- ?? ???????? Reset ????? (?????!)
--- ==========================================
+-- Reset Camera Function
 local function resetCamera()
 	print("Resetting Camera to Player Position...")
 	
-	-- ใช้ตำแหน่งผู้เล่นเป็นฐานในการ Reset กล้อง
+	-- Reset to player character position
 	local character = player.Character
 	if character then
 		local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
 		if humanoidRootPart then
 			cameraFocus = humanoidRootPart.Position
 		else
-			cameraFocus = defaultFocus -- fallback ถ้าหา HumanoidRootPart ไม่เจอ
+			cameraFocus = defaultFocus -- fallback to default if HRP missing
 		end
 	else
-		cameraFocus = defaultFocus -- fallback ถ้าไม่มี Character
+		cameraFocus = defaultFocus -- fallback to default if no character
 	end
 	
-	cameraDistance = START_HEIGHT -- รีเซ็ตระยะห่าง
-	currentYaw = 0 -- รีเซ็ตมุมหมุน
-	currentPitch = START_ANGLE -- รีเซ็ตมุมก้ม/เงย
+	cameraDistance = START_HEIGHT -- reset distance
+	currentYaw = 0 -- reset yaw
+	currentPitch = START_ANGLE -- reset pitch
 end
 
--- ==========================================
--- ?? ????????????????????? Reset
--- ==========================================
+-- Connect Reset Button
 local function connectResetButton()
-	-- ??????????????????????? PlayerGui
+	-- Search for button in PlayerGui
 	local btn = playerGui:FindFirstChild(BUTTON_NAME, true) 
 
 	if btn then
-		print("? ??????? Reset ????!")
-		-- ?? Event ???????????? (????????)
+		print("✅ Reset Button connected!")
+		-- Clean up old connection tag if exists
 		if btn:FindFirstChild("Connected") then btn.Connected:Destroy() end
 
 		local tag = Instance.new("BoolValue", btn)
@@ -78,21 +70,19 @@ local function connectResetButton()
 
 		btn.MouseButton1Click:Connect(resetCamera)
 	else
-		warn("?? ?????? '"..BUTTON_NAME.."' ??????! ?????????? StarterGui ??????")
+		warn("⚠️ Button '"..BUTTON_NAME.."' not found! Ensure it exists in StarterGui.")
 	end
 end
 
--- ???????????????????
+-- Call initial connection
 connectResetButton()
--- ?????????????????????????????????? (????? GUI ??????)
+-- Reconnect on character respawn (GUI might be recreated)
 player.CharacterAdded:Connect(function()
 	task.wait(1)
 	connectResetButton()
 end)
 
--- ==========================================
--- ?? ???????????
--- ==========================================
+-- Utility Functions
 local function freezePlayer(actionName, inputState, inputObject)
 	return Enum.ContextActionResult.Sink 
 end
@@ -102,9 +92,7 @@ ContextActionService:BindActionAtPriority("FreezeMovement", freezePlayer, false,
 	Enum.KeyCode.Space, Enum.KeyCode.Tab
 )
 
--- ==========================================
--- ??? ?????? Input (Zoom / Rotate)
--- ==========================================
+-- Mouse Input Handling
 UserInputService.InputChanged:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
 
@@ -114,7 +102,7 @@ UserInputService.InputChanged:Connect(function(input, gameProcessed)
 		cameraDistance = math.clamp(cameraDistance, MIN_ZOOM, MAX_ZOOM)
 	end
 
-	-- Rotate (???????)
+	-- Rotate (RMB)
 	if input.UserInputType == Enum.UserInputType.MouseMovement and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
 		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
 		local delta = input.Delta
@@ -126,9 +114,7 @@ UserInputService.InputChanged:Connect(function(input, gameProcessed)
 	end
 end)
 
--- ==========================================
--- ?? ?????????? (WASD + Update)
--- ==========================================
+-- Render Step Handler (WASD + Camera Update)
 RunService.RenderStepped:Connect(function()
 	camera.CameraType = Enum.CameraType.Scriptable
 

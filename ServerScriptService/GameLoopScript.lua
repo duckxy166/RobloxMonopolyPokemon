@@ -1,57 +1,51 @@
-﻿--[[
+--[[
 ================================================================================
-                      🎮 GAME LOOP SCRIPT - เกมกระดาน Pokemon 🎮
+                      🎮 GAME LOOP SCRIPT - Pokemon Monopoly Core
 ================================================================================
-    📌 SCRIPT นี้เป็น ServerScript หลัก ควบคุม:
-        - ระบบเทิร์นของผู้เล่น (Turn-based)
-        - การเดินบนช่องกระดาน (Tiles)
-        - การต่อสู้/จับ Pokemon
-        - ระบบการ์ด (Card System) - จั่ว/ใช้/ทิ้ง
-        - ระบบร้านค้า (Shop)
-        - การแจ้งเตือน (Notify UI)
+    📌 Location: ServerScriptService
+    📌 Responsibilities:
+        - Turn-based game management
+        - Tile-based movement logic
+        - Pokemon spawning/catching
+        - Card System (Draw/Play/Discard)
+        - Shop logic (Item purchasing)
+        - Player notifications (UI Events)
     
-    📁 ไฟล์ที่เกี่ยวข้อง:
-        - CardDB (ModuleScript ใน ServerStorage) = ข้อมูลการ์ดทั้งหมด
-        - PokemonModels (Folder ใน ServerStorage) = โมเดล Pokemon
-        - Tiles (Folder ใน Workspace) = ช่องกระดาน
+    📌 Dependencies:
+        - CardDB (ModuleScript in ServerStorage)
+        - PokemonModels (Folder in ServerStorage)
+        - Tiles (Folder in Workspace)
         
-    🎯 VERSION: 1.0
-    📅 LAST UPDATE: 2026-01-26
+    📌 Version: 1.0
 ================================================================================
 --]]
--- ============================================
--- 📦 SERVICES - ดึง Roblox Services ที่ใช้งาน
--- ============================================
-local ReplicatedStorage = game:GetService("ReplicatedStorage")   -- เก็บ RemoteEvents สำหรับ Client-Server
-local ServerStorage = game:GetService("ServerStorage")         -- เก็บ Module/Models (ฝั่ง Server เท่านั้น)
-local Workspace = game:GetService("Workspace")                 -- World: เก็บ Tiles, CenterStage
-local Players = game:GetService("Players")                     -- จัดการผู้เล่นทั้งหมด
+-- SERVICES
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
 
 
--- ============================================
--- 🃏 CARD REMOTE EVENTS - สื่อสารระหว่าง Client/Server
--- ============================================
-local drawCardEvent = ReplicatedStorage:FindFirstChild("DrawCardEvent")   -- Event จั่วการ์ด (ยังไม่ใช้)
-local playCardEvent = ReplicatedStorage:FindFirstChild("PlayCardEvent")  -- Event ใช้การ์ด
+-- CARD REMOTE EVENTS
+local drawCardEvent = ReplicatedStorage:FindFirstChild("DrawCardEvent")   -- Draw card event
+local playCardEvent = ReplicatedStorage:FindFirstChild("PlayCardEvent")  -- Play card event
 
--- 🔧 สร้าง Event ถ้ายังไม่มี
+-- Initialize events if missing
 if not drawCardEvent then drawCardEvent = Instance.new("RemoteEvent", ReplicatedStorage); drawCardEvent.Name="DrawCardEvent" end
 if not playCardEvent then playCardEvent = Instance.new("RemoteEvent", ReplicatedStorage); playCardEvent.Name="PlayCardEvent" end
 
 
 
--- ============================================
--- 📚 CARD DATABASE MODULE - ข้อมูลการ์ดทั้งหมด
--- ============================================
-local CardDB = require(ServerStorage:WaitForChild("CardDB"))  -- โหลดข้อมูลการ์ดจาก ModuleScript
+-- CARD DATABASE MODULE
+local CardDB = require(ServerStorage:WaitForChild("CardDB"))
 
 
--- 🎴 ตัวแปรระบบการ์ด
-local deck = {}         -- กองจั่ว (draw pile)
-local discardPile = {}  -- กองทิ้ง (discard pile)
+-- Deck variables
+local deck = {}         -- draw pile
+local discardPile = {}  -- discard pile
 
--- 🔀 สับการ์ด (Fisher-Yates Algorithm)
--- @param t : table ที่ต้องการสับ
+-- Shuffle helper (Fisher-Yates)
+-- @param t : table to shuffle
 local function shuffle(t)
 	for i = #t, 2, -1 do
 		local j = math.random(1, i)
@@ -59,7 +53,7 @@ local function shuffle(t)
 	end
 end
 
--- 🔄 เติมกองจั่วถ้าหมด (ใช้กองทิ้ง หรือสร้างใหม่)
+-- Refill deck from discard pile
 local function refillDeckIfEmpty()
 	if #deck > 0 then return end
 	if #discardPile == 0 then
@@ -73,15 +67,15 @@ local function refillDeckIfEmpty()
 	shuffle(deck)
 end
 
--- 💰 ดึง leaderstats (Money, Pokeballs) ของผู้เล่น
--- @return money, balls หรือ nil ถ้าไม่มี
+-- Helper to get player leaderstats
+-- @return money, balls parts
 local function getLeaderstats(player)
 	local ls = player:FindFirstChild("leaderstats")
 	return ls and ls:FindFirstChild("Money"), ls and ls:FindFirstChild("Pokeballs")
 end
 
 -- ==========================================
--- ?? 1. Events Setup
+-- 1. Events Setup
 -- ==========================================
 local rollEvent = ReplicatedStorage:FindFirstChild("RollDiceEvent") 
 local encounterEvent = ReplicatedStorage:FindFirstChild("EncounterEvent")
@@ -91,9 +85,9 @@ local updateTurnEvent = ReplicatedStorage:FindFirstChild("UpdateTurnEvent")
 local notifyEvent = ReplicatedStorage:FindFirstChild("NotifyEvent")
 local shopEvent = ReplicatedStorage:FindFirstChild("ShopEvent")
 local useItemEvent = ReplicatedStorage:FindFirstChild("UseItemEvent")
-local playerInShop = {} -- [userId] = true/false (กำลังอยู่ในร้านค้าหรือไม่)
+local playerInShop = {} -- [userId] = true/false (Is player currently in shop UI)
 
--- สร้าง Event ถ้ายังไม่มี (ต้องอยู่ก่อน HAND SYSTEM)
+-- Ensure essential events exist BEFORE connecting
 if not rollEvent then rollEvent = Instance.new("RemoteEvent", ReplicatedStorage); rollEvent.Name = "RollDiceEvent" end
 if not encounterEvent then encounterEvent = Instance.new("RemoteEvent", ReplicatedStorage); encounterEvent.Name = "EncounterEvent" end
 if not catchEvent then catchEvent = Instance.new("RemoteEvent", ReplicatedStorage); catchEvent.Name = "CatchPokemonEvent" end
@@ -103,18 +97,36 @@ if not notifyEvent then notifyEvent = Instance.new("RemoteEvent", ReplicatedStor
 if not shopEvent then shopEvent = Instance.new("RemoteEvent", ReplicatedStorage); shopEvent.Name = "ShopEvent" end
 if not useItemEvent then useItemEvent = Instance.new("RemoteEvent", ReplicatedStorage); useItemEvent.Name = "UseItemEvent" end
 
--- ============================================
--- 🃏 2. CARD/HAND SYSTEM - ระบบมือการ์ด
--- ============================================
--- ผู้เล่นถือการ์ดได้สูงสุด 5 ใบ (HAND_LIMIT)
+-- Item Usage Handler
+useItemEvent.OnServerEvent:Connect(function(player, itemName)
+	local itemsFolder = player:FindFirstChild("Items")
+	local item = itemsFolder and itemsFolder:FindFirstChild(itemName)
+
+	if item then
+		-- Item Effect logic
+		if itemName == "Rare Candy" then
+			player.leaderstats.Money.Value += 10
+		elseif itemName == "Repel" then
+			playerRepelSteps[player.UserId] = 3
+		elseif itemName == "Revive" then
+			player.leaderstats.Pokeballs.Value += 2
+		end
+
+		item:Destroy() -- Consume item
+		print("✅ " .. player.Name .. " used " .. itemName)
+	end
+end)
+
+-- HAND SYSTEM - Card Management
+-- Players can hold up to 5 cards (HAND_LIMIT)
 local HAND_LIMIT = 5
 
--- 📂 ดึง Folder 'Hand' ของผู้เล่น
+-- Get hand folder
 local function getHandFolder(player)
 	return player:FindFirstChild("Hand")
 end
 
--- 🔢 นับจำนวนการ์ดในมือ (รวม quantity ของแต่ละ slot)
+-- Count total cards in hand (sum of stack sizes)
 local function countHand(player)
 	local hand = getHandFolder(player)
 	if not hand then return 0 end
@@ -127,9 +139,9 @@ local function countHand(player)
 	return total
 end
 
--- ➕ เพิ่มการ์ด 1 ใบเข้ามือ
--- @param cardId : ชื่อการ์ด (string)
--- @return true ถ้าสำเร็จ, false + reason ถ้าไม่สำเร็จ
+-- Add card to player hand
+-- @param cardId : id from CardDB
+-- @return true if success, false + reason if failed
 local function addCardToHand(player, cardId)
 	local hand = getHandFolder(player)
 	if not hand then return false, "no_hand" end
@@ -149,10 +161,7 @@ local function addCardToHand(player, cardId)
 	return true
 end
 
--- ➖ ลบการ์ดออกจากมือ
--- @param cardId : ชื่อการ์ด
--- @param amount : จำนวน (default = 1)
--- @return true ถ้าสำเร็จ
+-- Remove card from player hand
 local function removeCardFromHand(player, cardId, amount)
 	amount = amount or 1
 	local hand = getHandFolder(player)
@@ -167,8 +176,7 @@ local function removeCardFromHand(player, cardId, amount)
 	return true
 end
 
--- 🎴 จั่วการ์ด 1 ใบจากกอง
--- @return cardId ถ้าสำเร็จ, nil ถ้ามือเต็มหรือกองหมด
+-- Draw one card from deck
 local function drawOneCard(player)
 	refillDeckIfEmpty()
 
@@ -189,7 +197,7 @@ local function drawOneCard(player)
 		return cardId
 	end
 
-	table.insert(deck, 1, cardId)
+	table.insert(deck, 1, cardId) -- return card to deck if failed
 	return nil
 end
 
@@ -206,7 +214,7 @@ if not runEvent then runEvent = Instance.new("RemoteEvent", ReplicatedStorage); 
 if not updateTurnEvent then updateTurnEvent = Instance.new("RemoteEvent", ReplicatedStorage); updateTurnEvent.Name = "UpdateTurnEvent" end
 
 -- ==========================================
--- ?? Variables & Config
+-- Variables & Config
 -- ==========================================
 local tilesFolder = Workspace:WaitForChild("Tiles")
 local centerStage = Workspace:WaitForChild("CenterStage")
@@ -228,45 +236,45 @@ local POKEMON_DB = {
 }
 local DIFFICULTY = { ["Common"] = 2, ["Rare"] = 4, ["Legendary"] = 6 }
 
--- 🧹 ลบ Pokemon ที่ spawn อยู่บนเวที
+-- Clear spawned pokemon from center stage
 local function clearCenterStage()
 	if currentSpawnedPokemon then currentSpawnedPokemon:Destroy(); currentSpawnedPokemon = nil end
 end
 
--- ==========================================
 -- Walking Logic
--- ==========================================
--- 🎲 ประมวลผลการทอยลูกเต๋าของผู้เล่น
--- - เดินตามจำนวนที่ทอยได้
--- - เช็คสี Tile ที่หยุด: White=ร้านค้า, Green=พบ Pokemon, อื่นๆ=จั่วการ์ด
+-- Handles player movement across tiles
+-- Actions based on Tile Color: White=Shop, Green=Encounter, Others=Draw Card
 local function processPlayerRoll(player)
-	print("🎲 [Server] processPlayerRoll called by:", player.Name)
-	print("🎲 [Server] isTurnActive:", isTurnActive)
-	print("🎲 [Server] currentTurnIndex:", currentTurnIndex)
-	print("🎲 [Server] playersInGame count:", #playersInGame)
-	
+	print("📊 [Server] processPlayerRoll called by:", player.Name)
+	print("📊 [Server] isTurnActive:", isTurnActive)
+	print("📊 [Server] currentTurnIndex:", currentTurnIndex)
+	print("📊 [Server] processPlayerRoll called by:", player.Name)
+	print("📊 [Server] isTurnActive:", isTurnActive)
+	print("📊 [Server] currentTurnIndex:", currentTurnIndex)
 	if #playersInGame > 0 then
-		local currentPlayer = playersInGame[currentTurnIndex]
-		print("🎲 [Server] Current turn player:", currentPlayer and currentPlayer.Name or "nil")
+		print("📊 [Server] playersInGame[currentTurnIndex]:", playersInGame[currentTurnIndex] and playersInGame[currentTurnIndex].Name or "nil")
+	else
+		print("⚠️ [Server] No players in game table!")
 	end
-	
+
 	if not isTurnActive then 
-		print("❌ [Server] isTurnActive is false! Returning...")
+		print("? [Server] isTurnActive is false! Returning...")
 		return 
 	end
 	if player ~= playersInGame[currentTurnIndex] then 
-		print("❌ [Server] Not this player's turn! Returning...")
+		print("? [Server] Not this player's turn! Returning...")
 		return 
 	end
 
-	print("✅ [Server] Processing roll for:", player.Name)
+	print("? [Server] Processing roll for:", player.Name)
 	isTurnActive = false 
 	clearCenterStage()
 
+	-- roll dice
 	-- local roll = math.random(1, 6)
-	local roll = 5 -- เดิน
+	local roll = 3 -- rigged for testing
 
-	print("🎲 [Server] Roll result:", roll, "- Firing to client")
+	print("🎲 [Server] Roll result:", roll)
 	rollEvent:FireClient(player, roll) 
 	task.wait(2.5) 
 
@@ -292,10 +300,10 @@ local function processPlayerRoll(player)
 					-- [[ SHOP TILE ]] --
 					print("Landed on Shop! Opening shop...")
 
-					-- Save position before 
+					-- Set position
 					playerPositions[player.UserId] = currentPos
 
-					-- ? Manages all players???
+					-- Set shop flag
 					playerInShop[player.UserId] = true
 
 					shopEvent:FireClient(player)
@@ -303,7 +311,7 @@ local function processPlayerRoll(player)
 
 
 				elseif string.find(tileColor, "green") then
-					-- [[ ?? ??? ]] --
+					-- Encounter tile
 					if repelLeft > 0 then nextTurn() else spawnPokemonEncounter(player) end
 				else
 					drawOneCard(player)
@@ -324,11 +332,9 @@ local function processPlayerRoll(player)
 end
 
 
--- ============================================
--- 🃏 5. CARD EVENT HANDLER - จัดการการใช้การ์ด
--- ============================================
--- 🛡️ เช็คว่าผู้เล่นมี Shield กันการโจมตีหรือไม่
--- @return true ถ้า block สำเร็จ (Shield จะหายไป)
+-- CARD EVENT HANDLER
+-- Utility to block negative effects with Shield
+-- @return true if blocked
 local function tryBlockNegative(targetPlayer)
 	local status = targetPlayer:FindFirstChild("Status")
 	if not status then return false end
@@ -341,7 +347,7 @@ local function tryBlockNegative(targetPlayer)
 	return false
 end
 
--- 🔙 ย้ายผู้เล่นถอยหลัง X ช่อง
+-- Move player back X steps
 local function moveBackSteps(targetPlayer, steps)
 	local uid = targetPlayer.UserId
 	local currentPos = playerPositions[uid] or 0
@@ -368,7 +374,7 @@ playCardEvent.OnServerEvent:Connect(function(player, cardId, targetUserId)
 		return
 	end
 
-	-- Remove card from hand??
+	-- Verify target player if needed
 	local targetPlayer = nil
 	if def.NeedsTarget then
 		for _, p in ipairs(playersInGame) do
@@ -380,7 +386,7 @@ playCardEvent.OnServerEvent:Connect(function(player, cardId, targetUserId)
 		if not targetPlayer then
 			-- Return card if invalid target
 			addCardToHand(player, cardId)
-			if notifyEvent then notifyEvent:FireClient(player, "?? Manages all players") end
+			if notifyEvent then notifyEvent:FireClient(player, "Invalid target!") end
 			return
 		end
 	end
@@ -415,13 +421,13 @@ playCardEvent.OnServerEvent:Connect(function(player, cardId, targetUserId)
 	end
 
 	if def.Discard and def.MoneyGain and money then
-		-- 💰 Discard-to-Money: ทิ้งการ์ดแลกเงิน
+		-- Try Discard-to-Money effect
 		local need = def.Discard
 
-		-- ✅ เช็คก่อนว่ามีการ์ดพอทิ้งไหม (หลังจากใช้ใบนี้ไปแล้ว)
+		-- Check if enough cards to discard
 		if countHand(player) < need then
-			addCardToHand(player, cardId) -- คืนใบที่ใช้
-			if notifyEvent then notifyEvent:FireClient(player, "⛔ การ์ดในมือไม่พอให้ทิ้ง "..need.." ใบ") end
+			addCardToHand(player, cardId) -- Return original card
+			if notifyEvent then notifyEvent:FireClient(player, "Need " .. need .. " cards to discard!") end
 			return
 		end
 
@@ -438,6 +444,7 @@ playCardEvent.OnServerEvent:Connect(function(player, cardId, targetUserId)
 
 		money.Value += def.MoneyGain
 	end
+
 
 	if def.BackSteps and targetPlayer then
 		moveBackSteps(targetPlayer, def.BackSteps)
@@ -485,14 +492,13 @@ playCardEvent.OnServerEvent:Connect(function(player, cardId, targetUserId)
 	if notifyEvent then notifyEvent:FireClient(player, "Card used successfully!") end
 end)
 
--- ⏭️ เปลี่ยนเทิร์นไปผู้เล่นถัดไป
--- - ข้ามผู้เล่นที่ถูก Sleep
--- - ประกาศผู้เล่นปัจจุบันให้ทุกคน
+-- Turn Management logic
+-- Handles Sleep status and turn cycling
 function nextTurn()
-	print("⏭️ [Server] nextTurn() called")
+	print("🔄 [Server] nextTurn() called")
 	task.wait(1)
 	if #playersInGame == 0 then 
-		print("⏭️ [Server] No players in game!")
+		print("⚠️ [Server] No players in game!")
 		return 
 	end
 
@@ -510,7 +516,7 @@ function nextTurn()
 		else
 			isTurnActive = true
 			playerInShop[p.UserId] = false
-			print("✅ [Server] Turn started for:", p.Name, "| isTurnActive:", isTurnActive)
+			print("🎲 [Server] Turn started for:", p.Name, "| isTurnActive:", isTurnActive)
 			updateTurnEvent:FireAllClients(p.Name)
 			return
 		end
@@ -576,11 +582,8 @@ shopEvent.OnServerEvent:Connect(function(player, action)
 		nextTurn()
 	end
 end)
--- ==========================================
--- Pokemon Spawning (Physics)
--- ==========================================
--- 🎯 สุ่ม Pokemon และ spawn ลงบนเวทีกลาง
--- - ใช้ Physics (ตกลงมา + BodyGyro รักษาสมดุล)
+-- Pokemon Spawning (Physics based)
+-- Spawns pokemon above center stage and applies physics stabilizers
 function spawnPokemonEncounter(player)
 	local randomPoke = POKEMON_DB[math.random(1, #POKEMON_DB)]
 	local modelTemplate = pokemonModels:FindFirstChild(randomPoke.ModelName)
@@ -632,16 +635,13 @@ function spawnPokemonEncounter(player)
 			end
 		end
 	else
-		warn("? ??Related files: " .. randomPoke.ModelName)
+		warn("⚠️ Model not found: " .. randomPoke.ModelName)
 	end
 
 	encounterEvent:FireClient(player, randomPoke)
 end
 
--- ==========================================
--- Lucky Cards & Items
--- ==========================================
--- 🍀 สุ่มให้การ์ด Lucky แก่ผู้เล่น
+-- Lucky Cards & Items Logic
 function giveLuckyCard(player)
 	local cards = {"Rare Candy", "Repel", "Revive"}
 	local pickedCard = cards[math.random(1, #cards)]
@@ -656,19 +656,14 @@ function giveLuckyCard(player)
 end
 
 
--- ==========================================
--- ?? Player Setup
--- ==========================================
--- 🆕 เมื่อผู้เล่นเข้าเกม สร้างข้อมูลเริ่มต้น:
---    - leaderstats (Money=20, Pokeballs=5)
---    - Hand folder (เก็บการ์ดในมือ)
---    - Status folder (Shield, SleepTurns)
---    - เริ่มเกมถ้าเป็นผู้เล่นคนแรก
+-- Player Setup on Join
+-- Initializing Stats: Money=20, Balls=5
+-- Creating Hand, Status, and Inventory folders
 local function onPlayerAdded(player)
-	print("👤 [Server] onPlayerAdded:", player.Name)
+	print("✅ [Server] onPlayerAdded:", player.Name)
 	for _, p in ipairs(playersInGame) do if p == player then return end end
 	table.insert(playersInGame, player)
-	print("👤 [Server] Player added to game! Total players:", #playersInGame)
+	print("👥 [Server] Player added to game! Total players:", #playersInGame)
 	playerPositions[player.UserId] = 0 
 	playerRepelSteps[player.UserId] = 0 
 
@@ -676,6 +671,10 @@ local function onPlayerAdded(player)
 	local money = Instance.new("IntValue"); money.Name = "Money"; money.Value = 20; money.Parent = leaderstats
 	local balls = Instance.new("IntValue"); balls.Name = "Pokeballs"; balls.Value = 5; balls.Parent = leaderstats
 	local inventory = Instance.new("Folder"); inventory.Name = "PokemonInventory" ;inventory.Parent = player
+	
+	-- Items folder: for Lucky Cards (Rare Candy, Repel, Revive)
+	local items = Instance.new("Folder"); items.Name = "Items"; items.Parent = player
+	
 	-- Hand folder: max 5 cards
 	local hand = Instance.new("Folder"); hand.Name = "Hand"; hand.Parent = player
 
@@ -686,7 +685,7 @@ local function onPlayerAdded(player)
 
 
 	if #playersInGame == 1 then 
-		print("👤 [Server] First player! Starting game in 3 seconds...")
+		print("🚀 [Server] First player joined! Starting game in 3 seconds...")
 		task.wait(3)
 		currentTurnIndex = 0
 		nextTurn() 
@@ -694,9 +693,9 @@ local function onPlayerAdded(player)
 end
 
 Players.PlayerAdded:Connect(onPlayerAdded)
-print("🎮 [Server] GameLoopScript loaded! Checking for existing players...")
+print("📡 [Server] GameLoopScript loaded! Checking for existing players...")
 for _, player in ipairs(Players:GetPlayers()) do 
-	print("🎮 [Server] Found existing player:", player.Name)
+	print("🔍 [Server] Found existing player:", player.Name)
 	onPlayerAdded(player) 
 end
 

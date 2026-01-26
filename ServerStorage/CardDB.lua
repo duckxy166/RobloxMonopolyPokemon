@@ -1,15 +1,15 @@
 --[[
 ================================================================================
-                       🃏 CARD DATABASE - ฐานข้อมูลการ์ด
+                       🃏 CARD DATABASE
 ================================================================================
-    📌 ModuleScript นี้เก็บข้อมูลการ์ดทั้งหมดในเกม
+    📌 ModuleScript defining all available cards in the game.
     
-    🎴 ประเภทการ์ด:
-        - Buff/Support: ให้ข้อดีแก่ผู้เล่น (เงิน, จับการ์ด, ลูกบอล)
-        - Attack: โจมตีผู้เล่นอื่น (ขโมยเงิน, ถอยหลัง, Sleep)
-        - Defense: ป้องกันตัวเอง (Shield, Cleanse)
+    🎴 Card Types:
+        - Buff/Support: Positive effects (Money, Draw, Balls)
+        - Attack: Negative effects on others (Steal, Push back, Sleep)
+        - Defense: Self-protection (Shield, Cleanse)
         
-    📁 ใช้งาน:
+    📁 Usage:
         local CardDB = require(ServerStorage.CardDB)
         local card = CardDB.Cards["Potion"]
 ================================================================================
@@ -17,7 +17,7 @@
 
 local CardDB = {}
 
--- 🃏 ฐานข้อมูลการ์ดทั้งหมด
+-- Card Registry
 CardDB.Cards = {
 	-- === BUFF/SUPPORT CARDS ===
 	["Potion"] = {
@@ -83,11 +83,11 @@ CardDB.Cards = {
 	},
 }
 
--- 🔨 สร้างกองไพ่ (Deck)
+-- Deck Builder
 function CardDB:BuildDeck()
 	local deck = {}
 	
-	-- เพิ่มการ์ดแต่ละชนิดลงกอง (จำนวนตามต้องการ)
+	-- Add cards to deck (Configure quantities here)
 	local cardCounts = {
 		["Potion"] = 10,
 		["Super Potion"] = 5,
