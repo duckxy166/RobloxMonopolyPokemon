@@ -718,21 +718,35 @@ catchEvent.OnServerEvent:Connect(function(player, pokeData)
 	local balls = player.leaderstats.Pokeballs
 	balls.Value = balls.Value - 1
 
-	-- Roll for catch
+	-- 1. Roll Logic
 	local target = DIFFICULTY[pokeData.Rarity] or 2
-	local success = math.random(1, 6) >= target
+	local roll = math.random(1, 6)
+	local success = roll >= target
 
+	-- 2. Rewards on Success
 	if success then
-		local newPoke = Instance.new("StringValue"); newPoke.Name = pokeData.Name; newPoke.Value = pokeData.Rarity; newPoke.Parent = player.PokemonInventory
-		player.leaderstats.Money.Value = player.leaderstats.Money.Value + 5 -- Bonus money
-		clearCenterStage()
+		-- Add Pokemon to inventory
+		local newPoke = Instance.new("StringValue")
+		newPoke.Name = pokeData.Name
+		newPoke.Value = pokeData.Rarity
+		newPoke.Parent = player.PokemonInventory
+		
+		-- Bonus money
+		player.leaderstats.Money.Value = player.leaderstats.Money.Value + 5 
+		
+		-- Clear model physically
+		-- clearCenterStage() -- Let's wait until end of turn to clear visual
 	end
 
+	-- 3. Check finish condition
 	local isFinished = success or (balls.Value <= 0)
-	catchEvent:FireClient(player, success, 0, target, isFinished)
 
+	-- 4. Notify Client
+	catchEvent:FireClient(player, success, roll, target, isFinished)
+
+	-- 5. End turn if needed
 	if isFinished then 
-		task.wait(2)
+		task.wait(5) 
 		clearCenterStage()
 		nextTurn() 
 	end

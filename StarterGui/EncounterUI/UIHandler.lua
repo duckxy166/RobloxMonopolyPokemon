@@ -1,5 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local gui = script.Parent
@@ -11,6 +13,17 @@ local catchBtn = mainFrame:WaitForChild("CatchButton")
 local runBtn = mainFrame:WaitForChild("RunButton")
 local imgLabel = mainFrame:FindFirstChild("PokemonImage")
 local ballsLabel = mainFrame:FindFirstChild("BallsLabel")
+
+local diceTemplate = ReplicatedStorage:FindFirstChild("DiceModel")
+local camera = workspace.CurrentCamera
+local ROTATION_OFFSETS = {
+	[1] = CFrame.Angles(0, 0, 0),
+	[2] = CFrame.Angles(math.rad(-90), 0, 0),
+	[3] = CFrame.Angles(0, math.rad(90), 0),
+	[4] = CFrame.Angles(0, math.rad(-90), 0),
+	[5] = CFrame.Angles(math.rad(90), 0, 0),
+	[6] = CFrame.Angles(0, math.rad(180), 0)
+}
 
 -- Event
 local encounterEvent = ReplicatedStorage:WaitForChild("EncounterEvent")
@@ -68,6 +81,35 @@ end)
 
 -- 3. Catch Result (Server feedback)
 catchEvent.OnClientEvent:Connect(function(success, diceRoll, target, isFinished)
+	-- 1. Start Animation: Rolling...
+	nameLabel.Text = "Throwing..."
+	
+	local dice
+	if diceTemplate then dice = diceTemplate:Clone() else dice = Instance.new("Part"); dice.Size = Vector3.new(3,3,3) end
+	dice.Parent = workspace; dice.Anchored = true; dice.CanCollide = false
+
+	local connection
+	connection = RunService.RenderStepped:Connect(function()
+		if not dice.Parent then connection:Disconnect() return end
+		local cf = camera.CFrame; local pos = cf + (cf.LookVector * 6)
+		dice.CFrame = CFrame.new(pos.Position) * CFrame.Angles(math.rad(os.clock()*700), math.rad(os.clock()*500), math.rad(os.clock()*600))
+	end)
+
+	task.wait(2) -- Rolling time
+	connection:Disconnect()
+
+	-- 2. Stop and Show Result
+	local finalCF = camera.CFrame
+	local dicePos = (finalCF + finalCF.LookVector * 5).Position
+	local tw = TweenService:Create(dice, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		CFrame = CFrame.lookAt(dicePos, finalCF.Position) * ROTATION_OFFSETS[diceRoll]
+	})
+	tw:Play()
+
+	task.wait(1.5) -- Wait for user to see dice face
+	dice:Destroy()
+
+	-- 3. Show Text Result
 	if success then
 		nameLabel.Text = "CAUGHT! (Rolled " .. tostring(diceRoll) .. ")"
 		nameLabel.TextColor3 = Color3.new(0, 1, 0)
