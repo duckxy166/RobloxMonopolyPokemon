@@ -236,3 +236,37 @@ task.spawn(function()
 end)
 
 
+-- 5. Auto-Hide Hand during Encounters
+-- Prevents UI overlap when fighting Pokemon
+local encounterEvent = ReplicatedStorage:FindFirstChild("EncounterEvent")
+local updateTurnEvent = ReplicatedStorage:FindFirstChild("UpdateTurnEvent")
+local runEvent = ReplicatedStorage:FindFirstChild("RunEvent")
+local catchEvent = ReplicatedStorage:FindFirstChild("CatchPokemonEvent")
+
+if encounterEvent then
+	encounterEvent.OnClientEvent:Connect(function()
+		screenGui.Enabled = false
+	end)
+end
+
+if updateTurnEvent then
+	updateTurnEvent.OnClientEvent:Connect(function()
+		screenGui.Enabled = true
+	end)
+end
+
+if runEvent then
+	runEvent.OnClientEvent:Connect(function()
+		task.wait(2)
+		screenGui.Enabled = true
+	end)
+end
+
+if catchEvent then
+	catchEvent.OnClientEvent:Connect(function(_, success, _, _, isFinished)
+		if isFinished then
+			task.wait(2) 
+			screenGui.Enabled = true
+		end
+	end)
+end

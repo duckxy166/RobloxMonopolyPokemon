@@ -4,18 +4,165 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
-local gui = script.Parent
-local mainFrame = gui:WaitForChild("MainFrame")
+local layer = player:WaitForChild("PlayerGui")
 
-local nameLabel = mainFrame:WaitForChild("NameLabel")
-local rarityLabel = mainFrame:WaitForChild("RarityLabel")
-local catchBtn = mainFrame:WaitForChild("CatchButton")
-local runBtn = mainFrame:WaitForChild("RunButton")
-local imgLabel = mainFrame:FindFirstChild("PokemonImage")
-local ballsLabel = mainFrame:FindFirstChild("BallsLabel")
+-- [[ CLEANUP LEGACY ]] --
+-- Hide the old MainFrame if this script is still sitting inside the old StarterGui structure
+if script.Parent and script.Parent:FindFirstChild("MainFrame") then
+	script.Parent.MainFrame.Visible = false
+end
 
-local diceTemplate = ReplicatedStorage:FindFirstChild("DiceModel")
-local camera = workspace.CurrentCamera
+-- [[ 1. UI CONSTRUCTION (PURE SCRIPT) ]] --
+local gui = Instance.new("ScreenGui")
+gui.Name = "EncounterUI_Scripted"
+gui.ResetOnSpawn = false
+gui.Enabled = false -- Hidden by default
+gui.Parent = layer
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0.5, 0, 0.2, 0) -- Banner style: Wide and short
+mainFrame.Position = UDim2.new(0.5, 0, 0.95, 0) -- Bottom Center
+mainFrame.AnchorPoint = Vector2.new(0.5, 1)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 35, 40) -- Dark sleek slate
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = gui
+
+-- Stroke
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(0, 200, 255) -- Cyan glow
+mainStroke.Thickness = 3
+mainStroke.Parent = mainFrame
+
+-- Gradient
+local gradient = Instance.new("UIGradient")
+gradient.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 200, 200))
+}
+gradient.Rotation = 90
+gradient.Parent = mainFrame
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 16)
+uiCorner.Parent = mainFrame
+
+-- Layout Container: Left (Image), Middle (Info), Right (Actions)
+
+-- 1. POKEMON IMAGE (Left sticking out)
+local imgLabel = Instance.new("ImageLabel")
+imgLabel.Name = "PokemonImage"
+imgLabel.Size = UDim2.new(0, 150, 0, 150)
+imgLabel.Position = UDim2.new(0.05, 0, 0.5, 0) -- Overhanging slightly
+imgLabel.AnchorPoint = Vector2.new(0, 0.5) 
+imgLabel.BackgroundTransparency = 1
+imgLabel.Image = "" -- Set dynamically
+imgLabel.Visible = false -- Default hidden
+imgLabel.ZIndex = 5 -- On top
+imgLabel.Parent = mainFrame
+
+-- 2. INFO SECTION (Middle)
+local infoFrame = Instance.new("Frame")
+infoFrame.Name = "InfoSection"
+infoFrame.Size = UDim2.new(0.5, 0, 1, 0)
+infoFrame.Position = UDim2.new(0.25, 0, 0, 0)
+infoFrame.BackgroundTransparency = 1
+infoFrame.Parent = mainFrame
+
+local nameLabel = Instance.new("TextLabel")
+nameLabel.Name = "NameLabel"
+nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+nameLabel.Position = UDim2.new(0, 0, 0.1, 0)
+nameLabel.BackgroundTransparency = 1
+nameLabel.Text = "Pikachu"
+nameLabel.TextColor3 = Color3.fromRGB(0, 230, 255) -- Cyan highlight
+nameLabel.Font = Enum.Font.FredokaOne
+nameLabel.TextSize = 28
+nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+nameLabel.Parent = infoFrame
+
+local rarityLabel = Instance.new("TextLabel")
+rarityLabel.Name = "RarityLabel"
+rarityLabel.Size = UDim2.new(1, 0, 0.3, 0)
+rarityLabel.Position = UDim2.new(0, 0, 0.5, 0)
+rarityLabel.BackgroundTransparency = 1
+rarityLabel.Text = "Rare - Need 4+"
+rarityLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+rarityLabel.Font = Enum.Font.GothamMedium
+rarityLabel.TextSize = 16
+rarityLabel.TextXAlignment = Enum.TextXAlignment.Left
+rarityLabel.Parent = infoFrame
+
+local ballsLabel = Instance.new("TextLabel")
+ballsLabel.Name = "BallsLabel"
+ballsLabel.Size = UDim2.new(1, 0, 0.2, 0)
+ballsLabel.Position = UDim2.new(0, 0, 0.75, 0)
+ballsLabel.BackgroundTransparency = 1
+ballsLabel.Text = "Balls: 5"
+ballsLabel.TextColor3 = Color3.fromRGB(255, 100, 100) -- Red for balls
+ballsLabel.Font = Enum.Font.GothamBold
+ballsLabel.TextSize = 14
+ballsLabel.TextXAlignment = Enum.TextXAlignment.Left
+ballsLabel.Parent = infoFrame
+
+-- 3. ACTIONS SECTION (Right)
+local actionFrame = Instance.new("Frame")
+actionFrame.Name = "ActionSection"
+actionFrame.Size = UDim2.new(0.2, 0, 1, 0)
+actionFrame.Position = UDim2.new(0.78, 0, 0, 0)
+actionFrame.BackgroundTransparency = 1
+actionFrame.Parent = mainFrame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.FillDirection = Enum.FillDirection.Vertical
+listLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+listLayout.Padding = UDim.new(0, 10)
+listLayout.Parent = actionFrame
+
+local catchBtn = Instance.new("TextButton")
+catchBtn.Name = "CatchButton"
+catchBtn.Size = UDim2.new(1, 0, 0, 45)
+catchBtn.BackgroundColor3 = Color3.fromRGB(34, 197, 94) -- Green
+catchBtn.Text = "CATCH"
+catchBtn.Font = Enum.Font.GothamBlack
+catchBtn.TextSize = 18
+catchBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+catchBtn.Parent = actionFrame
+
+local catchCorner = Instance.new("UICorner")
+catchCorner.CornerRadius = UDim.new(0, 6)
+catchCorner.Parent = catchBtn
+
+local runBtn = Instance.new("TextButton")
+runBtn.Name = "RunButton"
+runBtn.Size = UDim2.new(1, 0, 0, 35)
+runBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68) -- Red
+runBtn.Text = "RUN"
+runBtn.Font = Enum.Font.GothamBold
+runBtn.TextSize = 14
+runBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+runBtn.Parent = actionFrame
+
+local runCorner = Instance.new("UICorner")
+runCorner.CornerRadius = UDim.new(0, 6)
+runCorner.Parent = runBtn
+
+
+-- [[ Unused Elements Cleanup ]] --
+-- Removing separate TitleLabel since we integrated it or simplified it
+-- We can reuse nameLabel or add a small status tag if needed. I'll omit TitleLabel for cleaner look.
+
+
+
+-- [[ 2. LOGIC ]] --
+
+local encounterEvent = ReplicatedStorage:WaitForChild("EncounterEvent")
+local catchEvent = ReplicatedStorage:WaitForChild("CatchPokemonEvent")
+local runEvent = ReplicatedStorage:WaitForChild("RunEvent")
+local updateTurnEvent = ReplicatedStorage:WaitForChild("UpdateTurnEvent")
+
+local currentPokeData = nil 
+local DIFFICULTY_TEXT = { ["Common"]="2+", ["Rare"]="4+", ["Legendary"]="6!" }
 local ROTATION_OFFSETS = {
 	[1] = CFrame.Angles(0, 0, 0),
 	[2] = CFrame.Angles(math.rad(-90), 0, 0),
@@ -24,16 +171,9 @@ local ROTATION_OFFSETS = {
 	[5] = CFrame.Angles(math.rad(90), 0, 0),
 	[6] = CFrame.Angles(0, math.rad(180), 0)
 }
+local diceTemplate = ReplicatedStorage:FindFirstChild("DiceModel")
+local camera = workspace.CurrentCamera
 
--- Event
-local encounterEvent = ReplicatedStorage:WaitForChild("EncounterEvent")
-local catchEvent = ReplicatedStorage:WaitForChild("CatchPokemonEvent")
-local runEvent = ReplicatedStorage:WaitForChild("RunEvent") -- RunEvent for escaping
-
-local currentPokeData = nil 
-local DIFFICULTY_TEXT = { ["Common"]="2+", ["Rare"]="4+", ["Legendary"]="6!" }
-
--- 1. Handle Encounter Start
 -- 1. Handle Encounter Start
 encounterEvent.OnClientEvent:Connect(function(activePlayer, pokeData)
 	currentPokeData = pokeData 
@@ -48,46 +188,49 @@ encounterEvent.OnClientEvent:Connect(function(activePlayer, pokeData)
 		nameLabel.Text = pokeData.Name
 		catchBtn.Visible = true
 		runBtn.Visible = true
+		
+		-- Reset button state
+		catchBtn.Text = "CATCH"
+		catchBtn.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
 	else
-		nameLabel.Text = activePlayer.Name .. " encountered " .. pokeData.Name .. "!"
+		nameLabel.Text = "SPECTATING: " .. activePlayer.Name
+		rarityLabel.Text = "Found " .. pokeData.Name
 		catchBtn.Visible = false
 		runBtn.Visible = false
 	end
 
-	-- Display Pokemon Image if available
-	if imgLabel then
-		if pokeData.Image and pokeData.Image ~= "" then
-			imgLabel.Visible = true -- Show image
-			imgLabel.Image = pokeData.Image
-		else
-			imgLabel.Visible = false -- Hide if no image (using 3D model instead)
-		end
+	-- Image
+	if pokeData.Image and pokeData.Image ~= "" then
+		imgLabel.Visible = true 
+		imgLabel.Image = pokeData.Image
+	else
+		imgLabel.Visible = false 
 	end
 
+	-- Rarity
 	local diffText = DIFFICULTY_TEXT[pokeData.Rarity] or "2+"
-	if rarityLabel then rarityLabel.Text = pokeData.Rarity .. " (" .. diffText .. ")" end
+	if isMe then
+		rarityLabel.Text = pokeData.Rarity .. " (Need " .. diffText .. ")"
+	end
 
 	-- Update Ball count
 	local playerBalls = 0
 	if player.leaderstats and player.leaderstats:FindFirstChild("Pokeballs") then
 		playerBalls = player.leaderstats.Pokeballs.Value
 	end
-	if ballsLabel then ballsLabel.Text = "Balls: " .. playerBalls end
+	ballsLabel.Text = "Balls: " .. playerBalls
 
-	if isMe then
-		if playerBalls <= 0 then
-			catchBtn.Text = "NO BALLS!"
-			catchBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-		else
-			catchBtn.Text = "CATCH"
-			catchBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-		end
+	if isMe and playerBalls <= 0 then
+		catchBtn.Text = "NO BALLS!"
+		catchBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
 	end
 end)
 
 -- 2. Catch Button Logic
 catchBtn.MouseButton1Click:Connect(function()
 	if not currentPokeData then return end
+	if catchBtn.Text == "NO BALLS!" then return end -- Prevent clicking if no balls
+	
 	catchBtn.Visible = false
 	nameLabel.Text = "Throwing..."
 	catchEvent:FireServer(currentPokeData)
@@ -98,17 +241,15 @@ catchEvent.OnClientEvent:Connect(function(activePlayer, success, diceRoll, targe
 	-- Determine if we are the active player
 	local isMe = (activePlayer == player)
 	
-	-- 1. Start Animation: Rolling...
+	-- Animation Text
 	local rollText = "Throwing..."
 	if not isMe then
 		rollText = activePlayer.Name .. " is throwing..."
-		-- Ensure visuals are visible for spectators too if they weren't already
-		gui.Enabled = true
-		mainFrame.Visible = true
+		gui.Enabled = true -- Ensure spectators see it
 	end
-	
 	nameLabel.Text = rollText
 	
+	-- Create Dice Animation
 	local dice
 	if diceTemplate then dice = diceTemplate:Clone() else dice = Instance.new("Part"); dice.Size = Vector3.new(3,3,3) end
 	dice.Parent = workspace; dice.Anchored = true; dice.CanCollide = false
@@ -123,7 +264,7 @@ catchEvent.OnClientEvent:Connect(function(activePlayer, success, diceRoll, targe
 	task.wait(2) -- Rolling time
 	connection:Disconnect()
 
-	-- 2. Stop and Show Result
+	-- Show Result Face
 	local finalCF = camera.CFrame
 	local dicePos = (finalCF + finalCF.LookVector * 5).Position
 	local tw = TweenService:Create(dice, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
@@ -131,46 +272,42 @@ catchEvent.OnClientEvent:Connect(function(activePlayer, success, diceRoll, targe
 	})
 	tw:Play()
 
-	task.wait(1.5) -- Wait for user to see dice face
+	task.wait(1.5) 
 	dice:Destroy()
 
-	-- 3. Show Text Result
+	-- Show Text Result
 	if success then
 		if isMe then
 			nameLabel.Text = "CAUGHT! (Rolled " .. tostring(diceRoll) .. ")"
 		else
-			nameLabel.Text = activePlayer.Name .. " CAUGHT IT! (Rolled " .. tostring(diceRoll) .. ")"
+			nameLabel.Text = activePlayer.Name .. " CAUGHT IT! (" .. diceRoll .. ")"
 		end
 		nameLabel.TextColor3 = Color3.new(0, 1, 0)
 	else
-		-- Catch failed
 		if isMe then
 			nameLabel.Text = "FAILED! (Rolled " .. tostring(diceRoll) .. ")"
 		else
-			nameLabel.Text = activePlayer.Name .. " FAILED! (Rolled " .. tostring(diceRoll) .. ")"
+			nameLabel.Text = activePlayer.Name .. " FAILED! (" .. diceRoll .. ")"
 		end
 		nameLabel.TextColor3 = Color3.new(1, 0, 0)
 	end
 
-	-- Update remaining balls (Only if it's me do I care about my balls count updating here, 
-	-- but actually I should update if I am the active player)
+	-- Update remaining balls (active player only)
 	if isMe and player.leaderstats and player.leaderstats:FindFirstChild("Pokeballs") then
 		local remainingBalls = player.leaderstats.Pokeballs.Value
-		if ballsLabel then ballsLabel.Text = "Balls: " .. remainingBalls end
-
-		-- Check if balls ran out
+		ballsLabel.Text = "Balls: " .. remainingBalls
 		if remainingBalls <= 0 and not success then
-			nameLabel.Text = "OUT OF BALLS!"
 			isFinished = true
+			nameLabel.Text = "OUT OF BALLS!"
 		end
 	end
 
-	task.wait(2) -- Display result for 2s
+	task.wait(2) -- Wait for text read
 
 	if isFinished then
-		-- Encounter ended
 		gui.Enabled = false
-		nameLabel.Text = "" -- Clear text
+		nameLabel.Text = "" 
+		nameLabel.TextColor3 = Color3.new(1, 1, 1)
 	else
 		-- Try again
 		if isMe then
@@ -188,10 +325,7 @@ end)
 -- 4. Escape Button Logic
 runBtn.MouseButton1Click:Connect(function()
 	gui.Enabled = false
-
-	-- Notify server to end encounter
 	runEvent:FireServer() 
-	print("Encounter escape sent to server")
 end)
 
 -- 5. Handle Run Event (Spectators too)
@@ -199,15 +333,13 @@ runEvent.OnClientEvent:Connect(function(activePlayer)
 	nameLabel.Text = activePlayer.Name .. " ran away!"
 	task.wait(2)
 	gui.Enabled = false
+	nameLabel.Text = "" 
 end)
 
--- 6. Cleanup on New Turn (Safety Fallback)
-local updateTurnEvent = ReplicatedStorage:WaitForChild("UpdateTurnEvent", 5)
-if updateTurnEvent then
-	updateTurnEvent.OnClientEvent:Connect(function()
-		if gui.Enabled then
-			gui.Enabled = false
-			print("Encounter UI force closed due to turn change")
-		end
-	end)
-end
+-- 6. Cleanup on New Turn
+updateTurnEvent.OnClientEvent:Connect(function()
+	if gui.Enabled then
+		gui.Enabled = false
+		print("[UI] Force closed Encounter due to turn change")
+	end
+end)
