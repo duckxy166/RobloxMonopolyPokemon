@@ -1,0 +1,982 @@
+{
+  "accessors": [
+    {
+      "name": "INDEX",
+      "bufferView": 0,
+      "componentType": 5125,
+      "type": "SCALAR",
+      "count": 36
+    },
+    {
+      "name": "POSITION",
+      "bufferView": 1,
+      "componentType": 5126,
+      "type": "VEC3",
+      "count": 24
+    },
+    {
+      "name": "NORMAL",
+      "bufferView": 2,
+      "componentType": 5126,
+      "type": "VEC3",
+      "count": 24
+    },
+    {
+      "name": "TEXCOORD_0",
+      "bufferView": 3,
+      "componentType": 5126,
+      "type": "VEC2",
+      "count": 24
+    },
+    {
+      "name": "COLOR_0",
+      "bufferView": 4,
+      "componentType": 5121,
+      "type": "VEC4",
+      "normalized": true,
+      "count": 24
+    },
+    {
+      "name": "COLOR_0",
+      "bufferView": 5,
+      "componentType": 5121,
+      "type": "VEC4",
+      "normalized": true,
+      "count": 24
+    },
+    {
+      "name": "INDEX",
+      "bufferView": 6,
+      "componentType": 5125,
+      "type": "SCALAR",
+      "count": 6
+    },
+    {
+      "name": "POSITION",
+      "bufferView": 7,
+      "componentType": 5126,
+      "type": "VEC3",
+      "count": 4
+    },
+    {
+      "name": "NORMAL",
+      "bufferView": 8,
+      "componentType": 5126,
+      "type": "VEC3",
+      "count": 4
+    },
+    {
+      "name": "TEXCOORD_0",
+      "bufferView": 9,
+      "componentType": 5126,
+      "type": "VEC2",
+      "count": 4
+    },
+    {
+      "name": "COLOR_0",
+      "bufferView": 10,
+      "componentType": 5121,
+      "type": "VEC4",
+      "normalized": true,
+      "count": 4
+    },
+    {
+      "name": "COLOR_0",
+      "bufferView": 11,
+      "componentType": 5121,
+      "type": "VEC4",
+      "normalized": true,
+      "count": 24
+    },
+    {
+      "name": "COLOR_0",
+      "bufferView": 12,
+      "componentType": 5121,
+      "type": "VEC4",
+      "normalized": true,
+      "count": 24
+    },
+    {
+      "name": "COLOR_0",
+      "bufferView": 13,
+      "componentType": 5121,
+      "type": "VEC4",
+      "normalized": true,
+      "count": 24
+    },
+    {
+      "name": "COLOR_0",
+      "bufferView": 14,
+      "componentType": 5121,
+      "type": "VEC4",
+      "normalized": true,
+      "count": 24
+    },
+    {
+      "name": "COLOR_0",
+      "bufferView": 15,
+      "componentType": 5121,
+      "type": "VEC4",
+      "normalized": true,
+      "count": 24
+    },
+    {
+      "name": "COLOR_0",
+      "bufferView": 16,
+      "componentType": 5121,
+      "type": "VEC4",
+      "normalized": true,
+      "count": 24
+    },
+    {
+      "name": "COLOR_0",
+      "bufferView": 17,
+      "componentType": 5121,
+      "type": "VEC4",
+      "normalized": true,
+      "count": 24
+    },
+    {
+      "name": "COLOR_0",
+      "bufferView": 18,
+      "componentType": 5121,
+      "type": "VEC4",
+      "normalized": true,
+      "count": 24
+    },
+    {
+      "name": "COLOR_0",
+      "bufferView": 19,
+      "componentType": 5121,
+      "type": "VEC4",
+      "normalized": true,
+      "count": 24
+    }
+  ],
+  "asset": {
+    "generator": "Roblox Export",
+    "version": "2.0",
+    "min_version": "2.0"
+  },
+  "bufferViews": [
+    {
+      "name": "INDEX",
+      "buffer": 0,
+      "byteLength": 144
+    },
+    {
+      "name": "POSITION",
+      "buffer": 1,
+      "byteLength": 288
+    },
+    {
+      "name": "NORMAL",
+      "buffer": 2,
+      "byteLength": 288
+    },
+    {
+      "name": "TEXCOORD_0",
+      "buffer": 3,
+      "byteLength": 192
+    },
+    {
+      "name": "COLOR_0",
+      "buffer": 4,
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "buffer": 5,
+      "byteLength": 96
+    },
+    {
+      "name": "INDEX",
+      "buffer": 6,
+      "byteLength": 24
+    },
+    {
+      "name": "POSITION",
+      "buffer": 7,
+      "byteLength": 48
+    },
+    {
+      "name": "NORMAL",
+      "buffer": 8,
+      "byteLength": 48
+    },
+    {
+      "name": "TEXCOORD_0",
+      "buffer": 9,
+      "byteLength": 32
+    },
+    {
+      "name": "COLOR_0",
+      "buffer": 10,
+      "byteLength": 16
+    },
+    {
+      "name": "COLOR_0",
+      "buffer": 11,
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "buffer": 12,
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "buffer": 13,
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "buffer": 14,
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "buffer": 15,
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "buffer": 16,
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "buffer": 17,
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "buffer": 18,
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "buffer": 19,
+      "byteLength": 96
+    }
+  ],
+  "buffers": [
+    {
+      "name": "INDEX",
+      "uri": "data:application/octet-stream;base64,AAAAAAEAAAACAAAAAgAAAAMAAAAAAAAABAAAAAUAAAAGAAAABgAAAAcAAAAEAAAACAAAAAkAAAAKAAAACgAAAAsAAAAIAAAADAAAAA0AAAAOAAAADgAAAA8AAAAMAAAAEAAAABEAAAASAAAAEgAAABMAAAAQAAAAFAAAABUAAAAWAAAAFgAAABcAAAAUAAAA",
+      "byteLength": 144
+    },
+    {
+      "name": "POSITION",
+      "uri": "data:application/octet-stream;base64,AAAAPwAAAD8AAAA/AAAAPwAAAL8AAAA/AAAAPwAAAL8AAAC/AAAAPwAAAD8AAAC/AAAAPwAAAD8AAAA/AAAAPwAAAD8AAAC/AAAAvwAAAD8AAAC/AAAAvwAAAD8AAAA/AAAAPwAAAD8AAAA/AAAAvwAAAD8AAAA/AAAAvwAAAL8AAAA/AAAAPwAAAL8AAAA/AAAAvwAAAL8AAAA/AAAAvwAAAD8AAAA/AAAAvwAAAD8AAAC/AAAAvwAAAL8AAAC/AAAAPwAAAL8AAAC/AAAAPwAAAL8AAAA/AAAAvwAAAL8AAAA/AAAAvwAAAL8AAAC/AAAAvwAAAD8AAAC/AAAAPwAAAD8AAAC/AAAAPwAAAL8AAAC/AAAAvwAAAL8AAAC/",
+      "byteLength": 288
+    },
+    {
+      "name": "NORMAL",
+      "uri": "data:application/octet-stream;base64,AACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/",
+      "byteLength": 288
+    },
+    {
+      "name": "TEXCOORD_0",
+      "uri": "data:application/octet-stream;base64,AAAAAAAAAAAAAIA/AAAAAAAAgD8AAIA/AAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAACAPwAAgD8AAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAIA/AACAPwAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAgD8AAIA/AAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAACAPwAAgD8AAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAIA/AACAPwAAAAAAAIA/",
+      "byteLength": 192
+    },
+    {
+      "name": "COLOR_0",
+      "uri": "data:application/octet-stream;base64,o6Kl/6Oipf+joqX/o6Kl/6Oipf+joqX/o6Kl/6Oipf+joqX/o6Kl/6Oipf+joqX/o6Kl/6Oipf+joqX/o6Kl/6Oipf+joqX/o6Kl/6Oipf+joqX/o6Kl/6Oipf+joqX/",
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "uri": "data:application/octet-stream;base64,W1tb/1tbW/9bW1v/W1tb/1tbW/9bW1v/W1tb/1tbW/9bW1v/W1tb/1tbW/9bW1v/W1tb/1tbW/9bW1v/W1tb/1tbW/9bW1v/W1tb/1tbW/9bW1v/W1tb/1tbW/9bW1v/",
+      "byteLength": 96
+    },
+    {
+      "name": "INDEX",
+      "uri": "data:application/octet-stream;base64,AAAAAAEAAAACAAAAAgAAAAEAAAADAAAA",
+      "byteLength": 24
+    },
+    {
+      "name": "POSITION",
+      "uri": "data:application/octet-stream;base64,AAAAv+xRAD8AAAA/AAAAP+xRAD8AAAA/AAAAv+xRAD8AAAC/AAAAP+xRAD8AAAC/",
+      "byteLength": 48
+    },
+    {
+      "name": "NORMAL",
+      "uri": "data:application/octet-stream;base64,AAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAA",
+      "byteLength": 48
+    },
+    {
+      "name": "TEXCOORD_0",
+      "uri": "data:application/octet-stream;base64,AACAQwAAAAAAAAAAAAAAAAAAgEMAAIBDAAAAAAAAgEM=",
+      "byteLength": 32
+    },
+    {
+      "name": "COLOR_0",
+      "uri": "data:application/octet-stream;base64,AAAAMwAAADMAAAAzAAAAMw==",
+      "byteLength": 16
+    },
+    {
+      "name": "COLOR_0",
+      "uri": "data:application/octet-stream;base64,H4Ad/x+AHf8fgB3/H4Ad/x+AHf8fgB3/H4Ad/x+AHf8fgB3/H4Ad/x+AHf8fgB3/H4Ad/x+AHf8fgB3/H4Ad/x+AHf8fgB3/H4Ad/x+AHf8fgB3/H4Ad/x+AHf8fgB3/",
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "uri": "data:application/octet-stream;base64,pQAD/6UAA/+lAAP/pQAD/6UAA/+lAAP/pQAD/6UAA/+lAAP/pQAD/6UAA/+lAAP/pQAD/6UAA/+lAAP/pQAD/6UAA/+lAAP/pQAD/6UAA/+lAAP/pQAD/6UAA/+lAAP/",
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "uri": "data:application/octet-stream;base64,Gyo1/xsqNf8bKjX/Gyo1/xsqNf8bKjX/Gyo1/xsqNf8bKjX/Gyo1/xsqNf8bKjX/Gyo1/xsqNf8bKjX/Gyo1/xsqNf8bKjX/Gyo1/xsqNf8bKjX/Gyo1/xsqNf8bKjX/",
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "uri": "data:application/octet-stream;base64,+Pj4//j4+P/4+Pj/+Pj4//j4+P/4+Pj/+Pj4//j4+P/4+Pj/+Pj4//j4+P/4+Pj/+Pj4//j4+P/4+Pj/+Pj4//j4+P/4+Pj/+Pj4//j4+P/4+Pj/+Pj4//j4+P/4+Pj/",
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "uri": "data:application/octet-stream;base64,S5dL/0uXS/9Ll0v/S5dL/0uXS/9Ll0v/S5dL/0uXS/9Ll0v/S5dL/0uXS/9Ll0v/S5dL/0uXS/9Ll0v/S5dL/0uXS/9Ll0v/S5dL/0uXS/9Ll0v/S5dL/0uXS/9Ll0v/",
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "uri": "data:application/octet-stream;base64,KH9H/yh/R/8of0f/KH9H/yh/R/8of0f/KH9H/yh/R/8of0f/KH9H/yh/R/8of0f/KH9H/yh/R/8of0f/KH9H/yh/R/8of0f/KH9H/yh/R/8of0f/KH9H/yh/R/8of0f/",
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "uri": "data:application/octet-stream;base64,J0Yt/ydGLf8nRi3/J0Yt/ydGLf8nRi3/J0Yt/ydGLf8nRi3/J0Yt/ydGLf8nRi3/J0Yt/ydGLf8nRi3/J0Yt/ydGLf8nRi3/J0Yt/ydGLf8nRi3/J0Yt/ydGLf8nRi3/",
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "uri": "data:application/octet-stream;base64,ACBg/wAgYP8AIGD/ACBg/wAgYP8AIGD/ACBg/wAgYP8AIGD/ACBg/wAgYP8AIGD/ACBg/wAgYP8AIGD/ACBg/wAgYP8AIGD/ACBg/wAgYP8AIGD/ACBg/wAgYP8AIGD/",
+      "byteLength": 96
+    },
+    {
+      "name": "COLOR_0",
+      "uri": "data:application/octet-stream;base64,6LrI/+i6yP/ousj/6LrI/+i6yP/ousj/6LrI/+i6yP/ousj/6LrI/+i6yP/ousj/6LrI/+i6yP/ousj/6LrI/+i6yP/ousj/6LrI/+i6yP/ousj/6LrI/+i6yP/ousj/",
+      "byteLength": 96
+    }
+  ],
+  "images": [
+    {
+      "uri": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAAGQCAYAAACAvzbMAAAABHNCSVQICAgIfAhkiAAACM1JREFUeJzt3EFOI70CRlHqiTWxvYTtsSm/CS2500H8fUmXY+mcSUSYfB6UruQSHGOM8QIAf+l/qwcAsCcBASAREACS1zvffZy+4ufePj933D5zjvXevvn9+ykrHuvy+bnj9plzrHeZf7gXkJeXvR782wd+p+0z51jvu3i8vLy8vBzHcf3HOx5mjHGdf95p+8w51rvd/vLiCguASEAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIXr/4/u3UFY+18/aZczypMcZ19YZq5+0z53gOxxhjrB4BwH5cYQGQ3LvC+jh9xc/9uibZcfvMOdb77srt/ZQVj3X5/Nxx+8w51rvMP3z1DmSnB//2gd9p+8w51vtP72uO47j+4x0Pc3vHvtP2mXOsd+99jSssABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREACS1y++fzt1xWPtvH3mHE9qjHFdvaHaefvMOZ7DMcYYq0cAsB9XWAAk966wPk5f8XO/rkl23D5zjvW+u3J7P2XFY10+P3fcPnOO9S7zD1+9A9npwb994HfaPnOO9f7T+5rjOK7/eMfD3N6x77R95hzr3Xtf4woLgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIDk9Yvv305d8Vg7b585x5MaY1xXb6h23j5zjudwjDHG6hEA7McVFgDJvSusj9NX/Nyva5Idt8+cY73vrtzeT1nxWJfPzx23z5xjvcv8w1fvQHZ68G8f+J22z5xjvf/0vuY4jus/3vEwt3fsO22fOcd6997XuMICIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAktcvvn87dcVj7bx95hxPaoxxXb2h2nn7zDmewzHGGKtHALAfV1gAJAICQCIgACQCAkAiIAAkAgJAIiAAJPf+kPD99BU/d/n83HH7zDnWu3zz+49TVjzWrz/m3HH7zDnW++0Pg+/+JfpxHNdTpjzA7V9y7rR95hzr/cVfBe/04N/+J4Cdts+cY70//quEKywAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgeb335RjjevKOh9l5+8w5ntrb6gE/sPP2mXM8gWOMMVaPAGA/rrAASO5dYb2fvuLnLp+fO26fOcd6l29+/3HKisf6dU2y4/aZc6z325Xb3Xcgx3FcT5nyALd37DttnznHen/xvmanB//2jn2n7TPnWO+P9zWusABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASF7vfTnGuJ6842F23j5zjqf2tnrAD+y8feYcT+AYY4zVIwDYjyssAJJ7V1jvp6/4ucvn547bZ86x3uWb33+csuKxfl2T7Lh95hzr/XbldvcdyHEc11OmPMDtHftO22fOsd5fvK/Z6cG/vWPfafvMOdb7432NKywAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQAJLXe1+OMa4n73iYnbfPnOOpva0e8AM7b585xxM4xhhj9QgA9uMKC4Dk3hXW++krfu7y+bnj9plzrHf55vcfp6x4rF/XJDtunznHer9dud19B3Icx/WUKQ9we8e+0/aZc6z3F+9rdnrwb+/Yd9o+c471/nhf4woLgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASAQEgERAAEgEBIBEQABIBASAREAASF7vfTnGuJ6842F23j5zjqf2tnrAD+y8feYcT+AYY4zVIwDYjyssABIBASAREACS/wN0nn2TFlXQowAAAABJRU5ErkJggg=="
+    }
+  ],
+  "meshes": [
+    {
+      "name": "CenterStage",
+      "primitives": [
+        {
+          "indices": 0,
+          "material": 0,
+          "attributes": {
+            "POSITION": 1,
+            "NORMAL": 2,
+            "TEXCOORD_0": 3,
+            "COLOR_0": 4
+          }
+        }
+      ]
+    },
+    {
+      "name": "Baseplate",
+      "primitives": [
+        {
+          "indices": 0,
+          "material": 1,
+          "attributes": {
+            "POSITION": 1,
+            "NORMAL": 2,
+            "TEXCOORD_0": 3,
+            "COLOR_0": 5
+          }
+        }
+      ]
+    },
+    {
+      "name": "Texture",
+      "primitives": [
+        {
+          "indices": 6,
+          "material": 2,
+          "attributes": {
+            "POSITION": 7,
+            "NORMAL": 8,
+            "TEXCOORD_0": 9,
+            "COLOR_0": 10
+          }
+        }
+      ]
+    },
+    {
+      "name": "11",
+      "primitives": [
+        {
+          "indices": 0,
+          "material": 3,
+          "attributes": {
+            "POSITION": 1,
+            "NORMAL": 2,
+            "TEXCOORD_0": 3,
+            "COLOR_0": 11
+          }
+        }
+      ]
+    },
+    {
+      "name": "20",
+      "primitives": [
+        {
+          "indices": 0,
+          "material": 4,
+          "attributes": {
+            "POSITION": 1,
+            "NORMAL": 2,
+            "TEXCOORD_0": 3,
+            "COLOR_0": 12
+          }
+        }
+      ]
+    },
+    {
+      "name": "12",
+      "primitives": [
+        {
+          "indices": 0,
+          "material": 5,
+          "attributes": {
+            "POSITION": 1,
+            "NORMAL": 2,
+            "TEXCOORD_0": 3,
+            "COLOR_0": 13
+          }
+        }
+      ]
+    },
+    {
+      "name": "15",
+      "primitives": [
+        {
+          "indices": 0,
+          "material": 6,
+          "attributes": {
+            "POSITION": 1,
+            "NORMAL": 2,
+            "TEXCOORD_0": 3,
+            "COLOR_0": 14
+          }
+        }
+      ]
+    },
+    {
+      "name": "1",
+      "primitives": [
+        {
+          "indices": 0,
+          "material": 7,
+          "attributes": {
+            "POSITION": 1,
+            "NORMAL": 2,
+            "TEXCOORD_0": 3,
+            "COLOR_0": 15
+          }
+        }
+      ]
+    },
+    {
+      "name": "27",
+      "primitives": [
+        {
+          "indices": 0,
+          "material": 8,
+          "attributes": {
+            "POSITION": 1,
+            "NORMAL": 2,
+            "TEXCOORD_0": 3,
+            "COLOR_0": 16
+          }
+        }
+      ]
+    },
+    {
+      "name": "36",
+      "primitives": [
+        {
+          "indices": 0,
+          "material": 9,
+          "attributes": {
+            "POSITION": 1,
+            "NORMAL": 2,
+            "TEXCOORD_0": 3,
+            "COLOR_0": 17
+          }
+        }
+      ]
+    },
+    {
+      "name": "39",
+      "primitives": [
+        {
+          "indices": 0,
+          "material": 10,
+          "attributes": {
+            "POSITION": 1,
+            "NORMAL": 2,
+            "TEXCOORD_0": 3,
+            "COLOR_0": 18
+          }
+        }
+      ]
+    },
+    {
+      "name": "0",
+      "primitives": [
+        {
+          "indices": 0,
+          "material": 11,
+          "attributes": {
+            "POSITION": 1,
+            "NORMAL": 2,
+            "TEXCOORD_0": 3,
+            "COLOR_0": 19
+          }
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.639215708, 0.635294139, 0.647058845, 1]
+      }
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.356862754, 0.356862754, 0.356862754, 1]
+      }
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        }
+      },
+      "alphaMode": "BLEND"
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.121568628, 0.501960814, 0.113725491, 1]
+      }
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.647058845, 0, 0.0117647061, 1]
+      }
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.105882354, 0.164705887, 0.20784314, 1]
+      }
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.972549021, 0.972549021, 0.972549021, 1]
+      }
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.294117659, 0.592156887, 0.294117659, 1]
+      }
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.156862751, 0.498039216, 0.278431386, 1]
+      }
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.152941182, 0.274509817, 0.176470593, 1]
+      }
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0, 0.125490203, 0.376470596, 1]
+      }
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.909803927, 0.729411781, 0.784313738, 1]
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "children": [ 1, 2, 4 ],
+      "name": "Workspace",
+      "extras": {"RobloxInstanceType":"Workspace","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100000002"}
+    },
+    {
+      "children": [ ],
+      "mesh": 0,
+      "name": "CenterStage",
+      "translation": [-60, 0.5, 60],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"1c6fb568-9a6d-dd3e-0986-ea150000b503","Shape":"Block","Material":"plastic","Color":"(163, 162, 165)","Transparency":0,"Anchored":true}
+    },
+    {
+      "children": [ 3 ],
+      "mesh": 1,
+      "name": "Baseplate",
+      "translation": [0, -8, 0],
+      "scale": [2048, 16, 2048],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d3110000039e","Shape":"Block","Material":"plastic","Color":"(91, 91, 91)","Transparency":0,"Anchored":true}
+    },
+    {
+      "children": [ ],
+      "mesh": 2,
+      "name": "Texture",
+      "extras": {"RobloxInstanceType":"Texture","RobloxUniqueId":"4688c916-ee59-a454-0986-d3110000039f","RobloxDecalTextureId":"rbxassetid://6372755229"}
+    },
+    {
+      "children": [ 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44 ],
+      "name": "Tiles",
+      "extras": {"RobloxInstanceType":"Folder","RobloxUniqueId":"4688c916-ee59-a454-0986-d311000008c6"}
+    },
+    {
+      "children": [ ],
+      "mesh": 3,
+      "name": "11",
+      "translation": [-12, 0.5, 118],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100003884","Shape":"Block","Material":"plastic","Color":"(31, 128, 29)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 4,
+      "name": "20",
+      "translation": [-120, 0.5, 118],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100003883","Shape":"Block","Material":"plastic","Color":"(165, 0, 3)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 3,
+      "name": "19",
+      "translation": [-108, 0.5, 118],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100003882","Shape":"Block","Material":"plastic","Color":"(31, 128, 29)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 3,
+      "name": "18",
+      "translation": [-96, 0.5, 118],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100003881","Shape":"Block","Material":"plastic","Color":"(31, 128, 29)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 3,
+      "name": "17",
+      "translation": [-84, 0.5, 118],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100003880","Shape":"Block","Material":"plastic","Color":"(31, 128, 29)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 5,
+      "name": "12",
+      "translation": [-24, 0.5, 118],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d3110000387f","Shape":"Block","Material":"plastic","Color":"(27, 42, 53)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 3,
+      "name": "13",
+      "translation": [-36, 0.5, 118],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d3110000387e","Shape":"Block","Material":"plastic","Color":"(31, 128, 29)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 3,
+      "name": "14",
+      "translation": [-48, 0.5, 118],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d3110000387d","Shape":"Block","Material":"plastic","Color":"(31, 128, 29)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 6,
+      "name": "15",
+      "translation": [-60, 0.5, 118],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d3110000387c","Shape":"Block","Material":"plastic","Color":"(248, 248, 248)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 3,
+      "name": "16",
+      "translation": [-72, 0.5, 118],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d3110000387b","Shape":"Block","Material":"plastic","Color":"(31, 128, 29)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 7,
+      "name": "1",
+      "translation": [0, 0.5, 10],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d311000007c0","Shape":"Block","Material":"plastic","Color":"(75, 151, 75)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 8,
+      "name": "27",
+      "translation": [-120, 0.5, 34],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100003f26","Shape":"Block","Material":"plastic","Color":"(40, 127, 71)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 8,
+      "name": "21",
+      "translation": [-120, 0.5, 106],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100003e7e","Shape":"Block","Material":"plastic","Color":"(40, 127, 71)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 8,
+      "name": "22",
+      "translation": [-120, 0.5, 94],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100003e7d","Shape":"Block","Material":"plastic","Color":"(40, 127, 71)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 8,
+      "name": "23",
+      "translation": [-120, 0.5, 82],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100003e7c","Shape":"Block","Material":"plastic","Color":"(40, 127, 71)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 8,
+      "name": "24",
+      "translation": [-120, 0.5, 70],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100003e7b","Shape":"Block","Material":"plastic","Color":"(40, 127, 71)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 6,
+      "name": "25",
+      "translation": [-120, 0.5, 58],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100003e7a","Shape":"Block","Material":"plastic","Color":"(248, 248, 248)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 8,
+      "name": "26",
+      "translation": [-120, 0.5, 46],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100003e79","Shape":"Block","Material":"plastic","Color":"(40, 127, 71)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 8,
+      "name": "28",
+      "translation": [-120, 0.5, 22],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100003de2","Shape":"Block","Material":"plastic","Color":"(40, 127, 71)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 9,
+      "name": "36",
+      "translation": [-48, 0.5, -2],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100002999","Shape":"Block","Material":"plastic","Color":"(39, 70, 45)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 5,
+      "name": "32",
+      "translation": [-96, 0.5, -2],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100002ba1","Shape":"Block","Material":"plastic","Color":"(27, 42, 53)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 9,
+      "name": "31",
+      "translation": [-108, 0.5, -2],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100002c66","Shape":"Block","Material":"plastic","Color":"(39, 70, 45)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 8,
+      "name": "29",
+      "translation": [-120, 0.5, 10],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100002d3d","Shape":"Block","Material":"plastic","Color":"(40, 127, 71)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 10,
+      "name": "39",
+      "translation": [-12, 0.5, -2],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100001b96","Shape":"Block","Material":"plastic","Color":"(0, 32, 96)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 6,
+      "name": "35",
+      "translation": [-60, 0.5, -2],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d311000029fd","Shape":"Block","Material":"plastic","Color":"(248, 248, 248)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 9,
+      "name": "34",
+      "translation": [-72, 0.5, -2],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100002a63","Shape":"Block","Material":"plastic","Color":"(39, 70, 45)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 9,
+      "name": "33",
+      "translation": [-84, 0.5, -2],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100002acb","Shape":"Block","Material":"plastic","Color":"(39, 70, 45)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 4,
+      "name": "30",
+      "translation": [-120, 0.5, -2],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100002b35","Shape":"Block","Material":"plastic","Color":"(165, 0, 3)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 9,
+      "name": "37",
+      "translation": [-36, 0.5, -2],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d311000028b6","Shape":"Block","Material":"plastic","Color":"(39, 70, 45)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 9,
+      "name": "38",
+      "translation": [-24, 0.5, -2],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100001a21","Shape":"Block","Material":"plastic","Color":"(39, 70, 45)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 4,
+      "name": "10",
+      "translation": [0, 0.5, 118],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d311000010f3","Shape":"Block","Material":"plastic","Color":"(165, 0, 3)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 7,
+      "name": "9",
+      "translation": [0, 0.5, 106],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d3110000108f","Shape":"Block","Material":"plastic","Color":"(75, 151, 75)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 7,
+      "name": "8",
+      "translation": [0, 0.5, 94],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100001018","Shape":"Block","Material":"plastic","Color":"(75, 151, 75)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 7,
+      "name": "7",
+      "translation": [0, 0.5, 82],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100000f45","Shape":"Block","Material":"plastic","Color":"(75, 151, 75)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 7,
+      "name": "6",
+      "translation": [0, 0.5, 70],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100000ede","Shape":"Block","Material":"plastic","Color":"(75, 151, 75)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 6,
+      "name": "5",
+      "translation": [0, 0.5, 58],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100000dfe","Shape":"Block","Material":"plastic","Color":"(248, 248, 248)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 7,
+      "name": "4",
+      "translation": [0, 0.5, 46],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100000d90","Shape":"Block","Material":"plastic","Color":"(75, 151, 75)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 7,
+      "name": "3",
+      "translation": [6.10351562e-05, 0.5, 34],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100000d22","Shape":"Block","Material":"plastic","Color":"(75, 151, 75)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 7,
+      "name": "2",
+      "translation": [0, 0.5, 22],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d31100000bac","Shape":"Block","Material":"plastic","Color":"(75, 151, 75)","Transparency":0,"Anchored":false}
+    },
+    {
+      "children": [ ],
+      "mesh": 11,
+      "name": "0",
+      "translation": [0, 0.5, -2],
+      "scale": [12, 1, 12],
+      "extras": {"RobloxInstanceType":"Part","RobloxUniqueId":"4688c916-ee59-a454-0986-d311000040fa","Shape":"Block","Material":"plastic","Color":"(232, 186, 200)","Transparency":0,"Anchored":false}
+    }
+  ],
+  "scenes": [
+    {
+      "nodes": [ 0 ]
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    }
+  ]
+}
+
