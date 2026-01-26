@@ -171,6 +171,21 @@ endTurnButton.Visible = false -- Hidden initially
 endTurnButton.Parent = screenGui
 Instance.new("UICorner", endTurnButton).CornerRadius = UDim.new(0, 16)
 
+-- 2.5 RESET CAMERA + CHARACTER BUTTON
+local resetButton = Instance.new("TextButton")
+resetButton.Name = "ResetButton"
+resetButton.Size = UDim2.new(0, 120, 0, 50)
+resetButton.Position = UDim2.new(1, -40, 0.5, 100) -- Below Roll button
+resetButton.AnchorPoint = Vector2.new(1, 0.5)
+resetButton.BackgroundColor3 = Color3.fromRGB(100, 100, 200) -- Blue
+resetButton.Text = "🔄 RESET"
+resetButton.Font = Enum.Font.FredokaOne
+resetButton.TextSize = 18
+resetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+resetButton.Visible = true
+resetButton.Parent = screenGui
+Instance.new("UICorner", resetButton).CornerRadius = UDim.new(0, 12)
+
 -- 3. STATUS/LOG LABEL (Small top center)
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Name = "StatusLabel"
@@ -373,4 +388,20 @@ task.spawn(function()
 		end
 		task.wait(0.5)
 	end
+end)
+
+-- [[ RESET BUTTON CLICK ]] --
+local resetCharEvent = ReplicatedStorage:WaitForChild("ResetCharacterEvent", 10)
+resetButton.MouseButton1Click:Connect(function()
+	-- 1. Reset Camera to default
+	local camera = workspace.CurrentCamera
+	camera.CameraType = Enum.CameraType.Custom
+	camera.CameraSubject = player.Character and player.Character:FindFirstChild("Humanoid")
+	
+	-- 2. Fire Server to teleport character to last tile
+	if resetCharEvent then
+		resetCharEvent:FireServer()
+	end
+	
+	print("Reset: Camera reset and teleport requested")
 end)

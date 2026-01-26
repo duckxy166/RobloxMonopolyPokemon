@@ -18,6 +18,7 @@ end)
 
 yesBtn.MouseButton1Click:Connect(function()
 	print("✅ Buy clicked (sending to server)")
+	shopFrame.Visible = false -- Hide UI
 	shopEvent:FireServer("Buy") -- Send Buy action
 end)
 

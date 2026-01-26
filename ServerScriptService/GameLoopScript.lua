@@ -1,4 +1,4 @@
---[[
+﻿--[[
 ================================================================================
                       🎮 GAME LOOP SCRIPT - Pokemon Monopoly Core
 ================================================================================
@@ -249,6 +249,23 @@ local playersInGame = {}
 local currentTurnIndex = 1 
 local isTurnActive = false 
 
+-- TOKEN OFFSET SYSTEM (4 players per tile)
+local playerSlots = {} -- [userId] = slot (1-4)
+local TOKEN_OFFSETS = {
+	[1] = Vector3.new(-2, 0, -2),  -- Front-Left
+	[2] = Vector3.new(2, 0, -2),   -- Front-Right
+	[3] = Vector3.new(-2, 0, 2),   -- Back-Left
+	[4] = Vector3.new(2, 0, 2),    -- Back-Right
+}
+
+-- TIMER SYSTEM
+local turnPhase = "Idle" -- Draw, Roll, Event
+local turnTimerTask = nil
+local DRAW_TIMEOUT = 10
+local ROLL_TIMEOUT = 30
+local SHOP_TIMEOUT = 20
+local ENCOUNTER_TIMEOUT = 10
+
 local POKEMON_DB = {
 	{ Name = "Bulbasaur", Rarity = "Common", ModelName = "Bulbasaur" }, 
 	{ Name = "Charmander", Rarity = "Common", ModelName = "Charmander" },
@@ -262,6 +279,24 @@ local DIFFICULTY = { ["Common"] = 2, ["Rare"] = 4, ["Legendary"] = 6 }
 local function clearCenterStage()
 	if currentSpawnedPokemon then currentSpawnedPokemon:Destroy(); currentSpawnedPokemon = nil end
 	centerStage.Transparency = 1 -- Hide stage
+end
+
+-- Get player's position on tile with offset (so 4 players don't stack)
+local function getPlayerTilePosition(player, tile)
+	local slot = playerSlots[player.UserId] or 1
+	local offset = TOKEN_OFFSETS[slot] or Vector3.new(0, 0, 0)
+	return tile.Position + offset + Vector3.new(0, 3, 0) -- 3 studs above tile
+end
+
+-- Teleport player to their last tile position
+local function teleportToLastTile(player)
+	local tileIndex = playerPositions[player.UserId] or 0
+	local tile = tilesFolder:FindFirstChild(tostring(tileIndex))
+	local char = player.Character
+	if tile and char and char.PrimaryPart then
+		char:SetPrimaryPartCFrame(CFrame.new(getPlayerTilePosition(player, tile)))
+		print("Reset: Teleported " .. player.Name .. " to tile " .. tileIndex)
+	end
 end
 
 -- Walking Logic
@@ -311,7 +346,8 @@ local function processPlayerRoll(player)
 		local nextTile = tilesFolder:FindFirstChild(tostring(currentPos))
 
 		if nextTile and humanoid then
-			humanoid:MoveTo(nextTile.Position)
+			-- Use offset position so players don't stack
+			humanoid:MoveTo(getPlayerTilePosition(player, nextTile))
 			humanoid.MoveToFinished:Wait()
 
 			if repelLeft > 0 then repelLeft = repelLeft - 1; playerRepelSteps[player.UserId] = repelLeft end
@@ -330,6 +366,17 @@ local function processPlayerRoll(player)
 					playerInShop[player.UserId] = true
 
 					shopEvent:FireClient(player)
+					
+					-- Start Shop Timer (20 seconds)
+					turnPhase = "Shop"
+					cancelTimer()
+					turnTimerTask = task.delay(SHOP_TIMEOUT, function()
+						if turnPhase == "Shop" and player == playersInGame[currentTurnIndex] then
+							print("Timer: Shop timeout, auto-closing for " .. player.Name)
+							playerInShop[player.UserId] = false
+							nextTurn()
+						end
+					end)
 					return
 
 
@@ -540,7 +587,8 @@ function nextTurn()
 			isTurnActive = true
 			playerInShop[p.UserId] = false
 			print("🎲 [Server] Turn started for:", p.Name, "| isTurnActive:", isTurnActive)
-			updateTurnEvent:FireAllClients(p.Name)
+			-- Start with Draw Phase (Timer System)
+			enterDrawPhase(p)
 			return
 		end
 	end
@@ -593,16 +641,15 @@ shopEvent.OnServerEvent:Connect(function(player, action)
 			end
 		end
 	end
-	
+
 	-- Functionally, both Buy (Yes) and Exit (No) close the UI (Client Side), 
-	-- But now we DO NOT end turn automatically. We let player use cards.
-	print("Player finished shop action: " .. tostring(action) .. " -> Phase 2")
+	-- Cancel timer since player took action
+	print("Player finished shop action: " .. tostring(action) .. " -> Auto End Turn")
+	cancelTimer()
 	playerInShop[player.UserId] = false
-	task.wait(0.2)
-	
-	-- Signal Client to show "End Turn" button
-	local phaseEvent = ReplicatedStorage:FindFirstChild("PhaseChangeEvent")
-	if phaseEvent then phaseEvent:FireClient(player, "EndPhase") end
+	task.wait(0.5)
+
+	nextTurn()
 end)
 
 -- Pokemon Spawning (Physics based)
@@ -663,6 +710,18 @@ function spawnPokemonEncounter(player)
 	end
 
 	encounterEvent:FireAllClients(player, randomPoke)
+	
+	-- Start Encounter Timer (10 seconds for Catch/Run decision)
+	turnPhase = "Encounter"
+	cancelTimer()
+	turnTimerTask = task.delay(ENCOUNTER_TIMEOUT, function()
+		if turnPhase == "Encounter" and player == playersInGame[currentTurnIndex] then
+			print("Timer: No action taken, forcing Auto-Run for " .. player.Name)
+			runEvent:FireAllClients(player)
+			clearCenterStage()
+			nextTurn()
+		end
+	end)
 end
 
 -- Lucky Cards & Items Logic
@@ -690,15 +749,18 @@ local function onPlayerAdded(player)
 	print("👥 [Server] Player added to game! Total players:", #playersInGame)
 	playerPositions[player.UserId] = 0 
 	playerRepelSteps[player.UserId] = 0 
+	
+	-- Assign slot (1-4) for token offset positioning
+	playerSlots[player.UserId] = #playersInGame -- 1st player = slot 1, etc.
 
 	local leaderstats = Instance.new("Folder"); leaderstats.Name = "leaderstats"; leaderstats.Parent = player
 	local money = Instance.new("IntValue"); money.Name = "Money"; money.Value = 10; money.Parent = leaderstats
 	local balls = Instance.new("IntValue"); balls.Name = "Pokeballs"; balls.Value = 5; balls.Parent = leaderstats
 	local inventory = Instance.new("Folder"); inventory.Name = "PokemonInventory" ;inventory.Parent = player
-	
+
 	-- Items folder: for Lucky Cards (Rare Candy, Repel, Revive)
 	local items = Instance.new("Folder"); items.Name = "Items"; items.Parent = player
-	
+
 	-- Hand folder: max 5 cards
 	local hand = Instance.new("Folder"); hand.Name = "Hand"; hand.Parent = player
 
@@ -748,7 +810,7 @@ end)
 
 
 rollEvent.OnServerEvent:Connect(function(player) processPlayerRoll(player) end)
-	catchEvent.OnServerEvent:Connect(function(player, pokeData)
+catchEvent.OnServerEvent:Connect(function(player, pokeData)
 	local balls = player.leaderstats.Pokeballs
 	balls.Value = balls.Value - 1
 
@@ -764,7 +826,7 @@ rollEvent.OnServerEvent:Connect(function(player) processPlayerRoll(player) end)
 		newPoke.Name = pokeData.Name
 		newPoke.Value = pokeData.Rarity
 		newPoke.Parent = player.PokemonInventory
-		
+
 		-- Bonus money
 		player.leaderstats.Money.Value = player.leaderstats.Money.Value + 5 
 	end
@@ -777,22 +839,23 @@ rollEvent.OnServerEvent:Connect(function(player) processPlayerRoll(player) end)
 
 	-- 5. End turn if needed
 	if isFinished then 
-		task.wait(5) 
+		cancelTimer() -- Player took action
+		task.wait(3) 
 		clearCenterStage()
-		
-		-- Signal Phase 2 (End Turn Button) instead of auto-next
-		local phaseEvent = ReplicatedStorage:FindFirstChild("PhaseChangeEvent")
-		if phaseEvent then phaseEvent:FireClient(player, "EndPhase") end
+
+		-- Auto End Turn
+		nextTurn()
 	end
 end)
 
 runEvent.OnServerEvent:Connect(function(player) 
+	cancelTimer() -- Player chose to run
 	runEvent:FireAllClients(player) 
+	task.wait(1)
 	clearCenterStage()
-	
-	-- Signal Phase 2
-	local phaseEvent = ReplicatedStorage:FindFirstChild("PhaseChangeEvent")
-	if phaseEvent then phaseEvent:FireClient(player, "EndPhase") end
+
+	-- Auto End Turn
+	nextTurn()
 end)
 
 -- End Turn Handler (Manual)
@@ -802,4 +865,68 @@ endTurnEvent.OnServerEvent:Connect(function(player)
 		print("Server: Player manually ended turn -> Next Turn")
 		nextTurn()
 	end
+end)
+
+-- Reset Character Event Handler (Teleport to last tile)
+local resetCharEvent = getOrCreateEvent("ResetCharacterEvent")
+resetCharEvent.OnServerEvent:Connect(function(player)
+	teleportToLastTile(player)
+end)
+
+-- ==========================================
+-- PHASE SYSTEM: Timer-based Turn Flow
+-- ==========================================
+local drawPhaseEvent = getOrCreateEvent("DrawPhaseEvent")
+
+-- Cancel any active timer
+local function cancelTimer()
+	if turnTimerTask then task.cancel(turnTimerTask); turnTimerTask = nil end
+end
+
+-- Phase: Draw (Hidden timer - 10s to auto-draw)
+function enterDrawPhase(player)
+	turnPhase = "Draw"
+	isTurnActive = true
+	print("Phase: Enter Draw Phase for:", player.Name)
+	
+	drawPhaseEvent:FireClient(player, "Start")
+	
+	cancelTimer()
+	turnTimerTask = task.delay(DRAW_TIMEOUT, function()
+		if turnPhase == "Draw" and player == playersInGame[currentTurnIndex] then
+			print("Timer: Auto-Draw triggered for " .. player.Name)
+			performDrawAction(player)
+		end
+	end)
+end
+
+-- Perform draw action (manual or timeout)
+function performDrawAction(player)
+	if turnPhase ~= "Draw" then return end
+	cancelTimer()
+	
+	drawOneCard(player)
+	enterRollPhase(player)
+end
+
+-- Phase: Roll (30s timer for card skills + roll)
+function enterRollPhase(player)
+	turnPhase = "Roll"
+	print("Phase: Enter Roll Phase for:", player.Name)
+	
+	updateTurnEvent:FireAllClients(player.Name) -- UI shows "Your Turn"
+	
+	cancelTimer()
+	turnTimerTask = task.delay(ROLL_TIMEOUT, function()
+		if turnPhase == "Roll" and player == playersInGame[currentTurnIndex] then
+			print("Timer: Auto-Roll triggered for " .. player.Name)
+			processPlayerRoll(player)
+		end
+	end)
+end
+
+-- Draw Phase Event Handler (manual click from client)
+drawPhaseEvent.OnServerEvent:Connect(function(player)
+	if player ~= playersInGame[currentTurnIndex] then return end
+	performDrawAction(player)
 end)
