@@ -668,7 +668,7 @@ local function onPlayerAdded(player)
 	playerRepelSteps[player.UserId] = 0 
 
 	local leaderstats = Instance.new("Folder"); leaderstats.Name = "leaderstats"; leaderstats.Parent = player
-	local money = Instance.new("IntValue"); money.Name = "Money"; money.Value = 20; money.Parent = leaderstats
+	local money = Instance.new("IntValue"); money.Name = "Money"; money.Value = 10; money.Parent = leaderstats
 	local balls = Instance.new("IntValue"); balls.Name = "Pokeballs"; balls.Value = 5; balls.Parent = leaderstats
 	local inventory = Instance.new("Folder"); inventory.Name = "PokemonInventory" ;inventory.Parent = player
 	
@@ -678,10 +678,21 @@ local function onPlayerAdded(player)
 	-- Hand folder: max 5 cards
 	local hand = Instance.new("Folder"); hand.Name = "Hand"; hand.Parent = player
 
+	-- Give 3 starter cards
+	for i = 1, 3 do
+		drawOneCard(player)
+	end
+
 	-- Status: shield / sleep
 	local status = Instance.new("Folder"); status.Name = "Status"; status.Parent = player
 	local shield = Instance.new("BoolValue"); shield.Name = "Shield"; shield.Value = false; shield.Parent = status
 	local sleep = Instance.new("IntValue"); sleep.Name = "SleepTurns"; sleep.Value = 0; sleep.Parent = status
+
+	-- Give Starter Pokemon
+	local starterPoke = Instance.new("StringValue")
+	starterPoke.Name = "Bulbasaur"
+	starterPoke.Value = "Common" 
+	starterPoke.Parent = inventory
 
 
 	if #playersInGame == 1 then 
