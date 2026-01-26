@@ -48,6 +48,8 @@ local updateTurnEvent = getOrCreateEvent("UpdateTurnEvent")
 local notifyEvent = getOrCreateEvent("NotifyEvent")
 local shopEvent = getOrCreateEvent("ShopEvent")
 local useItemEvent = getOrCreateEvent("UseItemEvent")
+local endTurnEvent = getOrCreateEvent("EndTurnEvent")
+local phaseEvent = getOrCreateEvent("PhaseChangeEvent")
 
 
 
@@ -592,11 +594,15 @@ shopEvent.OnServerEvent:Connect(function(player, action)
 		end
 	end
 	
-	-- Functionally, both Buy (Yes) and Exit (No) close the UI (Client Side), so we must end the turn.
-	print("Player finished shop action: " .. tostring(action) .. " -> next turn")
+	-- Functionally, both Buy (Yes) and Exit (No) close the UI (Client Side), 
+	-- But now we DO NOT end turn automatically. We let player use cards.
+	print("Player finished shop action: " .. tostring(action) .. " -> Phase 2")
 	playerInShop[player.UserId] = false
 	task.wait(0.2)
-	nextTurn()
+	
+	-- Signal Client to show "End Turn" button
+	local phaseEvent = ReplicatedStorage:FindFirstChild("PhaseChangeEvent")
+	if phaseEvent then phaseEvent:FireClient(player, "EndPhase") end
 end)
 
 -- Pokemon Spawning (Physics based)
@@ -773,12 +779,27 @@ rollEvent.OnServerEvent:Connect(function(player) processPlayerRoll(player) end)
 	if isFinished then 
 		task.wait(5) 
 		clearCenterStage()
-		nextTurn() 
+		
+		-- Signal Phase 2 (End Turn Button) instead of auto-next
+		local phaseEvent = ReplicatedStorage:FindFirstChild("PhaseChangeEvent")
+		if phaseEvent then phaseEvent:FireClient(player, "EndPhase") end
 	end
 end)
 
 runEvent.OnServerEvent:Connect(function(player) 
 	runEvent:FireAllClients(player) 
 	clearCenterStage()
-	nextTurn() 
+	
+	-- Signal Phase 2
+	local phaseEvent = ReplicatedStorage:FindFirstChild("PhaseChangeEvent")
+	if phaseEvent then phaseEvent:FireClient(player, "EndPhase") end
+end)
+
+-- End Turn Handler (Manual)
+endTurnEvent.OnServerEvent:Connect(function(player)
+	-- Verify it's their turn
+	if #playersInGame > 0 and player == playersInGame[currentTurnIndex] then
+		print("Server: Player manually ended turn -> Next Turn")
+		nextTurn()
+	end
 end)

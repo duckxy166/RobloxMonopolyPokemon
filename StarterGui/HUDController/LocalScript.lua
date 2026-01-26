@@ -7,110 +7,245 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- [[ 🎨 UI CONSTRUCTION ]] --
+-- [[ 🎨 UI CONSTRUCTION ]] --
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "GameHUD"
-screenGui.ResetOnSpawn = false -- Don't flicker on respawn
+screenGui.Name = "GameHUD_V2"
+screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- 1. ROLL BUTTON
+-- Players Status Container (Corner Boxes)
+local playersContainer = Instance.new("Frame")
+playersContainer.Name = "PlayersContainer"
+playersContainer.Size = UDim2.new(1, 0, 1, 0)
+playersContainer.BackgroundTransparency = 1
+playersContainer.Parent = screenGui
+
+local cornerPositions = {
+	[1] = {UDim2.new(0, 20, 1, -120), Vector2.new(0, 1)}, -- Bottom Left
+	[2] = {UDim2.new(1, -20, 1, -120), Vector2.new(1, 1)}, -- Bottom Right
+	[3] = {UDim2.new(0, 20, 0, 20), Vector2.new(0, 0)}, -- Top Left
+	[4] = {UDim2.new(1, -20, 0, 20), Vector2.new(1, 0)}, -- Top Right
+}
+
+local playerFrames = {} -- Store references by PlayerName
+
+-- Function to create a Player HUD Box
+local function createPlayerBox(targetPlayer, index)
+	if not targetPlayer then return end
+	local pos = cornerPositions[index] or cornerPositions[1]
+	
+	local box = Instance.new("Frame")
+	box.Name = "HUD_" .. targetPlayer.Name
+	box.Size = UDim2.new(0, 240, 0, 80)
+	box.Position = pos[1]
+	box.AnchorPoint = pos[2]
+	box.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	box.BackgroundTransparency = 0.2
+	box.BorderSizePixel = 0
+	box.Parent = playersContainer
+	
+	local uiStroke = Instance.new("UIStroke")
+	uiStroke.Color = Color3.fromRGB(255, 255, 255)
+	uiStroke.Thickness = 2
+	uiStroke.Parent = box
+	
+	local uiCorner = Instance.new("UICorner")
+	uiCorner.CornerRadius = UDim.new(0, 12)
+	uiCorner.Parent = box
+	
+	-- Profile Picture
+	local avatarImg = Instance.new("ImageLabel")
+	avatarImg.Size = UDim2.new(0, 60, 0, 60)
+	avatarImg.Position = UDim2.new(0, 10, 0.5, 0)
+	avatarImg.AnchorPoint = Vector2.new(0, 0.5)
+	avatarImg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	avatarImg.Parent = box
+	Instance.new("UICorner", avatarImg).CornerRadius = UDim.new(1, 0)
+	
+	-- Load Avatar
+	task.spawn(function()
+		local content, isReady = Players:GetUserThumbnailAsync(targetPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+		if isReady then avatarImg.Image = content end
+	end)
+	
+	-- Name Label
+	local nameLbl = Instance.new("TextLabel")
+	nameLbl.Size = UDim2.new(1, -80, 0, 20)
+	nameLbl.Position = UDim2.new(0, 80, 0, 10)
+	nameLbl.BackgroundTransparency = 1
+	nameLbl.Text = targetPlayer.Name
+	nameLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+	nameLbl.Font = Enum.Font.GothamBold
+	nameLbl.TextSize = 14
+	nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+	nameLbl.Parent = box
+	
+	-- Stats Row (Money, Cards, Balls)
+	local statsRow = Instance.new("Frame")
+	statsRow.Size = UDim2.new(1, -80, 0, 30)
+	statsRow.Position = UDim2.new(0, 80, 0, 35)
+	statsRow.BackgroundTransparency = 1
+	statsRow.Parent = box
+	
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Horizontal
+	layout.Padding = UDim.new(0, 10)
+	layout.Parent = statsRow
+	
+	local function createStat(icon, valName, color)
+		local f = Instance.new("Frame")
+		f.Size = UDim2.new(0, 45, 1, 0)
+		f.BackgroundTransparency = 1
+		f.Parent = statsRow
+		
+		local icn = Instance.new("TextLabel")
+		icn.Size = UDim2.new(0, 20, 1, 0)
+		icn.BackgroundTransparency = 1
+		icn.Text = icon
+		icn.TextSize = 14
+		icn.Parent = f
+		
+		local val = Instance.new("TextLabel")
+		val.Name = "ValueLabel_" .. valName -- Tag for updating
+		val.Size = UDim2.new(1, -20, 1, 0)
+		val.Position = UDim2.new(0, 20, 0, 0)
+		val.BackgroundTransparency = 1
+		val.Text = "0"
+		val.TextColor3 = color
+		val.Font = Enum.Font.GothamBold
+		val.TextSize = 14
+		val.TextXAlignment = Enum.TextXAlignment.Left
+		val.Parent = f
+	end
+	
+	createStat("🟡", "Money", Color3.fromRGB(255, 220, 0))
+	createStat("🃏", "Cards", Color3.fromRGB(200, 200, 200))
+	createStat("🔴", "Balls", Color3.fromRGB(255, 100, 100))
+	
+	-- Store for updates
+	playerFrames[targetPlayer.Name] = {
+		Box = box,
+		Stroke = uiStroke,
+		MoneyLbl = box:FindFirstChild("ValueLabel_Money", true),
+		CardLbl = box:FindFirstChild("ValueLabel_Cards", true),
+		BallLbl = box:FindFirstChild("ValueLabel_Balls", true)
+	}
+end
+
+-- Init Players
+for i, p in ipairs(Players:GetPlayers()) do
+	createPlayerBox(p, i)
+end
+Players.PlayerAdded:Connect(function(p)
+	createPlayerBox(p, #Players:GetPlayers())
+end)
+
+-- 1. ROLL BUTTON (Updated Style)
 local rollButton = Instance.new("TextButton")
 rollButton.Name = "RollButton"
-rollButton.Size = UDim2.new(0, 200, 0, 80)
-rollButton.Position = UDim2.new(1, -220, 0.5, -40) -- Center Right
-rollButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100) -- Grey initially
-rollButton.Text = "Loading..."
+rollButton.Size = UDim2.new(0, 160, 0, 80)
+-- Move to RIGHT SIDE (Center Vertical)
+rollButton.Position = UDim2.new(1, -40, 0.5, 0) 
+rollButton.AnchorPoint = Vector2.new(1, 0.5)
+rollButton.BackgroundColor3 = Color3.fromRGB(50, 200, 100) -- Green
+rollButton.Text = "🎲 ROLL"
 rollButton.Font = Enum.Font.FredokaOne
-rollButton.TextSize = 24
+rollButton.TextSize = 28
 rollButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 rollButton.Visible = true
 rollButton.Parent = screenGui
+Instance.new("UICorner", rollButton).CornerRadius = UDim.new(0, 16)
 
-local rollCorner = Instance.new("UICorner")
-rollCorner.CornerRadius = UDim.new(0, 12)
-rollCorner.Parent = rollButton
+-- 2. END TURN BUTTON
+local endTurnButton = Instance.new("TextButton")
+endTurnButton.Name = "EndTurnButton"
+endTurnButton.Size = UDim2.new(0, 160, 0, 80)
+endTurnButton.Position = UDim2.new(1, -40, 0.5, 0) -- Same spot as Roll
+endTurnButton.AnchorPoint = Vector2.new(1, 0.5)
+endTurnButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80) -- Red
+endTurnButton.Text = "END TURN"
+endTurnButton.Font = Enum.Font.FredokaOne
+endTurnButton.TextSize = 24
+endTurnButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+endTurnButton.Visible = false -- Hidden initially
+endTurnButton.Parent = screenGui
+Instance.new("UICorner", endTurnButton).CornerRadius = UDim.new(0, 16)
 
--- 2. RESET CAM BUTTON
-local resetCamButton = Instance.new("TextButton")
-resetCamButton.Name = "ResetCamButton"
-resetCamButton.Size = UDim2.new(0, 120, 0, 40)
-resetCamButton.Position = UDim2.new(1, -140, 1, -60) -- Bottom Right
-resetCamButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-resetCamButton.Text = "🔄 Reset Cam"
-resetCamButton.Font = Enum.Font.GothamBold
-resetCamButton.TextSize = 14
-resetCamButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-resetCamButton.Parent = screenGui
+-- 3. STATUS/LOG LABEL (Small top center)
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "StatusLabel"
+statusLabel.Size = UDim2.new(0, 400, 0, 30)
+statusLabel.Position = UDim2.new(0.5, 0, 0, 10)
+statusLabel.AnchorPoint = Vector2.new(0.5, 0)
+statusLabel.BackgroundTransparency = 0.5
+statusLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+statusLabel.Text = "Waiting..."
+statusLabel.Font = Enum.Font.GothamMedium
+statusLabel.TextSize = 14
+statusLabel.Parent = screenGui
+Instance.new("UICorner", statusLabel).CornerRadius = UDim.new(0, 8)
 
-local resetCorner = Instance.new("UICorner")
-resetCorner.CornerRadius = UDim.new(0, 8)
-resetCorner.Parent = resetCamButton
-
--- 3. TIMER / STATUS LABEL
-local timerLabel = Instance.new("TextLabel")
-timerLabel.Name = "TimerLabel"
-timerLabel.Size = UDim2.new(0, 300, 0, 50)
-timerLabel.Position = UDim2.new(0.5, 0, 0, 20) -- Top Center
-timerLabel.AnchorPoint = Vector2.new(0.5, 0)
-timerLabel.BackgroundTransparency = 0.5
-timerLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-timerLabel.Text = "Connecting to Server..."
-timerLabel.Font = Enum.Font.GothamBold
-timerLabel.TextSize = 20
-timerLabel.Parent = screenGui
-
-local timerCorner = Instance.new("UICorner")
-timerCorner.CornerRadius = UDim.new(0, 8)
-timerCorner.Parent = timerLabel
+-- Rename for compatibility with logic below
+local timerLabel = statusLabel
 
 -- [[ 🔌 CONNECTION ]] --
-local rollEvent, updateTurnEvent, resetCamEvent, lockEvent
+local rollEvent, updateTurnEvent, resetCamEvent, lockEvent, endTurnEvent, phaseEvent
 
 task.spawn(function()
 	rollEvent = ReplicatedStorage:WaitForChild("RollDiceEvent")
 	updateTurnEvent = ReplicatedStorage:WaitForChild("UpdateTurnEvent")
 	
-	-- Bindable Event for Camera Reset
-	resetCamEvent = ReplicatedStorage:FindFirstChild("ResetCameraEvent")
-	if not resetCamEvent then
-		resetCamEvent = Instance.new("BindableEvent")
-		resetCamEvent.Name = "ResetCameraEvent"
-		resetCamEvent.Parent = ReplicatedStorage
-	end
-
-	-- Camera Lock Event (for internal use)
-	lockEvent = ReplicatedStorage:FindFirstChild("CameraLockEvent") 
-	if not lockEvent then
-		lockEvent = Instance.new("BindableEvent")
-		lockEvent.Name = "CameraLockEvent"
-		lockEvent.Parent = ReplicatedStorage
+	-- New Events for Manual Turn
+	endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent", 5) 
+	-- If it doesn't exist yet, we will create it on server soon, but client code needs to be robust
+	if not endTurnEvent then
+		-- Fallback if server update lags behind client update
+		warn("EndTurnEvent missing, waiting...")
+		endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent")
 	end
 	
-	-- Ready!
+	phaseEvent = ReplicatedStorage:WaitForChild("PhaseChangeEvent", 5)
+
+	resetCamEvent = ReplicatedStorage:FindFirstChild("ResetCameraEvent") or Instance.new("BindableEvent")
+	lockEvent = ReplicatedStorage:FindFirstChild("CameraLockEvent") or Instance.new("BindableEvent")
+	
 	timerLabel.Text = "Waiting for game..."
 	
-	-- Event: Update Turn
+	-- Event: Update Turn (Start of Turn)
 	updateTurnEvent.OnClientEvent:Connect(function(currentName)
 		if currentName == player.Name then
-			-- My turn
+			-- My turn: Phase 1 (Roll)
 			rollButton.Text = "🎲 ROLL DICE!" 
-			rollButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0) 
+			rollButton.Visible = true
+			endTurnButton.Visible = false -- Can't end turn yet
+			
 			timerLabel.Text = "YOUR TURN!" 
 			timerLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-			
-			-- FIX: Make sure button reappears!
-			rollButton.Visible = true
 			isRolling = false 
 		else
 			-- Enemy turn
-			rollButton.Text = "WAIT..."
-			rollButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+			rollButton.Visible = false
+			endTurnButton.Visible = false
+			
 			timerLabel.Text = "Waiting for " .. currentName
 			timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-			
-			rollButton.Visible = true -- Visible but greyed out/disabled text
 		end
 	end)
+	
+	-- Event: Turn Phase Change (Start -> Roll -> Event -> EndPhase)
+	if phaseEvent then
+		phaseEvent.OnClientEvent:Connect(function(phaseName)
+			if phaseName == "EndPhase" then
+				-- Enable End Turn Button
+				rollButton.Visible = false
+				endTurnButton.Visible = true
+				timerLabel.Text = "ACTIONS PHASE (End when ready)"
+				timerLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
+			end
+		end)
+	end
+
 
 	-- Event: Roll Result (Animation)
 	rollEvent.OnClientEvent:Connect(function(roller, rollResult)
@@ -186,9 +321,56 @@ rollButton.MouseButton1Click:Connect(function()
 	if rollEvent then rollEvent:FireServer() end
 end)
 
+-- Logic: End Turn Button
+endTurnButton.MouseButton1Click:Connect(function()
+	if endTurnButton.Visible and endTurnEvent then
+		endTurnButton.Visible = false
+		timerLabel.Text = "Ending Turn..."
+		endTurnEvent:FireServer()
+	end
+end)
+
 -- Logic: Reset Cam
 resetCamButton.MouseButton1Click:Connect(function()
 	print("Reset Camera Clicked")
 	if resetCamEvent then resetCamEvent:Fire() end
 end)
 
+
+-- [[ 🔄 REAL-TIME UPDATER ]] --
+task.spawn(function()
+	while true do
+		for pName, data in pairs(playerFrames) do
+			local p = Players:FindFirstChild(pName)
+			if p then
+				-- Money & Balls
+				local ls = p:FindFirstChild("leaderstats")
+				if ls then
+					local mon = ls:FindFirstChild("Money")
+					local bal = ls:FindFirstChild("Pokeballs")
+					if mon and data.MoneyLbl then data.MoneyLbl.Text = tostring(mon.Value) end
+					if bal and data.BallLbl then data.BallLbl.Text = tostring(bal.Value) end
+				end
+				
+				-- Cards (Count children in Hand folder)
+				local hand = p:FindFirstChild("Hand")
+				if hand and data.CardLbl then
+					data.CardLbl.Text = tostring(#hand:GetChildren())
+				end
+				
+				-- Highlight Active Player
+				if timerLabel.Text:find(pName) then -- Weak check, but simple
+					data.Stroke.Color = Color3.fromRGB(0, 255, 0)
+					data.Stroke.Transparency = 0
+				else
+					data.Stroke.Transparency = 1
+				end
+			else
+				-- Player left? Remove box
+				if data.Box then data.Box:Destroy() end
+				playerFrames[pName] = nil
+			end
+		end
+		task.wait(0.5)
+	end
+end)
