@@ -606,7 +606,7 @@ shopEvent.OnServerEvent:Connect(function(player, action)
 
 	-- Check if player is in shop (prevent invalid events)
 	if not playerInShop[player.UserId] then
-		warn("? Player not in shop but tried:", player.Name, action)
+		warn("❌ Player not in shop but tried:", player.Name, action)
 		return
 	end
 
@@ -640,16 +640,18 @@ shopEvent.OnServerEvent:Connect(function(player, action)
 				end
 			end
 		end
+		-- Don't end turn after Buy - allow multiple purchases
+		return
 	end
 
-	-- Functionally, both Buy (Yes) and Exit (No) close the UI (Client Side), 
-	-- Cancel timer since player took action
-	print("Player finished shop action: " .. tostring(action) .. " -> Auto End Turn")
-	cancelTimer()
-	playerInShop[player.UserId] = false
-	task.wait(0.5)
-
-	nextTurn()
+	-- Exit action - close shop and end turn
+	if action == "Exit" then
+		print("Player finished shop action: Exit -> End Turn")
+		cancelTimer()
+		playerInShop[player.UserId] = false
+		task.wait(0.5)
+		nextTurn()
+	end
 end)
 
 -- Pokemon Spawning (Physics based)

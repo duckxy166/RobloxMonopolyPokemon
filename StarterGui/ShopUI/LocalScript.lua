@@ -11,9 +11,9 @@ shopEvent.OnClientEvent:Connect(function()
 	shopFrame.Visible = true -- Show shop UI
 end)
 
--- 2. Click Yes (Purchase)
+-- 2. Click Yes (Purchase) - can buy multiple times
 yesButton.MouseButton1Click:Connect(function()
-	shopFrame.Visible = false -- Hide UI
+	-- Don't hide UI - allow multiple purchases
 	shopEvent:FireServer("Buy") -- Tell server "Buy"
 end)
 
