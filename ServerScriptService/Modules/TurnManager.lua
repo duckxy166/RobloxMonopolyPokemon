@@ -24,6 +24,7 @@ local TimerSystem = nil
 local CardSystem = nil
 local PlayerManager = nil
 local EncounterSystem = nil
+local BattleSystem = nil
 local tilesFolder = nil
 
 -- Initialize with dependencies
@@ -154,6 +155,7 @@ function TurnManager.processPlayerRoll(player)
 
 			if i == roll then
 				local tileColor = string.lower(nextTile.BrickColor.Name)
+				print("📍 Landed on tile: " .. nextTile.Name .. " | Color: " .. tileColor)
 
 				if string.find(tileColor, "white") then
 					-- Shop tile
@@ -172,7 +174,7 @@ function TurnManager.processPlayerRoll(player)
 					end)
 					return
 
-				elseif string.find(tileColor, "really red") then -- Red Tile (PvE)
+				elseif string.find(tileColor, "red") then -- Red Tile (PvE)
 					print("⚔️ Landed on Red Tile! Starting PvE Battle...")
 					if BattleSystem then
 						BattleSystem.startPvE(player)

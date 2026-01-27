@@ -11,6 +11,8 @@
 ================================================================================
 --]]
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PokemonDB = require(ReplicatedStorage:WaitForChild("PokemonDB"))
 
 local PlayerManager = {}
 
@@ -142,10 +144,22 @@ function PlayerManager.onPlayerAdded(player)
 	sleep.Value = 0
 	sleep.Parent = status
 
+
+
 	-- Add starter pokemon
+	local starterName = "Bulbasaur"
+	local startData = PokemonDB.GetPokemon(starterName)
+	
 	local starterPoke = Instance.new("StringValue")
-	starterPoke.Name = "Bulbasaur"
+	starterPoke.Name = starterName
 	starterPoke.Value = "Common"
+	
+	-- Set Battle Stats
+	starterPoke:SetAttribute("CurrentHP", startData.HP)
+	starterPoke:SetAttribute("MaxHP", startData.HP)
+	starterPoke:SetAttribute("Attack", startData.Attack)
+	starterPoke:SetAttribute("Status", "Alive")
+	
 	starterPoke.Parent = inventory
 
 	-- Teleport player to starting tile when character loads

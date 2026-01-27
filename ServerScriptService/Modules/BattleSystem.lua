@@ -105,7 +105,18 @@ function BattleSystem.startPvE(player)
 		TurnState = "WaitRoll"
 	}
 	
-	-- 4. Send Client Event to Open UI
+	-- TELEPORT TO BATTLE STAGE
+	local battleStage = game.Workspace:FindFirstChild("BattleStage")
+	if battleStage then
+		local p1Stage = battleStage:FindFirstChild("PlayerStage1")
+		if p1Stage and player.Character then
+			player.Character:SetPrimaryPartCFrame(p1Stage.CFrame + Vector3.new(0, 3, 0))
+		end
+	else
+		print("⚠️ No BattleStage folder found in Workspace!")
+	end
+	
+	-- 4. Send Client Event (Minimal/No UI Mode)
 	Events.BattleStart:FireClient(player, "PvE", BattleSystem.activeBattles[player.UserId])
 end
 
@@ -136,6 +147,20 @@ function BattleSystem.startPvP(player1, player2)
 	
 	BattleSystem.activeBattles[player1.UserId] = battleData
 	BattleSystem.activeBattles[player2.UserId] = battleData
+	
+	-- TELEPORT TO BATTLE STAGE
+	local battleStage = game.Workspace:FindFirstChild("BattleStage")
+	if battleStage then
+		local p1Stage = battleStage:FindFirstChild("PlayerStage1")
+		local p2Stage = battleStage:FindFirstChild("PlayerStage2")
+		
+		if p1Stage and player1.Character then
+			player1.Character:SetPrimaryPartCFrame(p1Stage.CFrame + Vector3.new(0, 3, 0))
+		end
+		if p2Stage and player2.Character then
+			player2.Character:SetPrimaryPartCFrame(p2Stage.CFrame + Vector3.new(0, 3, 0))
+		end
+	end
 	
 	-- Notify Both
 	Events.BattleStart:FireClient(player1, "PvP", battleData)
@@ -259,6 +284,8 @@ end
 function BattleSystem.endBattle(battle, result)
 	print("🏁 Battle Ended: " .. result)
 	
+	local tilesFolder = game.Workspace:FindFirstChild("Tiles")
+	
 	if battle.Type == "PvE" then
 		Events.BattleEnd:FireClient(battle.Player, result)
 		BattleSystem.activeBattles[battle.Player.UserId] = nil
@@ -266,6 +293,11 @@ function BattleSystem.endBattle(battle, result)
 		if result == "Win" then
 			-- Reward: Evolution (TODO: Open Evolution UI)
 			if Events.Notify then Events.Notify:FireClient(battle.Player, "🏆 You Won! Evolution logic coming soon.") end
+		end
+		
+		-- Return to Board
+		if tilesFolder then
+			PlayerManager.teleportToLastTile(battle.Player, tilesFolder)
 		end
 		TurnManager.nextTurn()
 		
@@ -275,6 +307,12 @@ function BattleSystem.endBattle(battle, result)
 		
 		BattleSystem.activeBattles[battle.Attacker.UserId] = nil
 		BattleSystem.activeBattles[battle.Defender.UserId] = nil
+		
+		-- Return both to Board
+		if tilesFolder then
+			PlayerManager.teleportToLastTile(battle.Attacker, tilesFolder)
+			PlayerManager.teleportToLastTile(battle.Defender, tilesFolder)
+		end
 		
 		TurnManager.nextTurn()
 	end
