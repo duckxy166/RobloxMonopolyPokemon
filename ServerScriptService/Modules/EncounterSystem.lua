@@ -10,24 +10,13 @@
 ================================================================================
 --]]
 local ServerStorage = game:GetService("ServerStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local EncounterSystem = {}
 
--- Pokemon database
-EncounterSystem.POKEMON_DB = {
-	{ Name = "Bulbasaur", Rarity = "Common", ModelName = "Bulbasaur" }, 
-	{ Name = "Charmander", Rarity = "Common", ModelName = "Charmander" },
-	{ Name = "Squirtle", Rarity = "Common", ModelName = "Squirtle" },
-	{ Name = "Pikachu", Rarity = "Rare", ModelName = "Pikachu" },
-	{ Name = "Mewtwo", Rarity = "Legendary", ModelName = "Mewtwo" }
-}
-
-EncounterSystem.DIFFICULTY = { 
-	["Common"] = 2, 
-	["Rare"] = 4, 
-	["Legendary"] = 6 
-}
+-- Load PokemonDB
+local PokemonDB = require(ReplicatedStorage:WaitForChild("PokemonDB"))
 
 -- State
 local currentSpawnedPokemon = nil
@@ -77,8 +66,11 @@ end
 
 -- Spawn pokemon encounter
 function EncounterSystem.spawnPokemonEncounter(player)
-	local randomPoke = EncounterSystem.POKEMON_DB[math.random(1, #EncounterSystem.POKEMON_DB)]
-	local modelTemplate = pokemonModels:FindFirstChild(randomPoke.ModelName)
+	-- Use PokemonDB for random encounter
+	local encounter = PokemonDB.GetRandomEncounter()
+	local pokeName = encounter.Name
+	local pokeData = encounter.Data
+	local modelTemplate = pokemonModels:FindFirstChild(pokeData.Model)
 
 	if modelTemplate then
 		centerStage.Transparency = 0
@@ -115,15 +107,24 @@ function EncounterSystem.spawnPokemonEncounter(player)
 			gyro.Parent = mainPart
 
 			if pokeHumanoid then
-				pokeHumanoid.AutomaticScalingEnabled = false
+			pokeHumanoid.AutomaticScalingEnabled = false
 				pokeHumanoid.HipHeight = 0
 			end
 		end
 	else
-		warn("⚠️ Model not found: " .. randomPoke.ModelName)
+		warn("⚠️ Model not found: " .. pokeData.Model)
 	end
 
-	Events.Encounter:FireAllClients(player, randomPoke)
+	-- Send encounter data to clients
+	local encounterData = {
+		Name = pokeName,
+		Rarity = pokeData.Rarity,
+		Type = pokeData.Type,
+		HP = pokeData.HP,
+		Attack = pokeData.Attack,
+		Icon = pokeData.Icon
+	}
+	Events.Encounter:FireAllClients(player, encounterData)
 
 	TurnManager.turnPhase = "Encounter"
 	TimerSystem.startPhaseTimer(TimerSystem.ENCOUNTER_TIMEOUT, "Encounter", function()
@@ -133,14 +134,32 @@ function EncounterSystem.spawnPokemonEncounter(player)
 	end)
 end
 
+-- Constants
+local MAX_PARTY_SIZE = 6
+
 -- Handle catch attempt
 function EncounterSystem.handleCatch(player, pokeData)
 	TimerSystem.cancelTimer()
 	
+	-- Check if party is full
+	local inventory = player:FindFirstChild("PokemonInventory")
+	if inventory and #inventory:GetChildren() >= MAX_PARTY_SIZE then
+		Events.Notify:FireClient(player, "❌ Party full! (6/6)")
+		-- Restart encounter timer
+		TurnManager.turnPhase = "Encounter"
+		TimerSystem.startPhaseTimer(TimerSystem.ENCOUNTER_TIMEOUT, "Encounter", function()
+			if TurnManager.turnPhase == "Encounter" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
+				EncounterSystem.forceRunAndEnd(player)
+			end
+		end)
+		return
+	end
+	
 	local balls = player.leaderstats.Pokeballs
 	balls.Value = balls.Value - 1
 
-	local target = EncounterSystem.DIFFICULTY[pokeData.Rarity] or 2
+	-- Use PokemonDB for difficulty
+	local target = PokemonDB.GetCatchDifficulty(pokeData.Name)
 	local roll = math.random(1, 6)
 	local success = roll >= target
 

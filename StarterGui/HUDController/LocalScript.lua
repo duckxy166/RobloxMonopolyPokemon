@@ -36,7 +36,7 @@ local function createPlayerBox(targetPlayer, index)
 	
 	local box = Instance.new("Frame")
 	box.Name = "HUD_" .. targetPlayer.Name
-	box.Size = UDim2.new(0, 240, 0, 80)
+	box.Size = UDim2.new(0, 240, 0, 100) -- Expanded for Pokemon party row
 	box.Position = pos[1]
 	box.AnchorPoint = pos[2]
 	box.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
@@ -122,22 +122,104 @@ local function createPlayerBox(targetPlayer, index)
 	createStat("🃏", "Cards", Color3.fromRGB(200, 200, 200))
 	createStat("🔴", "Balls", Color3.fromRGB(255, 100, 100))
 	
+	-- Pokemon Party Row (6 slots)
+	local partyRow = Instance.new("Frame")
+	partyRow.Name = "PartyRow"
+	partyRow.Size = UDim2.new(1, -20, 0, 24)
+	partyRow.Position = UDim2.new(0, 10, 0, 68)
+	partyRow.BackgroundTransparency = 1
+	partyRow.Parent = box
+	
+	local partyLayout = Instance.new("UIListLayout")
+	partyLayout.FillDirection = Enum.FillDirection.Horizontal
+	partyLayout.Padding = UDim.new(0, 4)
+	partyLayout.Parent = partyRow
+	
+	local partySlots = {}
+	for i = 1, 6 do
+		local slot = Instance.new("Frame")
+		slot.Name = "Slot_" .. i
+		slot.Size = UDim2.new(0, 24, 0, 24)
+		slot.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+		slot.BackgroundTransparency = 0.5
+		slot.Parent = partyRow
+		Instance.new("UICorner", slot).CornerRadius = UDim.new(0, 6)
+		
+		local icon = Instance.new("TextLabel")
+		icon.Name = "Icon"
+		icon.Size = UDim2.new(1, 0, 1, 0)
+		icon.BackgroundTransparency = 1
+		icon.Text = ""
+		icon.TextSize = 14
+		icon.Parent = slot
+		
+		partySlots[i] = slot
+	end
+	
 	-- Store for updates
 	playerFrames[targetPlayer.Name] = {
 		Box = box,
 		Stroke = uiStroke,
 		MoneyLbl = box:FindFirstChild("ValueLabel_Money", true),
 		CardLbl = box:FindFirstChild("ValueLabel_Cards", true),
-		BallLbl = box:FindFirstChild("ValueLabel_Balls", true)
+		BallLbl = box:FindFirstChild("ValueLabel_Balls", true),
+		PartySlots = partySlots
 	}
+end
+
+-- Pokemon emoji mapping
+local POKEMON_ICONS = {
+	["Bulbasaur"] = "🌱",
+	["Charmander"] = "🔥",
+	["Squirtle"] = "💧",
+	["Pikachu"] = "⚡",
+	["Mewtwo"] = "🔮",
+	["Default"] = "🔵"
+}
+
+-- Update Pokemon party icons for a player
+local function updatePartyIcons(targetPlayer)
+	local frame = playerFrames[targetPlayer.Name]
+	if not frame or not frame.PartySlots then return end
+	
+	local inventory = targetPlayer:FindFirstChild("PokemonInventory")
+	if not inventory then return end
+	
+	local pokemons = inventory:GetChildren()
+	for i = 1, 6 do
+		local slot = frame.PartySlots[i]
+		local icon = slot:FindFirstChild("Icon")
+		if icon then
+			if pokemons[i] then
+				local pokeName = pokemons[i].Name
+				icon.Text = POKEMON_ICONS[pokeName] or POKEMON_ICONS["Default"]
+				slot.BackgroundTransparency = 0.3
+			else
+				icon.Text = ""
+				slot.BackgroundTransparency = 0.7
+			end
+		end
+	end
+end
+
+-- Listen for inventory changes for all players
+local function setupInventoryListener(targetPlayer)
+	local inventory = targetPlayer:WaitForChild("PokemonInventory", 10)
+	if inventory then
+		updatePartyIcons(targetPlayer)
+		inventory.ChildAdded:Connect(function() updatePartyIcons(targetPlayer) end)
+		inventory.ChildRemoved:Connect(function() updatePartyIcons(targetPlayer) end)
+	end
 end
 
 -- Init Players
 for i, p in ipairs(Players:GetPlayers()) do
 	createPlayerBox(p, i)
+	task.spawn(function() setupInventoryListener(p) end)
 end
 Players.PlayerAdded:Connect(function(p)
 	createPlayerBox(p, #Players:GetPlayers())
+	task.spawn(function() setupInventoryListener(p) end)
 end)
 
 -- 1. ROLL BUTTON (Updated Style)
