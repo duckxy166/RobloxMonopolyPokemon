@@ -107,9 +107,9 @@ function PlayerManager.onPlayerAdded(player)
 	hand.Name = "Hand"
 	hand.Parent = player
 
-	-- Draw starter cards
+	-- Draw starter cards (2 cards at game start)
 	if CardSystem then
-		for i = 1, 3 do
+		for i = 1, 2 do
 			CardSystem.drawOneCard(player)
 		end
 	end

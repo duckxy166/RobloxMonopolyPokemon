@@ -76,27 +76,27 @@ function TurnManager.nextTurn()
 	end
 end
 
--- Enter draw phase
+-- Enter draw phase (Auto-draw to 3 cards, then go to Roll)
 function TurnManager.enterDrawPhase(player)
 	TurnManager.turnPhase = "Draw"
 	TurnManager.isTurnActive = true
-	print("Phase: Enter Draw Phase for:", player.Name)
+	print("Phase: Auto-Draw for:", player.Name)
 
-	Events.DrawPhase:FireClient(player, "Start")
-
-	TimerSystem.startPhaseTimer(TimerSystem.DRAW_TIMEOUT, "Draw", function()
-		if TurnManager.turnPhase == "Draw" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
-			print("Timer: Auto-Draw triggered for " .. player.Name)
-			TurnManager.performDrawAction(player)
+	-- Auto-draw until player has 3 cards
+	local handCount = CardSystem.countHand(player)
+	local cardsNeeded = 3 - handCount
+	
+	if cardsNeeded > 0 then
+		for i = 1, cardsNeeded do
+			CardSystem.drawOneCard(player)
 		end
-	end)
-end
-
--- Perform draw action
-function TurnManager.performDrawAction(player)
-	if TurnManager.turnPhase ~= "Draw" then return end
-	TimerSystem.cancelTimer()
-	CardSystem.drawOneCard(player)
+		if Events.Notify then
+			Events.Notify:FireClient(player, "🃏 Auto-draw: +" .. cardsNeeded .. " cards!")
+		end
+	end
+	
+	-- Short delay to show card drawn, then go to Roll
+	task.wait(1)
 	TurnManager.enterRollPhase(player)
 end
 
@@ -202,10 +202,7 @@ function TurnManager.connectEvents()
 		TurnManager.processPlayerRoll(player)
 	end)
 	
-	Events.DrawPhase.OnServerEvent:Connect(function(player)
-		if player ~= PlayerManager.playersInGame[TurnManager.currentTurnIndex] then return end
-		TurnManager.performDrawAction(player)
-	end)
+	-- DrawPhase handler removed (now auto-draw)
 	
 	Events.EndTurn.OnServerEvent:Connect(function(player)
 		if #PlayerManager.playersInGame > 0 and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
