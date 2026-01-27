@@ -167,6 +167,22 @@ function EncounterSystem.handleCatch(player, pokeData)
 		local newPoke = Instance.new("StringValue")
 		newPoke.Name = pokeData.Name
 		newPoke.Value = pokeData.Rarity
+		
+		-- [[ ⚔️ BATTLE STATS ]] --
+		-- Get base stats from DB
+		local dbStats = PokemonDB.GetPokemon(pokeData.Name)
+		
+		-- Current HP
+		newPoke:SetAttribute("CurrentHP", dbStats.HP)
+		-- Max HP
+		newPoke:SetAttribute("MaxHP", dbStats.HP)
+		-- Attack Power
+		newPoke:SetAttribute("Attack", dbStats.Attack)
+		-- Status (Alive/Dead)
+		newPoke:SetAttribute("Status", "Alive")
+		-- Status (Alive/Dead)
+		newPoke:SetAttribute("Status", "Alive")
+		
 		newPoke.Parent = player.PokemonInventory
 		player.leaderstats.Money.Value = player.leaderstats.Money.Value + 5
 	end

@@ -36,10 +36,13 @@ function TurnManager.init(events, timerSystem, cardSystem, playerManager)
 	print("✅ TurnManager initialized")
 end
 
--- Set encounter system (circular dependency fix)
-function TurnManager.setEncounterSystem(encounterSys)
+-- Set dependencies (circular dependency fix)
+function TurnManager.setSystems(encounterSys, battleSys)
 	EncounterSystem = encounterSys
+	BattleSystem = battleSys
 end
+
+-- ... (inside processPlayerRoll) ...
 
 -- Next turn logic
 function TurnManager.nextTurn()
@@ -169,15 +172,43 @@ function TurnManager.processPlayerRoll(player)
 					end)
 					return
 
+				elseif string.find(tileColor, "really red") then -- Red Tile (PvE)
+					print("⚔️ Landed on Red Tile! Starting PvE Battle...")
+					if BattleSystem then
+						BattleSystem.startPvE(player)
+					else
+						TurnManager.nextTurn()
+					end
+					return
+					
 				elseif string.find(tileColor, "green") then
-					-- Encounter tile
+					-- Encounter tile (Wild Pokemon)
 					if repelLeft > 0 then 
 						TurnManager.nextTurn() 
 					elseif EncounterSystem then 
 						EncounterSystem.spawnPokemonEncounter(player) 
 					end
+					
 				else
-					-- Draw card tile
+					-- Check for PvP Collision (Any Standard Tile)
+					local opponents = {}
+					for _, otherPlayer in ipairs(PlayerManager.playersInGame) do
+						if otherPlayer ~= player and PlayerManager.playerPositions[otherPlayer.UserId] == currentPos then
+							table.insert(opponents, otherPlayer)
+						end
+					end
+					
+					if #opponents > 0 then
+						print("⚔️ PvP Potential! Found " .. #opponents .. " opponents.")
+						if BattleSystem then
+							-- Trigger PvP Selection
+							Events.BattleStart:FireClient(player, "SelectOpponent", { Opponents = opponents })
+							-- Wait for client selection (GameLoop/BattleSystem should handle response)
+							return 
+						end
+					end
+				
+					-- Default: Draw Card
 					CardSystem.drawOneCard(player)
 					TurnManager.nextTurn()
 				end
