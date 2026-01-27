@@ -345,11 +345,7 @@ endTurnButton.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Logic: Reset Cam
-resetCamButton.MouseButton1Click:Connect(function()
-	print("Reset Camera Clicked")
-	if resetCamEvent then resetCamEvent:Fire() end
-end)
+-- Logic: Reset Cam (Old code removed - using resetButton handler below)
 
 
 -- [[ 🔄 REAL-TIME UPDATER ]] --
@@ -393,12 +389,18 @@ end)
 -- [[ RESET BUTTON CLICK ]] --
 local resetCharEvent = ReplicatedStorage:WaitForChild("ResetCharacterEvent", 10)
 resetButton.MouseButton1Click:Connect(function()
-	-- 1. Reset Camera to default
+	-- 1. Fire ResetCameraEvent to BoardCamera
+	if resetCamEvent then 
+		resetCamEvent:Fire() 
+		print("Reset: ResetCameraEvent fired")
+	end
+	
+	-- 2. Reset Camera type to default (in case BoardCamera doesn't exist)
 	local camera = workspace.CurrentCamera
 	camera.CameraType = Enum.CameraType.Custom
 	camera.CameraSubject = player.Character and player.Character:FindFirstChild("Humanoid")
 	
-	-- 2. Fire Server to teleport character to last tile
+	-- 3. Fire Server to teleport character to last tile
 	if resetCharEvent then
 		resetCharEvent:FireServer()
 	end
