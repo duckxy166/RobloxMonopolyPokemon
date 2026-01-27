@@ -103,6 +103,7 @@ end
 -- Enter roll phase
 function TurnManager.enterRollPhase(player)
 	TurnManager.turnPhase = "Roll"
+	TurnManager.isTurnActive = true  -- IMPORTANT: Allow player to roll
 	print("Phase: Enter Roll Phase for:", player.Name)
 
 	Events.UpdateTurn:FireAllClients(player.Name)

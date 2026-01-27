@@ -14,6 +14,9 @@ local Players = game:GetService("Players")
 
 local PlayerManager = {}
 
+-- Constants
+PlayerManager.MAX_PLAYERS = 4
+
 -- State
 PlayerManager.playersInGame = {}
 PlayerManager.playerPositions = {}
@@ -67,11 +70,21 @@ end
 -- Setup new player
 function PlayerManager.onPlayerAdded(player)
 	print("✅ [Server] onPlayerAdded:", player.Name)
+	
+	-- Check if already in game
 	for _, p in ipairs(PlayerManager.playersInGame) do 
 		if p == player then return end 
 	end
+	
+	-- Check player limit (1-4 players)
+	if #PlayerManager.playersInGame >= PlayerManager.MAX_PLAYERS then
+		print("⚠️ [Server] Game full! Max " .. PlayerManager.MAX_PLAYERS .. " players")
+		-- Optionally kick player or put in spectator mode
+		return
+	end
+	
 	table.insert(PlayerManager.playersInGame, player)
-	print("👥 [Server] Player added to game! Total players:", #PlayerManager.playersInGame)
+	print("👥 [Server] Player " .. player.Name .. " joined! (" .. #PlayerManager.playersInGame .. "/" .. PlayerManager.MAX_PLAYERS .. ")")
 	
 	PlayerManager.playerPositions[player.UserId] = 0 
 	PlayerManager.playerRepelSteps[player.UserId] = 0 

@@ -309,6 +309,9 @@ local countdownRemaining = 0
 -- [[ 🔌 CONNECTION ]] --
 local rollEvent, updateTurnEvent, resetCamEvent, lockEvent, endTurnEvent, phaseEvent, timerUpdateEvent
 
+-- Rolling state (declared here so event handlers can access it)
+local isRolling = false
+
 task.spawn(function()
 	rollEvent = ReplicatedStorage:WaitForChild("RollDiceEvent")
 	updateTurnEvent = ReplicatedStorage:WaitForChild("UpdateTurnEvent")
@@ -384,15 +387,21 @@ task.spawn(function()
 	
 	-- Event: Update Turn (Start of Turn)
 	updateTurnEvent.OnClientEvent:Connect(function(currentName)
+		print("🔄 [Client] UpdateTurn received. Current:", currentName, "Me:", player.Name)
+		
 		if currentName == player.Name then
-			-- My turn: Phase 1 (Roll)
+			-- My turn: Phase (Roll)
 			rollButton.Text = "🎲 ROLL DICE!" 
 			rollButton.Visible = true
-			endTurnButton.Visible = false -- Can't end turn yet
+			rollButton.Active = true  -- Ensure button is clickable
+			endTurnButton.Visible = false
 			
 			timerLabel.Text = "YOUR TURN!" 
 			timerLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-			isRolling = false 
+			
+			-- CRITICAL: Reset rolling state so player can click
+			isRolling = false
+			print("🎲 [Client] My turn! isRolling reset to false")
 		else
 			-- Enemy turn
 			rollButton.Visible = false
@@ -465,8 +474,6 @@ end)
 local camera = workspace.CurrentCamera
 
 -- [[ 🧠 LOGIC ]] --
-
-local isRolling = false
 
 -- Logic: Roll Button
 rollButton.MouseButton1Click:Connect(function()
