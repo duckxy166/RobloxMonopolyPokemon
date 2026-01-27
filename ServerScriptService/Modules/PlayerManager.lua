@@ -135,6 +135,28 @@ function PlayerManager.onPlayerAdded(player)
 	starterPoke.Value = "Common"
 	starterPoke.Parent = inventory
 
+	-- Teleport player to starting tile when character loads
+	local function teleportToStart(character)
+		local tilesFolder = game.Workspace:FindFirstChild("Tiles")
+		if tilesFolder then
+			local startTile = tilesFolder:FindFirstChild("0")
+			if startTile and character.PrimaryPart then
+				task.wait(0.5) -- Wait for character to fully load
+				local pos = PlayerManager.getPlayerTilePosition(player, startTile)
+				character:SetPrimaryPartCFrame(CFrame.new(pos))
+				print("📍 Teleported " .. player.Name .. " to starting tile 0")
+			end
+		end
+	end
+	
+	-- Connect to CharacterAdded (handles respawn too)
+	player.CharacterAdded:Connect(teleportToStart)
+	
+	-- Teleport if character already exists
+	if player.Character then
+		teleportToStart(player.Character)
+	end
+
 	-- Start game if first player
 	if #PlayerManager.playersInGame == 1 and TurnManager then
 		print("🚀 [Server] First player joined! Starting game in 3 seconds...")
