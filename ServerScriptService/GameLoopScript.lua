@@ -50,6 +50,7 @@ local shopEvent = getOrCreateEvent("ShopEvent")
 local useItemEvent = getOrCreateEvent("UseItemEvent")
 local endTurnEvent = getOrCreateEvent("EndTurnEvent")
 local phaseEvent = getOrCreateEvent("PhaseChangeEvent")
+local timerUpdateEvent = getOrCreateEvent("TimerUpdateEvent") -- NEW: broadcasts countdown to clients
 
 
 
@@ -367,10 +368,9 @@ local function processPlayerRoll(player)
 
 					shopEvent:FireClient(player)
 					
-					-- Start Shop Timer (20 seconds)
+					-- Start Shop Timer (20 seconds) with countdown
 					turnPhase = "Shop"
-					cancelTimer()
-					turnTimerTask = task.delay(SHOP_TIMEOUT, function()
+					startPhaseTimer(SHOP_TIMEOUT, "Shop", function()
 						if turnPhase == "Shop" and player == playersInGame[currentTurnIndex] then
 							print("Timer: Shop timeout, auto-closing for " .. player.Name)
 							playerInShop[player.UserId] = false
@@ -713,15 +713,11 @@ function spawnPokemonEncounter(player)
 
 	encounterEvent:FireAllClients(player, randomPoke)
 	
-	-- Start Encounter Timer (10 seconds for Catch/Run decision)
+	-- Start Encounter Timer (10 seconds for Catch/Run decision) with countdown
 	turnPhase = "Encounter"
-	cancelTimer()
-	turnTimerTask = task.delay(ENCOUNTER_TIMEOUT, function()
+	startPhaseTimer(ENCOUNTER_TIMEOUT, "Encounter", function()
 		if turnPhase == "Encounter" and player == playersInGame[currentTurnIndex] then
-			print("Timer: No action taken, forcing Auto-Run for " .. player.Name)
-			runEvent:FireAllClients(player)
-			clearCenterStage()
-			nextTurn()
+			forceRunAndEnd(player)
 		end
 	end)
 end
@@ -813,6 +809,9 @@ end)
 
 rollEvent.OnServerEvent:Connect(function(player) processPlayerRoll(player) end)
 catchEvent.OnServerEvent:Connect(function(player, pokeData)
+	-- Cancel current encounter timer first
+	cancelTimer()
+	
 	local balls = player.leaderstats.Pokeballs
 	balls.Value = balls.Value - 1
 
@@ -839,14 +838,22 @@ catchEvent.OnServerEvent:Connect(function(player, pokeData)
 	-- 4. Notify Client (ALL CLIENTS)
 	catchEvent:FireAllClients(player, success, roll, target, isFinished)
 
-	-- 5. End turn if needed
+	-- 5. Handle timer based on result
 	if isFinished then 
-		cancelTimer() -- Player took action
-		task.wait(3) 
-		clearCenterStage()
-
-		-- Auto End Turn
-		nextTurn()
+		-- Give 3 seconds to see result, then end turn
+		turnPhase = "CatchResult"
+		startPhaseTimer(3, "Result", function()
+			clearCenterStage()
+			nextTurn()
+		end)
+	else
+		-- Not finished (failed catch, still has balls) - restart encounter timer
+		turnPhase = "Encounter"
+		startPhaseTimer(ENCOUNTER_TIMEOUT, "Encounter", function()
+			if turnPhase == "Encounter" and player == playersInGame[currentTurnIndex] then
+				forceRunAndEnd(player)
+			end
+		end)
 	end
 end)
 
@@ -883,6 +890,29 @@ local drawPhaseEvent = getOrCreateEvent("DrawPhaseEvent")
 -- Cancel any active timer
 local function cancelTimer()
 	if turnTimerTask then task.cancel(turnTimerTask); turnTimerTask = nil end
+	timerUpdateEvent:FireAllClients(0, "") -- Clear timer on clients
+end
+
+-- Start a phase timer with countdown broadcast to clients
+-- @param seconds: time in seconds
+-- @param phaseName: name of phase for display ("Roll", "Shop", etc.)
+-- @param timeoutCallback: function to call when timer expires
+local function startPhaseTimer(seconds, phaseName, timeoutCallback)
+	cancelTimer()
+	timerUpdateEvent:FireAllClients(seconds, phaseName) -- Tell clients to start countdown
+	turnTimerTask = task.delay(seconds, function()
+		timerUpdateEvent:FireAllClients(0, "") -- Timer ended
+		if timeoutCallback then timeoutCallback() end
+	end)
+end
+
+-- Force run and end encounter (timeout or auto-end)
+local function forceRunAndEnd(player)
+	print("Timer: Force Run triggered for " .. player.Name)
+	cancelTimer()
+	runEvent:FireAllClients(player)
+	clearCenterStage()
+	nextTurn()
 end
 
 -- Phase: Draw (Hidden timer - 10s to auto-draw)
@@ -893,8 +923,7 @@ function enterDrawPhase(player)
 	
 	drawPhaseEvent:FireClient(player, "Start")
 	
-	cancelTimer()
-	turnTimerTask = task.delay(DRAW_TIMEOUT, function()
+	startPhaseTimer(DRAW_TIMEOUT, "Draw", function()
 		if turnPhase == "Draw" and player == playersInGame[currentTurnIndex] then
 			print("Timer: Auto-Draw triggered for " .. player.Name)
 			performDrawAction(player)
@@ -918,8 +947,7 @@ function enterRollPhase(player)
 	
 	updateTurnEvent:FireAllClients(player.Name) -- UI shows "Your Turn"
 	
-	cancelTimer()
-	turnTimerTask = task.delay(ROLL_TIMEOUT, function()
+	startPhaseTimer(ROLL_TIMEOUT, "Roll", function()
 		if turnPhase == "Roll" and player == playersInGame[currentTurnIndex] then
 			print("Timer: Auto-Roll triggered for " .. player.Name)
 			processPlayerRoll(player)
@@ -932,3 +960,4 @@ drawPhaseEvent.OnServerEvent:Connect(function(player)
 	if player ~= playersInGame[currentTurnIndex] then return end
 	performDrawAction(player)
 end)
+

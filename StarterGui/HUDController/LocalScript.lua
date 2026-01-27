@@ -189,8 +189,8 @@ Instance.new("UICorner", resetButton).CornerRadius = UDim.new(0, 12)
 -- 3. STATUS/LOG LABEL (Small top center)
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Name = "StatusLabel"
-statusLabel.Size = UDim2.new(0, 400, 0, 30)
-statusLabel.Position = UDim2.new(0.5, 0, 0, 10)
+statusLabel.Size = UDim2.new(0, 300, 0, 30)
+statusLabel.Position = UDim2.new(0.5, -60, 0, 10) -- Shift left to make room for timer
 statusLabel.AnchorPoint = Vector2.new(0.5, 0)
 statusLabel.BackgroundTransparency = 0.5
 statusLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -201,15 +201,36 @@ statusLabel.TextSize = 14
 statusLabel.Parent = screenGui
 Instance.new("UICorner", statusLabel).CornerRadius = UDim.new(0, 8)
 
+-- 4. TIMER COUNTDOWN LABEL (Next to status)
+local timerCountdown = Instance.new("TextLabel")
+timerCountdown.Name = "TimerCountdown"
+timerCountdown.Size = UDim2.new(0, 80, 0, 30)
+timerCountdown.Position = UDim2.new(0.5, 95, 0, 10) -- Right of status
+timerCountdown.AnchorPoint = Vector2.new(0, 0)
+timerCountdown.BackgroundTransparency = 0.3
+timerCountdown.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+timerCountdown.TextColor3 = Color3.fromRGB(255, 200, 50)
+timerCountdown.Text = ""
+timerCountdown.Font = Enum.Font.FredokaOne
+timerCountdown.TextSize = 18
+timerCountdown.Visible = false
+timerCountdown.Parent = screenGui
+Instance.new("UICorner", timerCountdown).CornerRadius = UDim.new(0, 8)
+
 -- Rename for compatibility with logic below
 local timerLabel = statusLabel
 
+-- Timer countdown state
+local countdownConnection = nil
+local countdownRemaining = 0
+
 -- [[ 🔌 CONNECTION ]] --
-local rollEvent, updateTurnEvent, resetCamEvent, lockEvent, endTurnEvent, phaseEvent
+local rollEvent, updateTurnEvent, resetCamEvent, lockEvent, endTurnEvent, phaseEvent, timerUpdateEvent
 
 task.spawn(function()
 	rollEvent = ReplicatedStorage:WaitForChild("RollDiceEvent")
 	updateTurnEvent = ReplicatedStorage:WaitForChild("UpdateTurnEvent")
+	timerUpdateEvent = ReplicatedStorage:WaitForChild("TimerUpdateEvent", 5)
 	
 	-- New Events for Manual Turn
 	endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent", 5) 
@@ -226,6 +247,58 @@ task.spawn(function()
 	lockEvent = ReplicatedStorage:FindFirstChild("CameraLockEvent") or Instance.new("BindableEvent")
 	
 	timerLabel.Text = "Waiting for game..."
+	
+	-- Timer Update Event Handler (Countdown from server)
+	if timerUpdateEvent then
+		timerUpdateEvent.OnClientEvent:Connect(function(seconds, phaseName)
+			-- Stop existing countdown
+			if countdownConnection then
+				countdownConnection:Disconnect()
+				countdownConnection = nil
+			end
+			
+			if seconds <= 0 or phaseName == "" then
+				-- Hide timer
+				timerCountdown.Visible = false
+				countdownRemaining = 0
+				return
+			end
+			
+			-- Start countdown
+			countdownRemaining = seconds
+			timerCountdown.Visible = true
+			timerCountdown.Text = "⏱ " .. tostring(math.ceil(countdownRemaining)) .. "s"
+			
+			-- Color based on phase
+			if phaseName == "Roll" then
+				timerCountdown.TextColor3 = Color3.fromRGB(100, 255, 100) -- Green
+			elseif phaseName == "Shop" then
+				timerCountdown.TextColor3 = Color3.fromRGB(255, 200, 50) -- Gold
+			elseif phaseName == "Encounter" then
+				timerCountdown.TextColor3 = Color3.fromRGB(255, 100, 100) -- Red
+			else
+				timerCountdown.TextColor3 = Color3.fromRGB(200, 200, 200) -- Gray
+			end
+			
+			-- Countdown animation
+			countdownConnection = RunService.Heartbeat:Connect(function(dt)
+				countdownRemaining = countdownRemaining - dt
+				if countdownRemaining <= 0 then
+					timerCountdown.Visible = false
+					if countdownConnection then
+						countdownConnection:Disconnect()
+						countdownConnection = nil
+					end
+				else
+					timerCountdown.Text = "⏱ " .. tostring(math.ceil(countdownRemaining)) .. "s"
+					-- Flash red when low
+					if countdownRemaining <= 5 then
+						timerCountdown.TextColor3 = Color3.fromRGB(255, math.floor(50 + (countdownRemaining / 5) * 50), 50)
+					end
+				end
+			end)
+		end)
+	end
 	
 	-- Event: Update Turn (Start of Turn)
 	updateTurnEvent.OnClientEvent:Connect(function(currentName)
@@ -248,18 +321,8 @@ task.spawn(function()
 		end
 	end)
 	
-	-- Event: Turn Phase Change (Start -> Roll -> Event -> EndPhase)
-	if phaseEvent then
-		phaseEvent.OnClientEvent:Connect(function(phaseName)
-			if phaseName == "EndPhase" then
-				-- Enable End Turn Button
-				rollButton.Visible = false
-				endTurnButton.Visible = true
-				timerLabel.Text = "ACTIONS PHASE (End when ready)"
-				timerLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
-			end
-		end)
-	end
+	-- Event: Turn Phase Change (Removed - Timer handles auto-end now)
+	-- phaseEvent handler no longer needed since timer auto-ends turns
 
 
 	-- Event: Roll Result (Animation)
