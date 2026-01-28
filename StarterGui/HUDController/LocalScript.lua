@@ -2,6 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
+local PokemonDB = require(ReplicatedStorage:WaitForChild("PokemonDB"))
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -36,7 +37,7 @@ local function createPlayerBox(targetPlayer, index)
 	
 	local box = Instance.new("Frame")
 	box.Name = "HUD_" .. targetPlayer.Name
-	box.Size = UDim2.new(0, 240, 0, 100) -- Expanded for Pokemon party row
+	box.Size = UDim2.new(0, 290, 0, 130) -- Widen to 290px to fit big slots
 	box.Position = pos[1]
 	box.AnchorPoint = pos[2]
 	box.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
@@ -56,8 +57,8 @@ local function createPlayerBox(targetPlayer, index)
 	-- Profile Picture
 	local avatarImg = Instance.new("ImageLabel")
 	avatarImg.Size = UDim2.new(0, 60, 0, 60)
-	avatarImg.Position = UDim2.new(0, 10, 0.5, 0)
-	avatarImg.AnchorPoint = Vector2.new(0, 0.5)
+	avatarImg.Position = UDim2.new(0, 10, 0, 10) -- Top-Left align
+	avatarImg.AnchorPoint = Vector2.new(0, 0)
 	avatarImg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 	avatarImg.Parent = box
 	Instance.new("UICorner", avatarImg).CornerRadius = UDim.new(1, 0)
@@ -83,7 +84,7 @@ local function createPlayerBox(targetPlayer, index)
 	-- Stats Row (Money, Cards, Balls)
 	local statsRow = Instance.new("Frame")
 	statsRow.Size = UDim2.new(1, -80, 0, 30)
-	statsRow.Position = UDim2.new(0, 80, 0, 35)
+	statsRow.Position = UDim2.new(0, 80, 0, 40) -- Brought up closer to name
 	statsRow.BackgroundTransparency = 1
 	statsRow.Parent = box
 	
@@ -125,13 +126,15 @@ local function createPlayerBox(targetPlayer, index)
 	-- Pokemon Party Row (6 slots)
 	local partyRow = Instance.new("Frame")
 	partyRow.Name = "PartyRow"
-	partyRow.Size = UDim2.new(1, -20, 0, 24)
-	partyRow.Position = UDim2.new(0, 10, 0, 68)
+	partyRow.Size = UDim2.new(1, 0, 0, 50) -- Taller row for 42px slots
+	partyRow.Position = UDim2.new(0.5, 0, 1, -5)
+	partyRow.AnchorPoint = Vector2.new(0.5, 1)
 	partyRow.BackgroundTransparency = 1
 	partyRow.Parent = box
 	
 	local partyLayout = Instance.new("UIListLayout")
 	partyLayout.FillDirection = Enum.FillDirection.Horizontal
+	partyLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center -- Center the slots
 	partyLayout.Padding = UDim.new(0, 4)
 	partyLayout.Parent = partyRow
 	
@@ -139,18 +142,21 @@ local function createPlayerBox(targetPlayer, index)
 	for i = 1, 6 do
 		local slot = Instance.new("Frame")
 		slot.Name = "Slot_" .. i
-		slot.Size = UDim2.new(0, 24, 0, 24)
+		slot.Size = UDim2.new(0, 42, 0, 42) -- Bigger slots!
 		slot.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 		slot.BackgroundTransparency = 0.5
 		slot.Parent = partyRow
+		slot.ClipsDescendants = true -- Clip the zoomed in image
 		Instance.new("UICorner", slot).CornerRadius = UDim.new(0, 6)
 		
-		local icon = Instance.new("TextLabel")
-		icon.Name = "Icon"
-		icon.Size = UDim2.new(1, 0, 1, 0)
+		local icon = Instance.new("ImageLabel")
+		icon.Name = "IconImg"
+		icon.Size = UDim2.new(1.3, 0, 1.3, 0) -- Zoom in (130%)
+		icon.Position = UDim2.new(0.5, 0, 0.5, 0) -- Center
+		icon.AnchorPoint = Vector2.new(0.5, 0.5) -- Center Anchor
 		icon.BackgroundTransparency = 1
-		icon.Text = ""
-		icon.TextSize = 14
+		icon.Image = ""
+		icon.ScaleType = Enum.ScaleType.Fit
 		icon.Parent = slot
 		
 		partySlots[i] = slot
@@ -188,14 +194,19 @@ local function updatePartyIcons(targetPlayer)
 	local pokemons = inventory:GetChildren()
 	for i = 1, 6 do
 		local slot = frame.PartySlots[i]
-		local icon = slot:FindFirstChild("Icon")
+		local icon = slot:FindFirstChild("IconImg")
 		if icon then
 			if pokemons[i] then
 				local pokeName = pokemons[i].Name
-				icon.Text = POKEMON_ICONS[pokeName] or POKEMON_ICONS["Default"]
+				local dbData = PokemonDB.GetPokemon(pokeName)
+				if dbData and dbData.Icon then
+					icon.Image = dbData.Icon
+				else
+					icon.Image = "rbxassetid://0" -- Placeholder
+				end
 				slot.BackgroundTransparency = 0.3
 			else
-				icon.Text = ""
+				icon.Image = ""
 				slot.BackgroundTransparency = 0.7
 			end
 		end

@@ -23,6 +23,7 @@ gui.Parent = layer
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.Size = UDim2.new(0, 500, 0, 140) -- Fixed size for stability
+mainFrame.ClipsDescendants = false -- Allow pop-out if we want, but usually keep false for clean UI borders
 mainFrame.Position = UDim2.new(0.5, 0, 0.95, -10) -- Bottom Center, slight padding
 mainFrame.AnchorPoint = Vector2.new(0.5, 1)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 35, 40) -- Dark Slate
@@ -43,9 +44,9 @@ uiCorner.Parent = mainFrame
 -- === LEFT: POKEMON IMAGE ===
 local imgContainer = Instance.new("Frame")
 imgContainer.Name = "ImgContainer"
-imgContainer.Size = UDim2.new(0, 150, 0, 150)
-imgContainer.Position = UDim2.new(0, 10, 0.5, 0)
-imgContainer.AnchorPoint = Vector2.new(0, 0.5)
+imgContainer.Size = UDim2.new(0, 130, 0, 130) -- Reduced slightly to fit inside 140px height with padding
+imgContainer.Position = UDim2.new(0, 20, 0.5, 0) -- Moved right slightly
+imgContainer.AnchorPoint = Vector2.new(0, 0.5) -- Vertically centered
 imgContainer.BackgroundTransparency = 1
 imgContainer.ZIndex = 2
 imgContainer.Parent = mainFrame
@@ -55,6 +56,7 @@ imgLabel.Name = "PokemonImage"
 imgLabel.Size = UDim2.new(1, 0, 1, 0)
 imgLabel.BackgroundTransparency = 1
 imgLabel.Image = "" 
+imgLabel.ScaleType = Enum.ScaleType.Fit -- Keep aspect ratio!
 imgLabel.Visible = false 
 imgLabel.Parent = imgContainer
 
@@ -278,11 +280,17 @@ encounterEvent.OnClientEvent:Connect(function(activePlayer, pokeData)
 	end
 
 	-- Image
-	if pokeData.Image and pokeData.Image ~= "" then
+	print("🖼️ Encounter UI: Loading image for " .. pokeData.Name)
+	print("   Icon Field: " .. tostring(pokeData.Icon))
+	print("   Image Field: " .. tostring(pokeData.Image))
+
+	if pokeData.Image and pokeData.Image ~= "" and pokeData.Image ~= "rbxassetid://0" then
 		imgLabel.Visible = true 
 		imgLabel.Image = pokeData.Image
+		print("   ✅ Set Image to: " .. pokeData.Image)
 	else
 		imgLabel.Visible = false 
+		warn("   ⚠️ No valid Image ID found (Check PokemonDB.Image)")
 	end
 
 	-- Update Type Badge (Random Simulation / Future Proof)

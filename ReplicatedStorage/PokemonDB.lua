@@ -41,8 +41,10 @@ PokemonDB.Pokemon = {
 		CanEvolve = true,
 		EvolvesTo = "Ivysaur",
 		EvolveLevel = 16,
+
 		Model = "Bulbasaur",
-		Icon = "rbxassetid://0" -- Replace with actual asset ID
+		Icon = "rbxassetid://131802015396239", -- Small Icon (HUD)
+		Image = "rbxassetid://71744981746650" -- Full Art (Encounter)
 	},
 	["Ivysaur"] = {
 		Id = 2,
@@ -54,8 +56,10 @@ PokemonDB.Pokemon = {
 		CanEvolve = true,
 		EvolvesTo = "Venusaur",
 		EvolveLevel = 32,
+
 		Model = "Ivysaur",
-		Icon = "rbxassetid://0"
+		Icon = "rbxassetid://131802015396239",
+		Image = "rbxassetid://71744981746650"
 	},
 	["Venusaur"] = {
 		Id = 3,
@@ -66,11 +70,14 @@ PokemonDB.Pokemon = {
 		Ability = "Overgrow",
 		CanEvolve = false,
 		EvolvesTo = nil,
+
 		Model = "Venusaur",
-		Icon = "rbxassetid://0"
+		Icon = "rbxassetid://131802015396239",
+		Image = "rbxassetid://71744981746650"
 	},
-	
-	-- ===== STARTER: CHARMANDER LINE =====
+
+	-- ===== STARTER: CHARMANDER LINE ===== (DISABLED)
+	--[[ 
 	["Charmander"] = {
 		Id = 4,
 		Rarity = "Common",
@@ -202,6 +209,7 @@ PokemonDB.Pokemon = {
 		Model = "Mew",
 		Icon = "rbxassetid://0"
 	}
+	--]]
 }
 
 -- ===== HELPER FUNCTIONS =====
