@@ -155,6 +155,9 @@ function TurnManager.processPlayerRoll(player)
 			end
 
 			if i == roll then
+				-- UPDATE POSITION IMMEDIATELY
+				PlayerManager.playerPositions[player.UserId] = currentPos
+				
 				local tileColor = string.lower(nextTile.BrickColor.Name)
 				print("📍 [Server] Landed on tile: " .. nextTile.Name .. " | Color: " .. tileColor)
 

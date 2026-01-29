@@ -275,10 +275,16 @@ function BattleSystem.resolveTurn(battle, roll1, roll2)
 
 		-- Check Death
 		if battle.EnemyStats.CurrentHP <= 0 then
-			BattleSystem.endBattle(battle, "Win")
+			task.spawn(function()
+				task.wait(6) -- Wait for client animation
+				BattleSystem.endBattle(battle, "Win")
+			end)
 		elseif battle.MyStats.CurrentHP <= 0 then
 			battle.MyPokeObj:SetAttribute("Status", "Dead")
-			BattleSystem.endBattle(battle, "Lose")
+			task.spawn(function()
+				task.wait(6) -- Wait for client animation
+				BattleSystem.endBattle(battle, "Lose")
+			end)
 		end
 
 	elseif battle.Type == "PvP" then
@@ -313,10 +319,16 @@ function BattleSystem.resolveTurn(battle, roll1, roll2)
 		-- Check Death
 		if battle.DefenderStats.CurrentHP <= 0 then
 			battle.DefenderPokeObj:SetAttribute("Status", "Dead")
-			BattleSystem.endBattle(battle, "AttackerWin")
+			task.spawn(function()
+				task.wait(6)
+				BattleSystem.endBattle(battle, "AttackerWin")
+			end)
 		elseif battle.AttackerStats.CurrentHP <= 0 then
 			battle.AttackerPokeObj:SetAttribute("Status", "Dead")
-			BattleSystem.endBattle(battle, "DefenderWin")
+			task.spawn(function()
+				task.wait(6)
+				BattleSystem.endBattle(battle, "DefenderWin")
+			end)
 		else
 			-- Reset rolls for next round
 			battle.AttackerRoll = nil

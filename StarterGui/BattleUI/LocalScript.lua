@@ -356,7 +356,7 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 	sendMsg("🎲 " .. myName .. " is rolling...", Color3.fromRGB(100, 255, 255))
 	activeDice.Player = spawn3NDice(-1) -- Left
 	task.wait(1.2) -- Spin time
-	activeDice.Player.Stop(myRoll)
+	if activeDice.Player then activeDice.Player.Stop(myRoll) end
 	
 	task.wait(1.0) -- Wait before enemy
 	
@@ -364,21 +364,27 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 	sendMsg("🎲 " .. enemyName .. " is rolling...", Color3.fromRGB(255, 100, 100))
 	activeDice.Enemy = spawn3NDice(1) -- Right
 	task.wait(1.2) -- Spin time
-	activeDice.Enemy.Stop(enemyRoll)
+	if activeDice.Enemy then activeDice.Enemy.Stop(enemyRoll) end
 	
 	task.wait(1.5) -- PAUSE for result viewing
 	
-	rollBtn.Visible = true -- Re-enable button
-	rollBtn.Text = "🎲 ROLL ATTACK"
-	rollBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+	if isBattleActive then
+		rollBtn.Visible = true -- Re-enable button
+		rollBtn.Text = "🎲 ROLL ATTACK"
+		rollBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+	end
 	
+	print("⚔️ [Client Debug] BattleAttack Result: Winner=", winner, "Damage=", damage)
+	print("⚔️ [Client Debug] Details:", details)
+	print("⚔️ [Client Debug] vsFrame exists?", vsFrame ~= nil)
+
 	if winner == "Draw" then
 		sendMsg("It's a Draw! Roll again!", Color3.fromRGB(200, 200, 200))
 	else
 		local iWon = false
-		if currentBattleData.Type == "PvE" then
+		if currentBattleData and currentBattleData.Type == "PvE" then
 			iWon = (winner == "Player")
-		elseif currentBattleData.Type == "PvP" then
+		elseif currentBattleData and currentBattleData.Type == "PvP" then
 			local myRole = (player == currentBattleData.Attacker) and "Attacker" or "Defender"
 			iWon = (winner == myRole)
 		end
@@ -390,8 +396,9 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 		end
 		
 		-- UPDATE VS UI
-		if vsFrame and details then
+		if vsFrame and details and currentBattleData then
 			local function updateSide(sideName, stats)
+				print("⚔️ [Client Debug] Updating Side:", sideName, "Stats:", stats)
 				local container = vsFrame:FindFirstChild(sideName)
 				if container and stats then
 					local hpBg = container:FindFirstChild("HP_BG")
@@ -407,7 +414,11 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 						if pct > 0.5 then hpFill.BackgroundColor3 = Color3.fromRGB(50, 255, 100)
 						elseif pct > 0.2 then hpFill.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
 						else hpFill.BackgroundColor3 = Color3.fromRGB(255, 50, 50) end
+					else
+						warn("❌ [Client Debug] Missing HP UI Elements in " .. sideName)
 					end
+				else
+					warn("❌ [Client Debug] Container or Stats Missing for " .. sideName)
 				end
 			end
 			
@@ -431,13 +442,13 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 				end
 			end
 			
-			if myNewHP then
+			if myNewHP and currentBattleData.MyStats then
 				local max = currentBattleData.MyStats.MaxHP
 				local stats = { CurrentHP = myNewHP, MaxHP = max }
 				updateSide("Left", stats)
 				currentBattleData.MyStats.CurrentHP = myNewHP
 			end
-			if enemyNewHP then
+			if enemyNewHP and currentBattleData.EnemyStats then
 				local max = currentBattleData.EnemyStats.MaxHP
 				local stats = { CurrentHP = enemyNewHP, MaxHP = max }
 				updateSide("Right", stats)
@@ -501,6 +512,8 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 			end
 		end
 	end
+	
+	
 	
 	rollBtn.Visible = true
 	sendMsg("Battle Start! Roll needed: " .. (data.Target or "?"), Color3.fromRGB(255, 255, 100))
