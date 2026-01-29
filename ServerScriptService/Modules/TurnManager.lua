@@ -156,7 +156,7 @@ function TurnManager.processPlayerRoll(player)
 
 			if i == roll then
 				local tileColor = string.lower(nextTile.BrickColor.Name)
-				print("📍 Landed on tile: " .. nextTile.Name .. " | Color: " .. tileColor)
+				print("📍 [Server] Landed on tile: " .. nextTile.Name .. " | Color: " .. tileColor)
 
 				if string.find(tileColor, "white") then
 					-- Shop / City / Recovery Center

@@ -18,12 +18,16 @@ local player = Players.LocalPlayer
 local EventManager = require(game.ReplicatedStorage:WaitForChild("EventManager")) -- Or just get events directly
 
 -- Events
+print("🔵 [Client] BattleUI Script Started...")
 local Events = {
-	BattleStart = ReplicatedStorage:WaitForChild("BattleStartEvent"),
-	BattleAttack = ReplicatedStorage:WaitForChild("BattleAttackEvent"),
-	BattleEnd = ReplicatedStorage:WaitForChild("BattleEndEvent"),
-	Notify = ReplicatedStorage:WaitForChild("NotifyEvent") -- If exists
+	BattleStart = ReplicatedStorage:WaitForChild("BattleStartEvent", 10),
+	BattleAttack = ReplicatedStorage:WaitForChild("BattleAttackEvent", 10),
+	BattleEnd = ReplicatedStorage:WaitForChild("BattleEndEvent", 10),
+	BattleTrigger = ReplicatedStorage:WaitForChild("BattleTriggerEvent", 10),
+	BattleTriggerResponse = ReplicatedStorage:WaitForChild("BattleTriggerResponseEvent", 10),
+	Notify = ReplicatedStorage:WaitForChild("NotifyEvent", 10)
 }
+print("🔵 [Client] BattleUI Events Loaded:", Events.BattleTrigger and "Yes" or "No")
 
 -- UI Creation (Minimal)
 local screenGui = Instance.new("ScreenGui")

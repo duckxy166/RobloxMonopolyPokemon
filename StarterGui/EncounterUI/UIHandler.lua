@@ -397,7 +397,7 @@ catchEvent.OnClientEvent:Connect(function(activePlayer, success, diceRoll, targe
 
 	task.wait(1.5) 
 	dice:Destroy()
-	
+
 	-- Show Text Result
 	local who = (activePlayer and activePlayer.Name) or "Someone"
 	if success then

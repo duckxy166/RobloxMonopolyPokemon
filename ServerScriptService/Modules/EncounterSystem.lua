@@ -12,6 +12,7 @@
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+local pendingCatch = {} -- Key: userId, Value: {Name, Rarity, Stats}
 
 local EncounterSystem = {}
 
@@ -208,11 +209,11 @@ local MAX_PARTY_SIZE = 6
 function EncounterSystem.handleCatch(player, pokeData)
 	TimerSystem.cancelTimer()
 
-	-- Check if party is full
+	-- Check if party is full (6/6)
 	local inventory = player:FindFirstChild("PokemonInventory")
 	if inventory and #inventory:GetChildren() >= MAX_PARTY_SIZE then
 		Events.Notify:FireClient(player, "❌ Party full! (6/6)")
-		-- Restart encounter timer
+		-- Restart encounter timer so they don't get stuck
 		TurnManager.turnPhase = "Encounter"
 		TimerSystem.startPhaseTimer(TimerSystem.ENCOUNTER_TIMEOUT, "Encounter", function()
 			if TurnManager.turnPhase == "Encounter" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
@@ -225,32 +226,17 @@ function EncounterSystem.handleCatch(player, pokeData)
 	local balls = player.leaderstats.Pokeballs
 	balls.Value = balls.Value - 1
 
-	-- Use PokemonDB for difficulty
 	local target = PokemonDB.GetCatchDifficulty(pokeData.Name)
 	local roll = math.random(1, 6)
 	local success = roll >= target
 
 	if success then
-		local newPoke = Instance.new("StringValue")
-		newPoke.Name = pokeData.Name
-		newPoke.Value = pokeData.Rarity
-
-		-- [[ ⚔️ BATTLE STATS ]] --
-		-- Get base stats from DB
-		local dbStats = PokemonDB.GetPokemon(pokeData.Name)
-
-		-- Current HP
-		newPoke:SetAttribute("CurrentHP", dbStats.HP)
-		-- Max HP
-		newPoke:SetAttribute("MaxHP", dbStats.HP)
-		-- Attack Power
-		newPoke:SetAttribute("Attack", dbStats.Attack)
-		-- Status (Alive/Dead)
-		newPoke:SetAttribute("Status", "Alive")
-		-- Status (Alive/Dead)
-		newPoke:SetAttribute("Status", "Alive")
-
-		newPoke.Parent = player.PokemonInventory
+		-- Store data in memory instead of parenting the item now
+		pendingCatch[player.UserId] = {
+			Name = pokeData.Name,
+			Rarity = pokeData.Rarity,
+			Stats = PokemonDB.GetPokemon(pokeData.Name)
+		}
 		player.leaderstats.Money.Value = player.leaderstats.Money.Value + 5
 	end
 
@@ -259,7 +245,8 @@ function EncounterSystem.handleCatch(player, pokeData)
 
 	if isFinished then
 		TurnManager.turnPhase = "CatchResult"
-		TimerSystem.startPhaseTimer(3, "Result", function()
+		-- We give the player 5 seconds to watch the animation before moving to next turn
+		TimerSystem.startPhaseTimer(5, "Result", function()
 			EncounterSystem.clearCenterStage()
 			TurnManager.nextTurn()
 		end)
@@ -272,7 +259,6 @@ function EncounterSystem.handleCatch(player, pokeData)
 		end)
 	end
 end
-
 -- Handle run
 function EncounterSystem.handleRun(player)
 	TimerSystem.cancelTimer()
@@ -286,6 +272,21 @@ end
 function EncounterSystem.connectEvents()
 	Events.CatchPokemon.OnServerEvent:Connect(EncounterSystem.handleCatch)
 	Events.Run.OnServerEvent:Connect(EncounterSystem.handleRun)
+	local animDoneEvent = ReplicatedStorage:WaitForChild("CatchAnimationDoneEvent")
+	animDoneEvent.OnServerEvent:Connect(function(player)
+		local data = pendingCatch[player.UserId]
+		if data then
+			local newPoke = Instance.new("StringValue")
+			newPoke.Name = data.Name
+			newPoke.Value = data.Rarity
+			newPoke:SetAttribute("CurrentHP", data.Stats.HP)
+			newPoke:SetAttribute("MaxHP", data.Stats.HP)
+			newPoke:SetAttribute("Attack", data.Stats.Attack)
+			newPoke:SetAttribute("Status", "Alive")
+			newPoke.Parent = player.PokemonInventory
+			pendingCatch[player.UserId] = nil 
+		end
+	end)
 end
 
 return EncounterSystem
