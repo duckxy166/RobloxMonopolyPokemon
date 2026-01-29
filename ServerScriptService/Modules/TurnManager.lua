@@ -196,8 +196,17 @@ function TurnManager.processPlayerRoll(player)
 				elseif string.find(tileColor, "red") then -- Red Tile (PvE)
 					print("⚔️ [Server] Landed on Red Tile! Firing BattleTrigger/PvE to " .. player.Name)
 					if Events.BattleTrigger then
+						TurnManager.turnPhase = "BattleSelection" -- Track phase
 						Events.BattleTrigger:FireClient(player, "PvE", nil)
 						print("   -> Event Fired!")
+						
+						-- Failsafe Timer (30s)
+						TimerSystem.startPhaseTimer(30, "BattleSelection", function()
+							if TurnManager.turnPhase == "BattleSelection" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
+								warn("⏳ Battle Selection Timeout! Forcing Next Turn.")
+								TurnManager.nextTurn()
+							end
+						end)
 					else
 						warn("   -> Events.BattleTrigger is MISSING!")
 						TurnManager.nextTurn()

@@ -270,3 +270,20 @@ if catchEvent then
 		end
 	end)
 end
+
+-- 6. Battle Hide/Show
+local battleStart = ReplicatedStorage:FindFirstChild("BattleStartEvent")
+local battleEnd = ReplicatedStorage:FindFirstChild("BattleEndEvent")
+
+if battleStart then
+	battleStart.OnClientEvent:Connect(function()
+		screenGui.Enabled = false
+	end)
+end
+
+if battleEnd then
+	battleEnd.OnClientEvent:Connect(function()
+		task.wait(1)
+		screenGui.Enabled = true
+	end)
+end

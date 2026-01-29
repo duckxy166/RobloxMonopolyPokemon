@@ -12,7 +12,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local StarterGui = game:GetService("StarterGui")
+local PokemonDB = require(ReplicatedStorage:WaitForChild("PokemonDB"))
 
 local player = Players.LocalPlayer
 -- local EventManager = require(game.ReplicatedStorage:WaitForChild("EventManager")) -- REMOVED: Server module not available to client
@@ -38,13 +41,14 @@ screenGui.Parent = player:WaitForChild("PlayerGui")
 local rollBtn = Instance.new("TextButton")
 rollBtn.Name = "RollButton"
 rollBtn.Size = UDim2.new(0.3, 0, 0.1, 0)
-rollBtn.Position = UDim2.new(0.35, 0, 0.85, 0) -- Bottom Center
+rollBtn.Position = UDim2.new(0.35, 0, 0.65, 0) -- Moved UP (above VS Bar)
 rollBtn.Text = "🎲 ROLL ATTACK"
 rollBtn.Font = Enum.Font.FredokaOne
 rollBtn.TextSize = 24
 rollBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
 rollBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 rollBtn.Visible = false
+rollBtn.ZIndex = 10 -- Ensure it's on top
 rollBtn.Parent = screenGui
 
 local corner = Instance.new("UICorner")
@@ -68,8 +72,8 @@ local function createVSFrame()
 	
 	vsFrame = Instance.new("Frame")
 	vsFrame.Name = "VSFrame"
-	vsFrame.Size = UDim2.new(0.8, 0, 0.15, 0)
-	vsFrame.Position = UDim2.new(0.1, 0, 0.82, 0) -- Bottom center
+	vsFrame.Size = UDim2.new(0.6, 0, 0.15, 0) -- Reduced width (was 0.8)
+	vsFrame.Position = UDim2.new(0.2, 0, 0.82, 0) -- Centered (was 0.1)
 	vsFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 	vsFrame.BackgroundTransparency = 0.2
 	vsFrame.Parent = screenGui
@@ -152,6 +156,115 @@ local function createVSFrame()
 	createSide(vsFrame, "Right", Color3.fromRGB(255, 100, 100))
 end
 
+-- [[ 3D DICE LOGIC ]] --
+local ROTATION_OFFSETS = {
+	[1] = CFrame.Angles(0, 0, 0),
+	[2] = CFrame.Angles(math.rad(-90), 0, 0),
+	[3] = CFrame.Angles(0, math.rad(90), 0),
+	[4] = CFrame.Angles(0, math.rad(-90), 0),
+	[5] = CFrame.Angles(math.rad(90), 0, 0),
+	[6] = CFrame.Angles(0, math.rad(180), 0)
+}
+local diceTemplate = ReplicatedStorage:FindFirstChild("DiceModel")
+local camera = workspace.CurrentCamera
+
+-- Spawn and Animate a single 3D Die
+local function spawn3NDice(sideOffset)
+	local dice
+	if diceTemplate then 
+		dice = diceTemplate:Clone() 
+	else 
+		dice = Instance.new("Part")
+		dice.Size = Vector3.new(3,3,3) 
+		dice.Color = Color3.fromRGB(240, 240, 240)
+		-- Add text faces if generic part
+		for _, face in pairs(Enum.NormalId:GetEnumItems()) do
+			local s = Instance.new("SurfaceGui", dice)
+			s.Face = face
+			local t = Instance.new("TextLabel", s)
+			t.Size = UDim2.new(1,0,1,0)
+			t.BackgroundTransparency = 1
+			t.Text = math.random(1,6) 
+			t.TextScaled = true
+		end
+	end
+	
+	dice.Parent = workspace
+	dice.Anchored = true
+	dice.CanCollide = false
+	
+	-- Position in front of camera
+	-- sideOffset: -1 for left (Player), 1 for right (Enemy)
+	local startCF = camera.CFrame * CFrame.new(sideOffset * 4, -2, -8) -- 4 studs left/right, 2 down, 8 forward
+	dice.CFrame = startCF
+	
+	-- Spin Animation
+	local connection
+	local spinSpeed = Vector3.new(math.random(300,700), math.random(300,700), math.random(300,700))
+	connection = RunService.RenderStepped:Connect(function(dt)
+		if not dice.Parent then connection:Disconnect() return end
+		dice.CFrame = dice.CFrame * CFrame.Angles(math.rad(spinSpeed.X*dt), math.rad(spinSpeed.Y*dt), math.rad(spinSpeed.Z*dt))
+	end)
+	
+	-- Return object to control externally or handle lifecycle here
+	return {
+		Object = dice,
+		Stop = function(finalVal)
+			if connection then connection:Disconnect() end
+			
+			-- Tween to result
+			local finalCF = camera.CFrame * CFrame.new(sideOffset * 4, -2, -8) -- End at same spot roughly
+			-- Look at camera
+			-- Apply face rotation
+			local targetOri = CFrame.lookAt(finalCF.Position, camera.CFrame.Position) * ROTATION_OFFSETS[finalVal]
+
+			local tw = TweenService:Create(dice, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+				CFrame = targetOri
+			})
+			tw:Play()
+			
+			-- Cleanup after show
+			task.delay(3, function()
+				dice:Destroy()
+			end)
+		end
+	}
+end
+
+-- Replaces createDiceUI (No setup needed for 3D)
+local function createDiceUI() 
+	-- No-op or cleanup 2D
+	if leftDice then leftDice:Destroy() leftDice = nil end
+	if rightDice then rightDice:Destroy() rightDice = nil end
+end
+
+-- Helper: Animate Dice (Now triggers 3D)
+-- We don't need persistent loop, we launch per attack.
+local function startRollingAnim()
+	-- Does nothing now, animation starts on result or we simulate here?
+	-- Current flow: 1. Click Roll -> 2. startRollingAnim -> 3. FireServer -> 4. Receive Result -> 5. stopRollingAnim
+	-- For 3D:
+	-- 1. Click Roll -> show spinning 3D dice indefinitely?
+	-- 2. Receive Result -> Tween and stop.
+	
+	-- Actually, let's start the 3D spin on click, and just hold the reference.
+	-- We need module-level refs to stop them.
+end
+
+local activeDice = {} -- {Player=?, Enemy=?}
+
+local function cleanupDice()
+	if activeDice.Player then 
+		if activeDice.Player.Object then activeDice.Player.Object:Destroy() end
+		activeDice.Player = nil
+	end
+	if activeDice.Enemy then 
+		if activeDice.Enemy.Object then activeDice.Enemy.Object:Destroy() end
+		activeDice.Enemy = nil
+	end
+end
+
+
 -- Helper: Send System Message
 local function sendMsg(text, color)
 	pcall(function()
@@ -190,9 +303,17 @@ end)
 rollBtn.MouseButton1Click:Connect(function()
 	if not isBattleActive or isRolling then return end
 	isRolling = true
-	rollBtn.Text = "Rolling..."
-	rollBtn.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+	rollBtn.Visible = false -- Hide button while rolling (like HUD)
+	-- rollBtn.Text = "Rolling..."
+	-- rollBtn.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+	
 	sendMsg("Rolling dice... 🎲", Color3.fromRGB(255, 255, 100))
+	
+	-- Start 3D Spin
+	cleanupDice() -- Clear old
+	activeDice.Player = spawn3NDice(-1) -- -1 Left
+	-- activeDice.Enemy = spawn3NDice(1)   -- 1 Right (Moved to Event for Sequential)
+	
 	Events.BattleAttack:FireServer()
 end)
 
@@ -200,9 +321,57 @@ end)
 -- Battle Update (Damage)
 Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 	isRolling = false
-	rollBtn.Text = "🎲 ROLL ATTACK"
-	rollBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
+	-- Roll button hidden during anim
+	
+	-- 1. Get Rolls from details
+	local myRoll = 0
+	local enemyRoll = 0
+	local myName = player.Name
+	local enemyName = "Enemy"
+	
+	if details then
+		if currentBattleData.Type == "PvP" then
+			if player == currentBattleData.Attacker then
+				myRoll = details.AttackerRoll
+				enemyRoll = details.DefenderRoll
+				enemyName = currentBattleData.Defender.Name
+			else
+				myRoll = details.DefenderRoll
+				enemyRoll = details.AttackerRoll
+				-- If I am defender, enemy is Attacker
+				enemyName = currentBattleData.Attacker.Name
+			end
+		else
+			-- PvE
+			myRoll = details.PlayerRoll
+			enemyRoll = details.EnemyRoll
+			enemyName = currentBattleData.EnemyStats.Name
+		end
+	end
+	
+	-- [[ 3. SEQUENTIAL ROLLING ANIMATION ]] --
+	cleanupDice()
 
+	-- Step A: Player Rolls
+	sendMsg("🎲 " .. myName .. " is rolling...", Color3.fromRGB(100, 255, 255))
+	activeDice.Player = spawn3NDice(-1) -- Left
+	task.wait(1.2) -- Spin time
+	activeDice.Player.Stop(myRoll)
+	
+	task.wait(1.0) -- Wait before enemy
+	
+	-- Step B: Enemy Rolls
+	sendMsg("🎲 " .. enemyName .. " is rolling...", Color3.fromRGB(255, 100, 100))
+	activeDice.Enemy = spawn3NDice(1) -- Right
+	task.wait(1.2) -- Spin time
+	activeDice.Enemy.Stop(enemyRoll)
+	
+	task.wait(1.5) -- PAUSE for result viewing
+	
+	rollBtn.Visible = true -- Re-enable button
+	rollBtn.Text = "🎲 ROLL ATTACK"
+	rollBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+	
 	if winner == "Draw" then
 		sendMsg("It's a Draw! Roll again!", Color3.fromRGB(200, 200, 200))
 	else
@@ -262,20 +431,16 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 				end
 			end
 			
-			-- Update UI
 			if myNewHP then
 				local max = currentBattleData.MyStats.MaxHP
 				local stats = { CurrentHP = myNewHP, MaxHP = max }
 				updateSide("Left", stats)
-				-- Update local data ref
 				currentBattleData.MyStats.CurrentHP = myNewHP
 			end
-			
 			if enemyNewHP then
 				local max = currentBattleData.EnemyStats.MaxHP
 				local stats = { CurrentHP = enemyNewHP, MaxHP = max }
 				updateSide("Right", stats)
-				-- Update local data ref
 				currentBattleData.EnemyStats.CurrentHP = enemyNewHP
 			end
 		end
@@ -302,6 +467,7 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 	
 	-- Create VS UI
 	createVSFrame()
+	createDiceUI() -- Create Dice Containers
 	
 	-- Populate Data
 	if vsFrame and data then
@@ -468,4 +634,3 @@ end)
 			Events.BattleTriggerResponse:FireServer("Run", nil)
 		end)
 	end)
-end
