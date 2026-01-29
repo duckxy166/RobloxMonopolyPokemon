@@ -61,6 +61,7 @@ ShopSystem.connectEvents()
 EncounterSystem.connectEvents()
 PlayerManager.connectEvents()
 BattleSystem.connectEvents()
+CardSystem.connectEvents(Events, TurnManager, PlayerManager)
 
 -- STEP 5: Handle Item Usage
 Events.UseItem.OnServerEvent:Connect(function(player, itemName)

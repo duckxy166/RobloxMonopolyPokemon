@@ -257,7 +257,9 @@ local diceTemplate = ReplicatedStorage:FindFirstChild("DiceModel")
 local camera = workspace.CurrentCamera
 
 -- 1. Handle Encounter Start
+
 encounterEvent.OnClientEvent:Connect(function(activePlayer, pokeData)
+	sentCatchDone = false
 	currentPokeData = pokeData 
 
 	gui.Enabled = true

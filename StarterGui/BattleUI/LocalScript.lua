@@ -60,6 +60,97 @@ stroke.Parent = rollBtn
 local isBattleActive = false
 local isRolling = false
 local currentBattleData = nil
+local vsFrame = nil
+
+-- Helper: Create VS UI
+local function createVSFrame()
+	if vsFrame then vsFrame:Destroy() end
+	
+	vsFrame = Instance.new("Frame")
+	vsFrame.Name = "VSFrame"
+	vsFrame.Size = UDim2.new(0.8, 0, 0.15, 0)
+	vsFrame.Position = UDim2.new(0.1, 0, 0.82, 0) -- Bottom center
+	vsFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	vsFrame.BackgroundTransparency = 0.2
+	vsFrame.Parent = screenGui
+	
+	Instance.new("UICorner", vsFrame).CornerRadius = UDim.new(0, 10)
+	
+	-- VS Text
+	local vsLabel = Instance.new("TextLabel")
+	vsLabel.Text = "VS"
+	vsLabel.Size = UDim2.new(0.1, 0, 1, 0)
+	vsLabel.Position = UDim2.new(0.45, 0, 0, 0)
+	vsLabel.BackgroundTransparency = 1
+	vsLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+	vsLabel.Font = Enum.Font.FredokaOne
+	vsLabel.TextSize = 32
+	vsLabel.Parent = vsFrame
+	
+	-- Helper to create side
+	local function createSide(parent, side, color)
+		local container = Instance.new("Frame")
+		container.Name = side
+		container.Size = UDim2.new(0.45, 0, 1, 0)
+		container.Position = side == "Left" and UDim2.new(0, 0, 0, 0) or UDim2.new(0.55, 0, 0, 0)
+		container.BackgroundTransparency = 1
+		container.Parent = parent
+		
+		-- Pokemon Image (Placeholder rect)
+		local img = Instance.new("ImageLabel")
+		img.Name = "PokeImage"
+		img.Size = UDim2.new(0.3, 0, 0.9, 0)
+		img.Position = side == "Left" and UDim2.new(0, 5, 0.05, 0) or UDim2.new(0.7, -5, 0.05, 0)
+		img.BackgroundColor3 = color
+		img.Parent = container
+		Instance.new("UICorner", img).CornerRadius = UDim.new(0, 8)
+		
+		-- Name
+		local nameLbl = Instance.new("TextLabel")
+		nameLbl.Name = "NameLabel"
+		nameLbl.Text = "Pokemon"
+		nameLbl.Size = UDim2.new(0.6, 0, 0.3, 0)
+		nameLbl.Position = side == "Left" and UDim2.new(0.35, 0, 0.1, 0) or UDim2.new(0.05, 0, 0.1, 0)
+		nameLbl.Font = Enum.Font.FredokaOne
+		nameLbl.TextSize = 18
+		nameLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+		nameLbl.BackgroundTransparency = 1
+		nameLbl.Parent = container
+		if side == "Right" then nameLbl.TextXAlignment = Enum.TextXAlignment.Right end
+		if side == "Left" then nameLbl.TextXAlignment = Enum.TextXAlignment.Left end
+
+		-- HP Bar
+		local hpBg = Instance.new("Frame")
+		hpBg.Name = "HP_BG"
+		hpBg.Size = UDim2.new(0.6, 0, 0.2, 0)
+		hpBg.Position = side == "Left" and UDim2.new(0.35, 0, 0.5, 0) or UDim2.new(0.05, 0, 0.5, 0)
+		hpBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		hpBg.Parent = container
+		Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0, 4)
+		
+		local hpFill = Instance.new("Frame")
+		hpFill.Name = "HP_Fill"
+		hpFill.Size = UDim2.new(1, 0, 1, 0)
+		hpFill.BackgroundColor3 = Color3.fromRGB(50, 255, 100)
+		hpFill.Parent = hpBg
+		Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 4)
+		
+		local hpText = Instance.new("TextLabel")
+		hpText.Name = "HP_Text"
+		hpText.Text = "100/100"
+		hpText.Size = UDim2.new(1, 0, 1, 0)
+		hpText.BackgroundTransparency = 1
+		hpText.Font = Enum.Font.Code
+		hpText.TextSize = 12
+		hpText.TextColor3 = Color3.fromRGB(255, 255, 255)
+		hpText.Parent = hpBg
+		
+		return container
+	end
+	
+	createSide(vsFrame, "Left", Color3.fromRGB(100, 100, 255))
+	createSide(vsFrame, "Right", Color3.fromRGB(255, 100, 100))
+end
 
 -- Helper: Send System Message
 local function sendMsg(text, color)
@@ -106,28 +197,6 @@ rollBtn.MouseButton1Click:Connect(function()
 end)
 
 -- Battle Start
-Events.BattleStart.OnClientEvent:Connect(function(type, data)
-	currentBattleData = data
-	isBattleActive = true
-	isRolling = false
-
-	print("⚔️ Battle Mode Activated (No UI)")
-
-	rollBtn.Visible = true
-	rollBtn.Text = "🎲 ROLL ATTACK"
-	rollBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
-
-	if type == "PvE" then
-		sendMsg("Wild " .. data.EnemyStats.Name .. " appeared! Press SPACE to Battle!", Color3.fromRGB(255, 50, 50))
-	elseif type == "PvP" then
-		local opponent = (player == data.Attacker) and data.Defender or data.Attacker
-		sendMsg("PvP Started against " .. opponent.Name .. "! Press SPACE to Battle!", Color3.fromRGB(255, 50, 50))
-	elseif type == "SelectOpponent" then
-		-- Auto-select or just prompt for now
-		sendMsg("Opponent selection pending...", Color3.fromRGB(255, 200, 50))
-	end
-end)
-
 -- Battle Update (Damage)
 Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 	isRolling = false
@@ -150,6 +219,66 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 		else
 			sendMsg("You took " .. damage .. " damage! 🛡️", Color3.fromRGB(255, 100, 100))
 		end
+		
+		-- UPDATE VS UI
+		if vsFrame and details then
+			local function updateSide(sideName, stats)
+				local container = vsFrame:FindFirstChild(sideName)
+				if container and stats then
+					local hpBg = container:FindFirstChild("HP_BG")
+					local hpFill = hpBg and hpBg:FindFirstChild("HP_Fill")
+					local hpText = hpBg and hpBg:FindFirstChild("HP_Text")
+					
+					if hpFill and hpText then
+						local pct = math.clamp(stats.CurrentHP / stats.MaxHP, 0, 1)
+						hpFill:TweenSize(UDim2.new(pct, 0, 1, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.3, true)
+						hpText.Text = stats.CurrentHP .. "/" .. stats.MaxHP
+						
+						-- Color
+						if pct > 0.5 then hpFill.BackgroundColor3 = Color3.fromRGB(50, 255, 100)
+						elseif pct > 0.2 then hpFill.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
+						else hpFill.BackgroundColor3 = Color3.fromRGB(255, 50, 50) end
+					end
+				end
+			end
+			
+			-- Update Stats from Server Details
+			-- PvE Keys: PlayerHP, EnemyHP
+			-- PvP Keys: AttackerHP, DefenderHP
+			
+			local myNewHP = nil
+			local enemyNewHP = nil
+			
+			if currentBattleData.Type == "PvE" then
+				myNewHP = details.PlayerHP
+				enemyNewHP = details.EnemyHP
+			elseif currentBattleData.Type == "PvP" then
+				if player == currentBattleData.Attacker then
+					myNewHP = details.AttackerHP
+					enemyNewHP = details.DefenderHP
+				else
+					myNewHP = details.DefenderHP
+					enemyNewHP = details.AttackerHP
+				end
+			end
+			
+			-- Update UI
+			if myNewHP then
+				local max = currentBattleData.MyStats.MaxHP
+				local stats = { CurrentHP = myNewHP, MaxHP = max }
+				updateSide("Left", stats)
+				-- Update local data ref
+				currentBattleData.MyStats.CurrentHP = myNewHP
+			end
+			
+			if enemyNewHP then
+				local max = currentBattleData.EnemyStats.MaxHP
+				local stats = { CurrentHP = enemyNewHP, MaxHP = max }
+				updateSide("Right", stats)
+				-- Update local data ref
+				currentBattleData.EnemyStats.CurrentHP = enemyNewHP
+			end
+		end
 	end
 end)
 
@@ -157,12 +286,59 @@ end)
 Events.BattleEnd.OnClientEvent:Connect(function(result)
 	isBattleActive = false
 	currentBattleData = nil
+	-- Clean up UI
+	if vsFrame then vsFrame:Destroy() vsFrame = nil end
+	
 	rollBtn.Visible = false
 	sendMsg("Battle Ended: " .. result, Color3.fromRGB(255, 255, 255))
 end)
 
--- Battle Trigger Request (Fight or Run?)
-if Events.BattleTrigger then
+-- Battle Start (Single Source of Truth)
+Events.BattleStart.OnClientEvent:Connect(function(type, data)
+	print("⚔️ [Client] Battle Started!", type)
+	isBattleActive = true
+	isRolling = false
+	currentBattleData = data
+	
+	-- Create VS UI
+	createVSFrame()
+	
+	-- Populate Data
+	if vsFrame and data then
+		-- Player Side (Left)
+		local mySide = vsFrame:FindFirstChild("Left")
+		if mySide and data.MyStats then
+			local nameLbl = mySide:FindFirstChild("NameLabel")
+			local hpText = mySide:FindFirstChild("HP_BG"):FindFirstChild("HP_Text")
+			local img = mySide:FindFirstChild("PokeImage")
+			if nameLbl then nameLbl.Text = data.MyStats.Name end
+			if hpText then hpText.Text = data.MyStats.CurrentHP .. "/" .. data.MyStats.MaxHP end
+			
+			if img then
+				local db = PokemonDB.GetPokemon(data.MyStats.Name)
+				if db and db.Icon then img.Image = db.Icon end
+			end
+		end
+		
+		-- Enemy Side (Right)
+		local enemySide = vsFrame:FindFirstChild("Right")
+		if enemySide and data.EnemyStats then
+			local nameLbl = enemySide:FindFirstChild("NameLabel")
+			local hpText = enemySide:FindFirstChild("HP_BG"):FindFirstChild("HP_Text")
+			local img = enemySide:FindFirstChild("PokeImage")
+			if nameLbl then nameLbl.Text = data.EnemyStats.Name end
+			if hpText then hpText.Text = data.EnemyStats.CurrentHP .. "/" .. data.EnemyStats.MaxHP end
+			
+			if img then
+				local db = PokemonDB.GetPokemon(data.EnemyStats.Name)
+				if db and db.Icon then img.Image = db.Icon end
+			end
+		end
+	end
+	
+	rollBtn.Visible = true
+	sendMsg("Battle Start! Roll needed: " .. (data.Target or "?"), Color3.fromRGB(255, 255, 100))
+end)
 	Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 		print("⚔️ [Client] BattleTrigger Received! Type:", type)
 
@@ -185,7 +361,7 @@ if Events.BattleTrigger then
 		title.Parent = choiceFrame
 
 		if type == "PvE" then
-			title.Text = "Wild Pokemon Appeared! Fight?"
+			title.Text = "Gym Battle! Fight?"
 		elseif type == "PvP" then
 			title.Text = "Player Encounter! Battle?"
 		end
@@ -212,13 +388,79 @@ if Events.BattleTrigger then
 
 
 		-- Logic
+		-- Logic
 		fightBtn.MouseButton1Click:Connect(function()
-			choiceFrame:Destroy()
-			local responseData = { Type = type }
-			if type == "PvP" and data and data.Opponents then
-				responseData.Target = data.Opponents[1] -- Defaut first
+			-- Close Choice Frame
+			choiceFrame.Visible = false 
+			
+			-- OPEN SELECTION UI
+			local inventory = player:FindFirstChild("PokemonInventory")
+			local pokemons = inventory and inventory:GetChildren() or {}
+			
+			-- Filter Alive Pokemon
+			local alivePokemons = {}
+			for _, poke in ipairs(pokemons) do
+				if poke:GetAttribute("Status") == "Alive" then
+					table.insert(alivePokemons, poke)
+				end
 			end
-			Events.BattleTriggerResponse:FireServer("Fight", responseData)
+			
+			-- Create Selection Frame
+			local selFrame = Instance.new("Frame")
+			selFrame.Size = UDim2.new(0, 400, 0, 300)
+			selFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+			selFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+			selFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+			selFrame.BorderSizePixel = 0
+			selFrame.Parent = screenGui
+			Instance.new("UICorner", selFrame).CornerRadius = UDim.new(0, 12)
+			
+			local selTitle = Instance.new("TextLabel")
+			selTitle.Size = UDim2.new(1, 0, 0, 50)
+			selTitle.BackgroundTransparency = 1
+			selTitle.Text = "Choose your Pokemon!"
+			selTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+			selTitle.Font = Enum.Font.FredokaOne
+			selTitle.TextSize = 24
+			selTitle.Parent = selFrame
+			
+			local scroll = Instance.new("ScrollingFrame")
+			scroll.Size = UDim2.new(0.9, 0, 0.7, 0)
+			scroll.Position = UDim2.new(0.05, 0, 0.2, 0)
+			scroll.BackgroundTransparency = 1
+			scroll.Parent = selFrame
+			
+			local layout = Instance.new("UIListLayout")
+			layout.Parent = scroll
+			layout.Padding = UDim.new(0, 10)
+			layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+			
+			-- Generate Buttons
+			for _, poke in ipairs(alivePokemons) do
+				local btn = Instance.new("TextButton")
+				btn.Size = UDim2.new(0.9, 0, 0, 50)
+				btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+				btn.Text = "  " .. poke.Name .. " (HP: " .. (poke:GetAttribute("CurrentHP") or "?") .. ")"
+				btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				btn.Font = Enum.Font.FredokaOne
+				btn.TextSize = 18
+				btn.TextXAlignment = Enum.TextXAlignment.Left
+				btn.Parent = scroll
+				Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+				
+				btn.MouseButton1Click:Connect(function()
+					selFrame:Destroy()
+					choiceFrame:Destroy()
+					
+					local responseData = { Type = type, SelectedPokemonName = poke.Name }
+					if type == "PvP" and data and data.Opponents then
+						responseData.Target = data.Opponents[1] 
+					end
+					Events.BattleTriggerResponse:FireServer("Fight", responseData)
+				end)
+			end
+			
+			scroll.CanvasSize = UDim2.new(0, 0, 0, #alivePokemons * 60)
 		end)
 
 		runBtn.MouseButton1Click:Connect(function()

@@ -73,11 +73,13 @@ end
 -- ============================================================================
 
 -- Start PvE (Wild Pokemon)
-function BattleSystem.startPvE(player)
+-- Start PvE (Wild Pokemon / Gym)
+function BattleSystem.startPvE(player, chosenPoke)
 	print("⚔️ PvE Started for " .. player.Name)
 
-	-- 1. Check if player has alive pokemon
-	local myPoke = BattleSystem.getFirstAlivePokemon(player)
+	-- 1. Determine Pokemon (Chosen or Default First Alive)
+	local myPoke = chosenPoke or BattleSystem.getFirstAlivePokemon(player)
+	
 	if not myPoke then
 		if Events.Notify then Events.Notify:FireClient(player, "❌ All Pokemon are dead! Cannot battle.") end
 		TurnManager.nextTurn()
@@ -109,22 +111,38 @@ function BattleSystem.startPvE(player)
 	local battleStage = game.Workspace:FindFirstChild("Stage")
 	if battleStage then
 		local p1Stage = battleStage:FindFirstChild("PlayerStage1")
+		local pokeStage1 = battleStage:FindFirstChild("PokemonStage1")
+		local pokeStage2 = battleStage:FindFirstChild("PokemonStage2")
+
 		if p1Stage and player.Character then
 			player.Character:SetPrimaryPartCFrame(p1Stage.CFrame + Vector3.new(0, 3, 0))
 		end
 
 		-- SPAWN POKEMON MODEL
 		if myPoke then
-			BattleSystem.spawnPokemonModel(myPoke.Name, battleStage:FindFirstChild("PokemonStage1"))
+			if pokeStage1 then
+				BattleSystem.spawnPokemonModel(myPoke.Name, pokeStage1)
+			else
+				warn("⚠️ PokemonStage1 NOT found in Stage folder!")
+			end
 		end
 		if enemyStats then
-			BattleSystem.spawnPokemonModel(enemyStats.Name, battleStage:FindFirstChild("PokemonStage2"))
+			if pokeStage2 then
+				BattleSystem.spawnPokemonModel(enemyStats.Name, pokeStage2)
+			else
+				warn("⚠️ PokemonStage2 NOT found in Stage folder!")
+			end
 		end
 	else
-		print("⚠️ No Stage folder found in Workspace!")
+		warn("⚠️ No Stage folder found in Workspace!")
 	end
 
-	-- 4. Send Client Event (Minimal/No UI Mode)
+	-- 4. Notify Player of their Pokemon
+	if Events.Notify then 
+		Events.Notify:FireClient(player, "Go! " .. myPoke.Name .. "!") 
+	end
+
+	-- 5. Send Client Event (Minimal/No UI Mode)
 	Events.BattleStart:FireClient(player, "PvE", BattleSystem.activeBattles[player.UserId])
 end
 
@@ -375,18 +393,51 @@ function BattleSystem.spawnPokemonModel(pokeName, stagePart)
 	end
 
 	-- Clone new
-	-- Assumption: specific folder structure or simple search
-	local modelTemplate = ServerStorage:FindFirstChild(pokeName, true) 
-	-- Fallback to "PokemonModels" folder if exists
+	-- Search Logic
+	local modelTemplate = ServerStorage:FindFirstChild(pokeName, true)
 	if not modelTemplate then
 		local folder = ServerStorage:FindFirstChild("PokemonModels")
-		if folder then modelTemplate = folder:FindFirstChild(pokeName) end
+		if folder then 
+			modelTemplate = folder:FindFirstChild(pokeName) 
+			if not modelTemplate then
+				-- Try loose match
+				for _, child in ipairs(folder:GetChildren()) do
+					if child.Name:match("^%s*" .. pokeName .. "%s*$") then
+						modelTemplate = child
+						break
+					end
+				end
+			end
+		end
 	end
 
 	if modelTemplate then
 		local cloned = modelTemplate:Clone()
-		cloned.Parent = stagePart
-		cloned:SetPrimaryPartCFrame(stagePart.CFrame + Vector3.new(0, 2, 0))
+		cloned.Parent = game.Workspace
+		
+		-- Ensure PrimaryPart exists
+		if not cloned.PrimaryPart then
+			local root = cloned:FindFirstChild("HumanoidRootPart") or cloned:FindFirstChildWhichIsA("BasePart", true)
+			if root then
+				cloned.PrimaryPart = root
+			else
+				warn("⚠️ Model '" .. pokeName .. "' has no BasePart to position!")
+			end
+		end
+
+		if cloned.PrimaryPart then
+			local targetCFrame = stagePart.CFrame + Vector3.new(0, 3, 0) -- Higher up to avoid clipping
+			cloned:SetPrimaryPartCFrame(targetCFrame)
+			print("   ✅ Spawned " .. pokeName .. " at " .. tostring(targetCFrame.Position))
+		end
+		
+		-- Anchor EVERYTHING so it doesn't fall
+		for _, desc in ipairs(cloned:GetDescendants()) do
+			if desc:IsA("BasePart") then
+				desc.Anchored = true
+				desc.CanCollide = false
+			end
+		end
 	else
 		print("⚠️ Model not found for: " .. pokeName)
 	end
@@ -398,7 +449,15 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 
 	if action == "Fight" then
 		if data and data.Type == "PvE" then
-			BattleSystem.startPvE(player)
+			-- Find chosen pokemon if name provided
+			local chosenPoke = nil
+			if data.SelectedPokemonName then
+				local inventory = player:FindFirstChild("PokemonInventory")
+				if inventory then
+					chosenPoke = inventory:FindFirstChild(data.SelectedPokemonName)
+				end
+			end
+			BattleSystem.startPvE(player, chosenPoke)
 		elseif data and data.Type == "PvP" then
 			-- PvP requires opponent selection if multiple, or just first one
 			-- Simplify: If target provided, fight them

@@ -151,4 +151,43 @@ function CardSystem.getCardDB()
 	return CardDB
 end
 
+function CardSystem.connectEvents(events, turnManager, playerManager)
+	if events.PlayCard then
+		events.PlayCard.OnServerEvent:Connect(function(player, cardName, targetInfo)
+			print("🃏 [Server] PlayCard Request form " .. player.Name .. ": " .. tostring(cardName))
+			
+			-- 1. Phase Check (Pre-Roll Only)
+			if turnManager.turnPhase ~= "Roll" then
+				if events.Notify then 
+					events.Notify:FireClient(player, "❌ Can only use cards before rolling!") 
+				end
+				return
+			end
+			
+			-- 2. Turn Check
+			if player ~= playerManager.playersInGame[turnManager.currentTurnIndex] then
+				if events.Notify then
+					events.Notify:FireClient(player, "❌ Not your turn!")
+				end
+				return
+			end
+			
+			-- 3. Verify Ownership
+			local hand = CardSystem.getHandFolder(player)
+			local cardObj = hand and hand:FindFirstChild(cardName)
+			if not cardObj then return end -- Player doesn't have card
+			
+			-- 4. Process Effect (Placeholder for now, just consume)
+			-- TODO: Add specific card logic here (e.g. Potion, etc.)
+			CardSystem.removeCardFromHand(player, cardName, 1)
+			
+			if events.Notify then
+				events.Notify:FireClient(player, "✅ Used " .. cardName .. "!")
+			end
+			
+			-- 5. Special logic if card affects movement or stats could go here
+		end)
+	end
+end
+
 return CardSystem
