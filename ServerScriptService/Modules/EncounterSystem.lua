@@ -269,13 +269,28 @@ function EncounterSystem.handleRun(player)
 	TurnManager.nextTurn()
 end
 
+local eventsConnected = false
+local animProcessing = {}
 -- Connect events
 function EncounterSystem.connectEvents()
+	if eventsConnected then
+		warn("[EncounterSystem] connectEvents() called again -> skipping")
+		return
+	end
+	eventsConnected = true
+
 	Events.CatchPokemon.OnServerEvent:Connect(EncounterSystem.handleCatch)
 	Events.Run.OnServerEvent:Connect(EncounterSystem.handleRun)
+
 	local animDoneEvent = ReplicatedStorage:WaitForChild("CatchAnimationDoneEvent")
 	animDoneEvent.OnServerEvent:Connect(function(player)
-		local data = pendingCatch[player.UserId]
+		local uid = player.UserId
+		if animProcessing[uid] then return end
+		animProcessing[uid] = true
+
+		local data = pendingCatch[uid]
+		pendingCatch[uid] = nil -- clear ASAP to prevent duplicates
+
 		if data then
 			local newPoke = Instance.new("StringValue")
 			newPoke.Name = data.Name
@@ -285,8 +300,9 @@ function EncounterSystem.connectEvents()
 			newPoke:SetAttribute("Attack", data.Stats.Attack)
 			newPoke:SetAttribute("Status", "Alive")
 			newPoke.Parent = player.PokemonInventory
-			pendingCatch[player.UserId] = nil 
 		end
+
+		animProcessing[uid] = nil
 	end)
 end
 
