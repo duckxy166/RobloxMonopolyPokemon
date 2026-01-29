@@ -106,14 +106,14 @@ function BattleSystem.startPvE(player)
 	}
 	
 	-- TELEPORT TO BATTLE STAGE
-	local battleStage = game.Workspace:FindFirstChild("BattleStage")
+	local battleStage = game.Workspace:FindFirstChild("Stage")
 	if battleStage then
 		local p1Stage = battleStage:FindFirstChild("PlayerStage1")
 		if p1Stage and player.Character then
 			player.Character:SetPrimaryPartCFrame(p1Stage.CFrame + Vector3.new(0, 3, 0))
 		end
 	else
-		print("⚠️ No BattleStage folder found in Workspace!")
+		print("⚠️ No Stage folder found in Workspace!")
 	end
 	
 	-- 4. Send Client Event (Minimal/No UI Mode)
@@ -149,7 +149,7 @@ function BattleSystem.startPvP(player1, player2)
 	BattleSystem.activeBattles[player2.UserId] = battleData
 	
 	-- TELEPORT TO BATTLE STAGE
-	local battleStage = game.Workspace:FindFirstChild("BattleStage")
+	local battleStage = game.Workspace:FindFirstChild("Stage")
 	if battleStage then
 		local p1Stage = battleStage:FindFirstChild("PlayerStage1")
 		local p2Stage = battleStage:FindFirstChild("PlayerStage2")
