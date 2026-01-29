@@ -476,8 +476,13 @@ task.spawn(function()
 
 		local finalCF = camera.CFrame
 		local dicePos = (finalCF + finalCF.LookVector * 8).Position
+		
+		-- Safety / Re-apply Fix
+		local safeRoll = rollResult
+		if not ROTATION_OFFSETS[safeRoll] then safeRoll = 1 end
+
 		local tw = TweenService:Create(dice, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-			CFrame = CFrame.lookAt(dicePos, finalCF.Position) * ROTATION_OFFSETS[rollResult]
+			CFrame = CFrame.lookAt(dicePos, finalCF.Position) * ROTATION_OFFSETS[safeRoll]
 		})
 		tw:Play()
 

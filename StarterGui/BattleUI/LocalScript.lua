@@ -15,7 +15,7 @@ local UserInputService = game:GetService("UserInputService")
 local StarterGui = game:GetService("StarterGui")
 
 local player = Players.LocalPlayer
-local EventManager = require(game.ReplicatedStorage:WaitForChild("EventManager")) -- Or just get events directly
+-- local EventManager = require(game.ReplicatedStorage:WaitForChild("EventManager")) -- REMOVED: Server module not available to client
 
 -- Events
 print("🔵 [Client] BattleUI Script Started...")

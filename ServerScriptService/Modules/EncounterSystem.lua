@@ -227,7 +227,8 @@ function EncounterSystem.handleCatch(player, pokeData)
 	balls.Value = balls.Value - 1
 
 	local target = PokemonDB.GetCatchDifficulty(pokeData.Name)
-	local roll = math.random(1, 6)
+	--local roll = math.random(1, 6)
+	local roll = (6)
 	local success = roll >= target
 
 	if success then
