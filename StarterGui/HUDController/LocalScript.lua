@@ -119,9 +119,9 @@ local function createPlayerBox(targetPlayer, index)
 		val.Parent = f
 	end
 
-	createStat("🟡", "Money", Color3.fromRGB(255, 220, 0))
-	createStat("🃏", "Cards", Color3.fromRGB(200, 200, 200))
-	createStat("🔴", "Balls", Color3.fromRGB(255, 100, 100))
+	createStat("$", "Money", Color3.fromRGB(255, 220, 0))
+	createStat("C", "Cards", Color3.fromRGB(200, 200, 200))
+	createStat("B", "Balls", Color3.fromRGB(255, 100, 100))
 
 	-- Pokemon Party Row (6 slots)
 	local partyRow = Instance.new("Frame")
@@ -158,6 +158,20 @@ local function createPlayerBox(targetPlayer, index)
 		icon.Image = ""
 		icon.ScaleType = Enum.ScaleType.Fit
 		icon.Parent = slot
+
+		-- Status Overlay (Text)
+		local statusOv = Instance.new("TextLabel")
+		statusOv.Name = "StatusOverlay"
+		statusOv.Size = UDim2.new(1, 0, 1, 0)
+		statusOv.Position = UDim2.new(0, 0, 0, 0)
+		statusOv.BackgroundTransparency = 1
+		statusOv.Text = "X"
+		statusOv.TextColor3 = Color3.fromRGB(255, 50, 50)
+		statusOv.Font = Enum.Font.FredokaOne
+		statusOv.TextSize = 24
+		statusOv.Visible = false
+		statusOv.ZIndex = 2
+		statusOv.Parent = slot
 
 		partySlots[i] = slot
 	end
@@ -206,15 +220,23 @@ local function updatePartyIcons(targetPlayer)
 				end
 				-- Check Status
 				local status = pokemons[i]:GetAttribute("Status")
+				local overlay = slot:FindFirstChild("StatusOverlay")
+				
 				if status == "Dead" then
-					icon.ImageTransparency = 0.6 -- Fade out
+					icon.ImageTransparency = 0.7 -- Heavy fade
+					icon.ImageColor3 = Color3.fromRGB(100, 100, 100) -- Greyed out
+					if overlay then overlay.Visible = true end
 				else
 					icon.ImageTransparency = 0
+					icon.ImageColor3 = Color3.fromRGB(255, 255, 255)
+					if overlay then overlay.Visible = false end
 				end
 				slot.BackgroundTransparency = 0.3
 			else
 				icon.Image = ""
 				slot.BackgroundTransparency = 0.7
+				local overlay = slot:FindFirstChild("StatusOverlay")
+				if overlay then overlay.Visible = false end
 			end
 		end
 	end
@@ -225,8 +247,23 @@ local function setupInventoryListener(targetPlayer)
 	local inventory = targetPlayer:WaitForChild("PokemonInventory", 10)
 	if inventory then
 		updatePartyIcons(targetPlayer)
-		inventory.ChildAdded:Connect(function() updatePartyIcons(targetPlayer) end)
+		
+		-- 1. Inventory Structure Change
+		inventory.ChildAdded:Connect(function(child)
+			updatePartyIcons(targetPlayer)
+			-- Listen to attributes if new child
+			child:GetAttributeChangedSignal("Status"):Connect(function()
+				updatePartyIcons(targetPlayer)
+			end)
+		end)
 		inventory.ChildRemoved:Connect(function() updatePartyIcons(targetPlayer) end)
+		
+		-- 2. Initial Bind for Existing
+		for _, child in ipairs(inventory:GetChildren()) do
+			child:GetAttributeChangedSignal("Status"):Connect(function()
+				updatePartyIcons(targetPlayer)
+			end)
+		end
 	end
 end
 
