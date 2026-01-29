@@ -34,7 +34,7 @@ local playerFrames = {} -- Store references by PlayerName
 local function createPlayerBox(targetPlayer, index)
 	if not targetPlayer then return end
 	local pos = cornerPositions[index] or cornerPositions[1]
-	
+
 	local box = Instance.new("Frame")
 	box.Name = "HUD_" .. targetPlayer.Name
 	box.Size = UDim2.new(0, 290, 0, 130) -- Widen to 290px to fit big slots
@@ -44,16 +44,16 @@ local function createPlayerBox(targetPlayer, index)
 	box.BackgroundTransparency = 0.2
 	box.BorderSizePixel = 0
 	box.Parent = playersContainer
-	
+
 	local uiStroke = Instance.new("UIStroke")
 	uiStroke.Color = Color3.fromRGB(255, 255, 255)
 	uiStroke.Thickness = 2
 	uiStroke.Parent = box
-	
+
 	local uiCorner = Instance.new("UICorner")
 	uiCorner.CornerRadius = UDim.new(0, 12)
 	uiCorner.Parent = box
-	
+
 	-- Profile Picture
 	local avatarImg = Instance.new("ImageLabel")
 	avatarImg.Size = UDim2.new(0, 60, 0, 60)
@@ -62,13 +62,13 @@ local function createPlayerBox(targetPlayer, index)
 	avatarImg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 	avatarImg.Parent = box
 	Instance.new("UICorner", avatarImg).CornerRadius = UDim.new(1, 0)
-	
+
 	-- Load Avatar
 	task.spawn(function()
 		local content, isReady = Players:GetUserThumbnailAsync(targetPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
 		if isReady then avatarImg.Image = content end
 	end)
-	
+
 	-- Name Label
 	local nameLbl = Instance.new("TextLabel")
 	nameLbl.Size = UDim2.new(1, -80, 0, 20)
@@ -80,32 +80,32 @@ local function createPlayerBox(targetPlayer, index)
 	nameLbl.TextSize = 14
 	nameLbl.TextXAlignment = Enum.TextXAlignment.Left
 	nameLbl.Parent = box
-	
+
 	-- Stats Row (Money, Cards, Balls)
 	local statsRow = Instance.new("Frame")
 	statsRow.Size = UDim2.new(1, -80, 0, 30)
 	statsRow.Position = UDim2.new(0, 80, 0, 40) -- Brought up closer to name
 	statsRow.BackgroundTransparency = 1
 	statsRow.Parent = box
-	
+
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Horizontal
 	layout.Padding = UDim.new(0, 10)
 	layout.Parent = statsRow
-	
+
 	local function createStat(icon, valName, color)
 		local f = Instance.new("Frame")
 		f.Size = UDim2.new(0, 45, 1, 0)
 		f.BackgroundTransparency = 1
 		f.Parent = statsRow
-		
+
 		local icn = Instance.new("TextLabel")
 		icn.Size = UDim2.new(0, 20, 1, 0)
 		icn.BackgroundTransparency = 1
 		icn.Text = icon
 		icn.TextSize = 14
 		icn.Parent = f
-		
+
 		local val = Instance.new("TextLabel")
 		val.Name = "ValueLabel_" .. valName -- Tag for updating
 		val.Size = UDim2.new(1, -20, 1, 0)
@@ -118,11 +118,11 @@ local function createPlayerBox(targetPlayer, index)
 		val.TextXAlignment = Enum.TextXAlignment.Left
 		val.Parent = f
 	end
-	
+
 	createStat("🟡", "Money", Color3.fromRGB(255, 220, 0))
 	createStat("🃏", "Cards", Color3.fromRGB(200, 200, 200))
 	createStat("🔴", "Balls", Color3.fromRGB(255, 100, 100))
-	
+
 	-- Pokemon Party Row (6 slots)
 	local partyRow = Instance.new("Frame")
 	partyRow.Name = "PartyRow"
@@ -131,13 +131,13 @@ local function createPlayerBox(targetPlayer, index)
 	partyRow.AnchorPoint = Vector2.new(0.5, 1)
 	partyRow.BackgroundTransparency = 1
 	partyRow.Parent = box
-	
+
 	local partyLayout = Instance.new("UIListLayout")
 	partyLayout.FillDirection = Enum.FillDirection.Horizontal
 	partyLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center -- Center the slots
 	partyLayout.Padding = UDim.new(0, 4)
 	partyLayout.Parent = partyRow
-	
+
 	local partySlots = {}
 	for i = 1, 6 do
 		local slot = Instance.new("Frame")
@@ -148,20 +148,20 @@ local function createPlayerBox(targetPlayer, index)
 		slot.Parent = partyRow
 		slot.ClipsDescendants = true -- Clip the zoomed in image
 		Instance.new("UICorner", slot).CornerRadius = UDim.new(0, 6)
-		
+
 		local icon = Instance.new("ImageLabel")
 		icon.Name = "IconImg"
-		icon.Size = UDim2.new(1.3, 0, 1.3, 0) -- Zoom in (130%)
-		icon.Position = UDim2.new(0.5, 0, 0.5, 0) -- Center
+		icon.Size = UDim2.new(2.5, 0, 2.5, 0) -- Zoom in (130%)
+		icon.Position = UDim2.new(0.5, 0, -0.1, 0) -- Center
 		icon.AnchorPoint = Vector2.new(0.5, 0.5) -- Center Anchor
 		icon.BackgroundTransparency = 1
 		icon.Image = ""
 		icon.ScaleType = Enum.ScaleType.Fit
 		icon.Parent = slot
-		
+
 		partySlots[i] = slot
 	end
-	
+
 	-- Store for updates
 	playerFrames[targetPlayer.Name] = {
 		Box = box,
@@ -187,10 +187,10 @@ local POKEMON_ICONS = {
 local function updatePartyIcons(targetPlayer)
 	local frame = playerFrames[targetPlayer.Name]
 	if not frame or not frame.PartySlots then return end
-	
+
 	local inventory = targetPlayer:FindFirstChild("PokemonInventory")
 	if not inventory then return end
-	
+
 	local pokemons = inventory:GetChildren()
 	for i = 1, 6 do
 		local slot = frame.PartySlots[i]
@@ -203,6 +203,13 @@ local function updatePartyIcons(targetPlayer)
 					icon.Image = dbData.Icon
 				else
 					icon.Image = "rbxassetid://0" -- Placeholder
+				end
+				-- Check Status
+				local status = pokemons[i]:GetAttribute("Status")
+				if status == "Dead" then
+					icon.ImageTransparency = 0.6 -- Fade out
+				else
+					icon.ImageTransparency = 0
 				end
 				slot.BackgroundTransparency = 0.3
 			else
@@ -327,7 +334,7 @@ task.spawn(function()
 	rollEvent = ReplicatedStorage:WaitForChild("RollDiceEvent")
 	updateTurnEvent = ReplicatedStorage:WaitForChild("UpdateTurnEvent")
 	timerUpdateEvent = ReplicatedStorage:WaitForChild("TimerUpdateEvent", 5)
-	
+
 	-- New Events for Manual Turn
 	endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent", 5) 
 	-- If it doesn't exist yet, we will create it on server soon, but client code needs to be robust
@@ -336,14 +343,14 @@ task.spawn(function()
 		warn("EndTurnEvent missing, waiting...")
 		endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent")
 	end
-	
+
 	phaseEvent = ReplicatedStorage:WaitForChild("PhaseChangeEvent", 5)
 
 	resetCamEvent = ReplicatedStorage:FindFirstChild("ResetCameraEvent") or Instance.new("BindableEvent")
 	lockEvent = ReplicatedStorage:FindFirstChild("CameraLockEvent") or Instance.new("BindableEvent")
-	
+
 	timerLabel.Text = "Waiting for game..."
-	
+
 	-- Timer Update Event Handler (Countdown from server)
 	if timerUpdateEvent then
 		timerUpdateEvent.OnClientEvent:Connect(function(seconds, phaseName)
@@ -352,19 +359,19 @@ task.spawn(function()
 				countdownConnection:Disconnect()
 				countdownConnection = nil
 			end
-			
+
 			if seconds <= 0 or phaseName == "" then
 				-- Hide timer
 				timerCountdown.Visible = false
 				countdownRemaining = 0
 				return
 			end
-			
+
 			-- Start countdown
 			countdownRemaining = seconds
 			timerCountdown.Visible = true
 			timerCountdown.Text = "⏱ " .. tostring(math.ceil(countdownRemaining)) .. "s"
-			
+
 			-- Color based on phase
 			if phaseName == "Roll" then
 				timerCountdown.TextColor3 = Color3.fromRGB(100, 255, 100) -- Green
@@ -375,7 +382,7 @@ task.spawn(function()
 			else
 				timerCountdown.TextColor3 = Color3.fromRGB(200, 200, 200) -- Gray
 			end
-			
+
 			-- Countdown animation
 			countdownConnection = RunService.Heartbeat:Connect(function(dt)
 				countdownRemaining = countdownRemaining - dt
@@ -395,21 +402,21 @@ task.spawn(function()
 			end)
 		end)
 	end
-	
+
 	-- Event: Update Turn (Start of Turn)
 	updateTurnEvent.OnClientEvent:Connect(function(currentName)
 		print("🔄 [Client] UpdateTurn received. Current:", currentName, "Me:", player.Name)
-		
+
 		if currentName == player.Name then
 			-- My turn: Phase (Roll)
 			rollButton.Text = "🎲 ROLL DICE!" 
 			rollButton.Visible = true
 			rollButton.Active = true  -- Ensure button is clickable
 			endTurnButton.Visible = false
-			
+
 			timerLabel.Text = "YOUR TURN!" 
 			timerLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-			
+
 			-- CRITICAL: Reset rolling state so player can click
 			isRolling = false
 			print("🎲 [Client] My turn! isRolling reset to false")
@@ -417,12 +424,12 @@ task.spawn(function()
 			-- Enemy turn
 			rollButton.Visible = false
 			endTurnButton.Visible = false
-			
+
 			timerLabel.Text = "Waiting for " .. currentName
 			timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 		end
 	end)
-	
+
 	-- Event: Turn Phase Change (Removed - Timer handles auto-end now)
 	-- phaseEvent handler no longer needed since timer auto-ends turns
 
@@ -433,19 +440,19 @@ task.spawn(function()
 		if roller == player then
 			if lockEvent then lockEvent:Fire(true) end
 			rollButton.Visible = false 
-			timerLabel.Text = "🎲 " .. rollResult .. "!"
+			timerLabel.Text = "Rolling..."
 		else
 			-- If someone else rolled, just update text
-			timerLabel.Text = roller.Name .. " rolled " .. rollResult .. "!"
+			timerLabel.Text = roller.Name .. " is rolling..."
 		end
 
 		local dice
 		local diceTemplate = ReplicatedStorage:FindFirstChild("DiceModel")
 		local camera = workspace.CurrentCamera
-		
+
 		if diceTemplate then dice = diceTemplate:Clone() else dice = Instance.new("Part"); dice.Size = Vector3.new(3,3,3) end
 		dice.Parent = workspace; dice.Anchored = true; dice.CanCollide = false
-		
+
 		-- Spin Animation
 		local connection
 		connection = RunService.RenderStepped:Connect(function()
@@ -466,7 +473,7 @@ task.spawn(function()
 			[5] = CFrame.Angles(math.rad(90), 0, 0),
 			[6] = CFrame.Angles(0, math.rad(180), 0)
 		}
-		
+
 		local finalCF = camera.CFrame
 		local dicePos = (finalCF + finalCF.LookVector * 8).Position
 		local tw = TweenService:Create(dice, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
@@ -476,7 +483,12 @@ task.spawn(function()
 
 		task.wait(1.5)
 		dice:Destroy()
-		
+		-- ✅ reveal AFTER animation
+		if roller == player then
+			timerLabel.Text = "🎲 " .. rollResult .. "!"
+		else
+			timerLabel.Text = roller.Name .. " rolled " .. rollResult .. "!"
+		end
 		if roller == player and lockEvent then lockEvent:Fire(false) end
 	end)
 end)
@@ -495,7 +507,7 @@ rollButton.MouseButton1Click:Connect(function()
 	isRolling = true
 	rollButton.Visible = false 
 	timerLabel.Text = "Rolling..."
-	
+
 	if rollEvent then rollEvent:FireServer() end
 end)
 
@@ -525,13 +537,13 @@ task.spawn(function()
 					if mon and data.MoneyLbl then data.MoneyLbl.Text = tostring(mon.Value) end
 					if bal and data.BallLbl then data.BallLbl.Text = tostring(bal.Value) end
 				end
-				
+
 				-- Cards (Count children in Hand folder)
 				local hand = p:FindFirstChild("Hand")
 				if hand and data.CardLbl then
 					data.CardLbl.Text = tostring(#hand:GetChildren())
 				end
-				
+
 				-- Highlight Active Player
 				if timerLabel.Text:find(pName) then -- Weak check, but simple
 					data.Stroke.Color = Color3.fromRGB(0, 255, 0)
@@ -557,16 +569,16 @@ resetButton.MouseButton1Click:Connect(function()
 		resetCamEvent:Fire() 
 		print("Reset: ResetCameraEvent fired")
 	end
-	
+
 	-- 2. Reset Camera type to default (in case BoardCamera doesn't exist)
 	local camera = workspace.CurrentCamera
 	camera.CameraType = Enum.CameraType.Custom
 	camera.CameraSubject = player.Character and player.Character:FindFirstChild("Humanoid")
-	
+
 	-- 3. Fire Server to teleport character to last tile
 	if resetCharEvent then
 		resetCharEvent:FireServer()
 	end
-	
+
 	print("Reset: Camera reset and teleport requested")
 end)

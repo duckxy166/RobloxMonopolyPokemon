@@ -73,7 +73,7 @@ end
 UserInputService.InputBegan:Connect(function(input, gamProcessed)
 	if gamProcessed then return end
 	if not isBattleActive then return end
-	
+
 	if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space then
 		-- Attack
 		if not isRolling then
@@ -106,13 +106,13 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 	currentBattleData = data
 	isBattleActive = true
 	isRolling = false
-	
+
 	print("⚔️ Battle Mode Activated (No UI)")
-	
+
 	rollBtn.Visible = true
 	rollBtn.Text = "🎲 ROLL ATTACK"
 	rollBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
-	
+
 	if type == "PvE" then
 		sendMsg("Wild " .. data.EnemyStats.Name .. " appeared! Press SPACE to Battle!", Color3.fromRGB(255, 50, 50))
 	elseif type == "PvP" then
@@ -129,7 +129,7 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 	isRolling = false
 	rollBtn.Text = "🎲 ROLL ATTACK"
 	rollBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
-	
+
 	if winner == "Draw" then
 		sendMsg("It's a Draw! Roll again!", Color3.fromRGB(200, 200, 200))
 	else
@@ -140,7 +140,7 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 			local myRole = (player == currentBattleData.Attacker) and "Attacker" or "Defender"
 			iWon = (winner == myRole)
 		end
-		
+
 		if iWon then
 			sendMsg("You hit for " .. damage .. " damage! 💥", Color3.fromRGB(100, 255, 100))
 		else
@@ -156,3 +156,70 @@ Events.BattleEnd.OnClientEvent:Connect(function(result)
 	rollBtn.Visible = false
 	sendMsg("Battle Ended: " .. result, Color3.fromRGB(255, 255, 255))
 end)
+
+-- Battle Trigger Request (Fight or Run?)
+if Events.BattleTrigger then
+	Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
+		print("⚔️ Battle Triggered:", type)
+
+		-- Create a temporary Choice UI
+		local choiceFrame = Instance.new("Frame")
+		choiceFrame.Size = UDim2.new(0, 300, 0, 150)
+		choiceFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+		choiceFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+		choiceFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+		choiceFrame.BorderSizePixel = 0
+		choiceFrame.Parent = screenGui
+		Instance.new("UICorner", choiceFrame).CornerRadius = UDim.new(0, 12)
+
+		local title = Instance.new("TextLabel")
+		title.Size = UDim2.new(1, 0, 0, 40)
+		title.BackgroundTransparency = 1
+		title.TextColor3 = Color3.fromRGB(255, 255, 255)
+		title.Font = Enum.Font.FredokaOne
+		title.TextSize = 20
+		title.Parent = choiceFrame
+
+		if type == "PvE" then
+			title.Text = "Wild Pokemon Appeared! Fight?"
+		elseif type == "PvP" then
+			title.Text = "Player Encounter! Battle?"
+		end
+
+		local fightBtn = Instance.new("TextButton")
+		fightBtn.Size = UDim2.new(0, 120, 0, 50)
+		fightBtn.Position = UDim2.new(0, 20, 1, -60)
+		fightBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+		fightBtn.Text = "⚔️ FIGHT"
+		fightBtn.Font = Enum.Font.FredokaOne
+		fightBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		fightBtn.Parent = choiceFrame
+		Instance.new("UICorner", fightBtn).CornerRadius = UDim.new(0, 8)
+
+		local runBtn = Instance.new("TextButton")
+		runBtn.Size = UDim2.new(0, 120, 0, 50)
+		runBtn.Position = UDim2.new(1, -140, 1, -60)
+		runBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+		runBtn.Text = "🏃 RUN"
+		runBtn.Font = Enum.Font.FredokaOne
+		runBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		runBtn.Parent = choiceFrame
+		Instance.new("UICorner", runBtn).CornerRadius = UDim.new(0, 8)
+
+
+		-- Logic
+		fightBtn.MouseButton1Click:Connect(function()
+			choiceFrame:Destroy()
+			local responseData = { Type = type }
+			if type == "PvP" and data and data.Opponents then
+				responseData.Target = data.Opponents[1] -- Defaut first
+			end
+			Events.BattleTriggerResponse:FireServer("Fight", responseData)
+		end)
+
+		runBtn.MouseButton1Click:Connect(function()
+			choiceFrame:Destroy()
+			Events.BattleTriggerResponse:FireServer("Run", nil)
+		end)
+	end)
+end

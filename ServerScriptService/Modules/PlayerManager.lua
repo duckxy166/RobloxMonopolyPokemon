@@ -72,22 +72,22 @@ end
 -- Setup new player
 function PlayerManager.onPlayerAdded(player)
 	print("✅ [Server] onPlayerAdded:", player.Name)
-	
+
 	-- Check if already in game
 	for _, p in ipairs(PlayerManager.playersInGame) do 
 		if p == player then return end 
 	end
-	
+
 	-- Check player limit (1-4 players)
 	if #PlayerManager.playersInGame >= PlayerManager.MAX_PLAYERS then
 		print("⚠️ [Server] Game full! Max " .. PlayerManager.MAX_PLAYERS .. " players")
 		-- Optionally kick player or put in spectator mode
 		return
 	end
-	
+
 	table.insert(PlayerManager.playersInGame, player)
 	print("👥 [Server] Player " .. player.Name .. " joined! (" .. #PlayerManager.playersInGame .. "/" .. PlayerManager.MAX_PLAYERS .. ")")
-	
+
 	PlayerManager.playerPositions[player.UserId] = 0 
 	PlayerManager.playerRepelSteps[player.UserId] = 0 
 	PlayerManager.playerSlots[player.UserId] = #PlayerManager.playersInGame
@@ -96,17 +96,17 @@ function PlayerManager.onPlayerAdded(player)
 	local leaderstats = Instance.new("Folder")
 	leaderstats.Name = "leaderstats"
 	leaderstats.Parent = player
-	
+
 	local money = Instance.new("IntValue")
 	money.Name = "Money"
 	money.Value = 10
 	money.Parent = leaderstats
-	
+
 	local balls = Instance.new("IntValue")
 	balls.Name = "Pokeballs"
 	balls.Value = 5
 	balls.Parent = leaderstats
-	
+
 	-- Create inventory
 	local inventory = Instance.new("Folder")
 	inventory.Name = "PokemonInventory"
@@ -133,12 +133,12 @@ function PlayerManager.onPlayerAdded(player)
 	local status = Instance.new("Folder")
 	status.Name = "Status"
 	status.Parent = player
-	
+
 	local shield = Instance.new("BoolValue")
 	shield.Name = "Shield"
 	shield.Value = false
 	shield.Parent = status
-	
+
 	local sleep = Instance.new("IntValue")
 	sleep.Name = "SleepTurns"
 	sleep.Value = 0
@@ -149,17 +149,17 @@ function PlayerManager.onPlayerAdded(player)
 	-- Add starter pokemon
 	local starterName = "Bulbasaur"
 	local startData = PokemonDB.GetPokemon(starterName)
-	
+
 	local starterPoke = Instance.new("StringValue")
 	starterPoke.Name = starterName
 	starterPoke.Value = "Common"
-	
+
 	-- Set Battle Stats
 	starterPoke:SetAttribute("CurrentHP", startData.HP)
 	starterPoke:SetAttribute("MaxHP", startData.HP)
 	starterPoke:SetAttribute("Attack", startData.Attack)
 	starterPoke:SetAttribute("Status", "Alive")
-	
+
 	starterPoke.Parent = inventory
 
 	-- Teleport player to starting tile when character loads
@@ -175,10 +175,10 @@ function PlayerManager.onPlayerAdded(player)
 			end
 		end
 	end
-	
+
 	-- Connect to CharacterAdded (handles respawn too)
 	player.CharacterAdded:Connect(teleportToStart)
-	
+
 	-- Teleport if character already exists
 	if player.Character then
 		teleportToStart(player.Character)
@@ -215,7 +215,7 @@ end
 function PlayerManager.connectEvents()
 	Players.PlayerAdded:Connect(PlayerManager.onPlayerAdded)
 	Players.PlayerRemoving:Connect(PlayerManager.onPlayerRemoving)
-	
+
 	-- Handle existing players
 	for _, player in ipairs(Players:GetPlayers()) do 
 		print("🔍 [Server] Found existing player:", player.Name)

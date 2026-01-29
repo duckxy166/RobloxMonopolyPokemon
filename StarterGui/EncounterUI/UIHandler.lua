@@ -156,7 +156,7 @@ local function createStatRow(parent, label, color, yPos)
 	row.Position = UDim2.new(0, 0, 0, yPos)
 	row.BackgroundTransparency = 1
 	row.Parent = parent
-	
+
 	local lbl = Instance.new("TextLabel")
 	lbl.Size = UDim2.new(0, 50, 1, 0)
 	lbl.BackgroundTransparency = 1
@@ -166,7 +166,7 @@ local function createStatRow(parent, label, color, yPos)
 	lbl.TextSize = 10
 	lbl.TextXAlignment = Enum.TextXAlignment.Left
 	lbl.Parent = row
-	
+
 	local barBg = Instance.new("Frame")
 	barBg.Size = UDim2.new(1, -55, 0, 6)
 	barBg.Position = UDim2.new(0, 55, 0.5, 0)
@@ -174,17 +174,17 @@ local function createStatRow(parent, label, color, yPos)
 	barBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 	barBg.BorderSizePixel = 0
 	barBg.Parent = row
-	
+
 	local barFill = Instance.new("Frame")
 	barFill.Name = "Fill"
 	barFill.Size = UDim2.new(0.5, 0, 1, 0) -- Dynamic
 	barFill.BackgroundColor3 = color
 	barFill.BorderSizePixel = 0
 	barFill.Parent = barBg
-	
+
 	local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(1, 0); corner.Parent = barBg
 	local corner2 = Instance.new("UICorner"); corner2.CornerRadius = UDim.new(1, 0); corner2.Parent = barFill
-	
+
 	return barFill
 end
 
@@ -240,6 +240,8 @@ local encounterEvent = ReplicatedStorage:WaitForChild("EncounterEvent")
 local catchEvent = ReplicatedStorage:WaitForChild("CatchPokemonEvent")
 local runEvent = ReplicatedStorage:WaitForChild("RunEvent")
 local updateTurnEvent = ReplicatedStorage:WaitForChild("UpdateTurnEvent")
+local catchAnimDoneEvent = ReplicatedStorage:WaitForChild("CatchAnimationDoneEvent")
+local sentCatchDone = false
 
 local currentPokeData = nil 
 local DIFFICULTY_TEXT = { ["Common"]="2+", ["Rare"]="4+", ["Legendary"]="6!" }
@@ -257,8 +259,20 @@ local camera = workspace.CurrentCamera
 -- 1. Handle Encounter Start
 encounterEvent.OnClientEvent:Connect(function(activePlayer, pokeData)
 	currentPokeData = pokeData 
-	
+
 	gui.Enabled = true
+	mainFrame.Visible = false
+
+	if activePlayer == player then
+		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if hum then
+			local t = 0
+			while t < 1 and hum.MoveDirection.Magnitude > 0.01 do
+				t += RunService.Heartbeat:Wait()
+			end
+		end
+	end
+
 	mainFrame.Visible = true
 
 	-- Spectator check
@@ -268,7 +282,7 @@ encounterEvent.OnClientEvent:Connect(function(activePlayer, pokeData)
 		nameLabel.Text = pokeData.Name
 		catchBtn.Visible = true
 		runBtn.Visible = true
-		
+
 		-- Reset button state
 		catchBtn.Text = "CATCH"
 		catchBtn.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
@@ -306,10 +320,10 @@ encounterEvent.OnClientEvent:Connect(function(activePlayer, pokeData)
 	local fillAmt = 0.3
 	if pokeData.Rarity == "Rare" then fillAmt = 0.6 end
 	if pokeData.Rarity == "Legendary" then fillAmt = 0.9 end
-	
+
 	powerBar.Size = UDim2.new(fillAmt, 0, 1, 0)
 	hpBar.Size = UDim2.new(fillAmt + 0.1, 0, 1, 0) -- HP slightly higher
-	
+
 	-- Update Reward & Ability
 	if pokeData.Rarity == "Legendary" then
 		abilityLabel.Text = "Pressure"
@@ -318,7 +332,7 @@ encounterEvent.OnClientEvent:Connect(function(activePlayer, pokeData)
 		abilityLabel.Text = "No Ability"
 		if pokeData.Rarity == "Rare" then rewardText.Text = "20 Coins" else rewardText.Text = "5 Coins" end
 	end
-	
+
 	-- Keep Ball Logic for logic, but maybe show in name label?
 	-- Or just rely on separate HUD. But Encounter UI should probably show it too?
 	-- In reference image, ball count isn't explicitly in the banner, it's in the corner HUD.
@@ -339,7 +353,7 @@ end)
 catchBtn.MouseButton1Click:Connect(function()
 	if not currentPokeData then return end
 	if catchBtn.Text == "NO BALLS!" then return end -- Prevent clicking if no balls
-	
+
 	catchBtn.Visible = false
 	nameLabel.Text = "Throwing..."
 	catchEvent:FireServer(currentPokeData)
@@ -349,7 +363,7 @@ end)
 catchEvent.OnClientEvent:Connect(function(activePlayer, success, diceRoll, target, isFinished)
 	-- Determine if we are the active player
 	local isMe = (activePlayer == player)
-	
+
 	-- Animation Text
 	local rollText = "Throwing..."
 	if not isMe then
@@ -357,7 +371,7 @@ catchEvent.OnClientEvent:Connect(function(activePlayer, success, diceRoll, targe
 		gui.Enabled = true -- Ensure spectators see it
 	end
 	nameLabel.Text = rollText
-	
+
 	-- Create Dice Animation
 	local dice
 	if diceTemplate then dice = diceTemplate:Clone() else dice = Instance.new("Part"); dice.Size = Vector3.new(3,3,3) end
@@ -383,21 +397,14 @@ catchEvent.OnClientEvent:Connect(function(activePlayer, success, diceRoll, targe
 
 	task.wait(1.5) 
 	dice:Destroy()
-
+	
 	-- Show Text Result
+	local who = (activePlayer and activePlayer.Name) or "Someone"
 	if success then
-		if isMe then
-			nameLabel.Text = "CAUGHT! (Rolled " .. tostring(diceRoll) .. ")"
-		else
-			nameLabel.Text = activePlayer.Name .. " CAUGHT IT! (" .. diceRoll .. ")"
-		end
+		nameLabel.Text = who .. " CAUGHT IT!"
 		nameLabel.TextColor3 = Color3.new(0, 1, 0)
 	else
-		if isMe then
-			nameLabel.Text = "FAILED! (Rolled " .. tostring(diceRoll) .. ")"
-		else
-			nameLabel.Text = activePlayer.Name .. " FAILED! (" .. diceRoll .. ")"
-		end
+		nameLabel.Text = who .. " FAILED!"
 		nameLabel.TextColor3 = Color3.new(1, 0, 0)
 	end
 
@@ -414,8 +421,14 @@ catchEvent.OnClientEvent:Connect(function(activePlayer, success, diceRoll, targe
 	task.wait(2) -- Wait for text read
 
 	if isFinished then
+		-- ✅ send only once, only from the active player
+		if isMe and not sentCatchDone then
+			sentCatchDone = true
+			catchAnimDoneEvent:FireServer()
+		end
+
 		gui.Enabled = false
-		nameLabel.Text = "" 
+		nameLabel.Text = ""
 		nameLabel.TextColor3 = Color3.new(1, 1, 1)
 	else
 		-- Try again

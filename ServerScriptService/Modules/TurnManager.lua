@@ -49,7 +49,7 @@ end
 function TurnManager.nextTurn()
 	print("🔄 [Server] nextTurn() called")
 	task.wait(1)
-	
+
 	if #PlayerManager.playersInGame == 0 then
 		print("⚠️ [Server] No players in game!")
 		return
@@ -89,7 +89,7 @@ function TurnManager.enterDrawPhase(player)
 	-- Auto-draw until player has 3 cards
 	local handCount = CardSystem.countHand(player)
 	local cardsNeeded = 3 - handCount
-	
+
 	if cardsNeeded > 0 then
 		for i = 1, cardsNeeded do
 			CardSystem.drawOneCard(player)
@@ -98,7 +98,7 @@ function TurnManager.enterDrawPhase(player)
 			Events.Notify:FireClient(player, "🃏 Auto-draw: +" .. cardsNeeded .. " cards!")
 		end
 	end
-	
+
 	-- Short delay to show card drawn, then go to Roll
 	task.wait(1)
 	TurnManager.enterRollPhase(player)
@@ -131,6 +131,7 @@ function TurnManager.processPlayerRoll(player)
 	if EncounterSystem then EncounterSystem.clearCenterStage() end
 
 	local roll = math.random(1, 6)
+	--local roll = (10)
 	print("🎲 [Server] Roll result:", roll)
 	Events.RollDice:FireAllClients(player, roll)
 	task.wait(2.5)
@@ -158,8 +159,26 @@ function TurnManager.processPlayerRoll(player)
 				print("📍 Landed on tile: " .. nextTile.Name .. " | Color: " .. tileColor)
 
 				if string.find(tileColor, "white") then
-					-- Shop tile
-					print("Landed on Shop! Opening shop...")
+					-- Shop / City / Recovery Center
+					print("Landed on City/Shop! Healing & Opening shop...")
+
+					-- 1. HEAL / REVIVE ALL POKEMON
+					local inventory = player:FindFirstChild("PokemonInventory")
+					if inventory then
+						local revivedCount = 0
+						for _, poke in ipairs(inventory:GetChildren()) do
+							if poke:GetAttribute("Status") == "Dead" then
+								poke:SetAttribute("Status", "Alive")
+								poke:SetAttribute("CurrentHP", poke:GetAttribute("MaxHP")) -- Full heal?
+								revivedCount = revivedCount + 1
+							end
+						end
+						if revivedCount > 0 then
+							if Events.Notify then Events.Notify:FireClient(player, "💖 " .. revivedCount .. " Pokemon Revived!") end
+						end
+					end
+
+					-- 2. Open Shop
 					PlayerManager.playerPositions[player.UserId] = currentPos
 					PlayerManager.playerInShop[player.UserId] = true
 					Events.Shop:FireClient(player)
@@ -175,14 +194,15 @@ function TurnManager.processPlayerRoll(player)
 					return
 
 				elseif string.find(tileColor, "red") then -- Red Tile (PvE)
-					print("⚔️ Landed on Red Tile! Starting PvE Battle...")
-					if BattleSystem then
-						BattleSystem.startPvE(player)
+					print("⚔️ Landed on Red Tile! Requesting PvE Battle...")
+					if Events.BattleTrigger then
+						Events.BattleTrigger:FireClient(player, "PvE", nil)
+						-- Wait for response in BattleSystem or separate handler
 					else
 						TurnManager.nextTurn()
 					end
 					return
-					
+
 				elseif string.find(tileColor, "green") then
 					-- Encounter tile (Wild Pokemon)
 					if repelLeft > 0 then 
@@ -190,7 +210,7 @@ function TurnManager.processPlayerRoll(player)
 					elseif EncounterSystem then 
 						EncounterSystem.spawnPokemonEncounter(player) 
 					end
-					
+
 				else
 					-- Check for PvP Collision (Any Standard Tile)
 					local opponents = {}
@@ -199,17 +219,17 @@ function TurnManager.processPlayerRoll(player)
 							table.insert(opponents, otherPlayer)
 						end
 					end
-					
+
 					if #opponents > 0 then
 						print("⚔️ PvP Potential! Found " .. #opponents .. " opponents.")
-						if BattleSystem then
+						if Events.BattleTrigger then
 							-- Trigger PvP Selection
-							Events.BattleStart:FireClient(player, "SelectOpponent", { Opponents = opponents })
-							-- Wait for client selection (GameLoop/BattleSystem should handle response)
+							Events.BattleTrigger:FireClient(player, "PvP", { Opponents = opponents })
+							-- Wait for client selection
 							return 
 						end
 					end
-				
+
 					-- Default: Draw Card
 					CardSystem.drawOneCard(player)
 					TurnManager.nextTurn()
@@ -235,16 +255,16 @@ function TurnManager.connectEvents()
 	Events.RollDice.OnServerEvent:Connect(function(player)
 		TurnManager.processPlayerRoll(player)
 	end)
-	
+
 	-- DrawPhase handler removed (now auto-draw)
-	
+
 	Events.EndTurn.OnServerEvent:Connect(function(player)
 		if #PlayerManager.playersInGame > 0 and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
 			print("Server: Player manually ended turn -> Next Turn")
 			TurnManager.nextTurn()
 		end
 	end)
-	
+
 	Events.ResetCharacter.OnServerEvent:Connect(function(player)
 		PlayerManager.teleportToLastTile(player, tilesFolder)
 	end)

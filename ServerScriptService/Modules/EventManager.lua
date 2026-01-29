@@ -42,6 +42,8 @@ function EventManager.init()
 		Shop = EventManager.getOrCreate("ShopEvent"),
 		UseItem = EventManager.getOrCreate("UseItemEvent"),
 		BattleStart = EventManager.getOrCreate("BattleStartEvent"),
+		BattleTrigger = EventManager.getOrCreate("BattleTriggerEvent"),
+		BattleTriggerResponse = EventManager.getOrCreate("BattleTriggerResponseEvent"),
 		BattleAttack = EventManager.getOrCreate("BattleAttackEvent"),
 		BattleEnd = EventManager.getOrCreate("BattleEndEvent"),
 		EndTurn = EventManager.getOrCreate("EndTurnEvent"),
@@ -50,7 +52,7 @@ function EventManager.init()
 		DrawPhase = EventManager.getOrCreate("DrawPhaseEvent"),
 		ResetCharacter = EventManager.getOrCreate("ResetCharacterEvent"),
 	}
-	
+
 	print("✅ EventManager initialized with " .. #events .. " events")
 	return events
 end

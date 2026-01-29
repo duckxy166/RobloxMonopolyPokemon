@@ -44,7 +44,7 @@ function CardSystem.init(events)
 	end
 	CardDB = require(CardDBModule)
 	notifyEvent = events.Notify
-	
+
 	print("✅ CardSystem initialized")
 end
 

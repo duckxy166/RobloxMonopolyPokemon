@@ -92,25 +92,25 @@ local function renderHand()
 				local cardBtn = Instance.new("ImageButton")
 				cardBtn.Name = cardVal.Name
 				cardBtn.LayoutOrder = i -- Keep order consistent
-				
+
 				-- Apply Texture
 				local assetId = CARD_ASSETS[cardVal.Name] or DEFAULT_CARD_IMAGE
 				cardBtn.Image = assetId
 				cardBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 				cardBtn.BorderSizePixel = 0
-				
+
 				-- Fallback style if no image
 				if assetId == DEFAULT_CARD_IMAGE then
 					cardBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 				end
-				
+
 				cardBtn.Parent = mainFrame
-				
+
 				-- Round corners
 				local uicorner = Instance.new("UICorner")
 				uicorner.CornerRadius = UDim.new(0, 8)
 				uicorner.Parent = cardBtn
-				
+
 				-- Stroke (Border)
 				local stroke = Instance.new("UIStroke")
 				stroke.Color = Color3.fromRGB(255, 255, 255)
@@ -130,7 +130,7 @@ local function renderHand()
 				nameLabel.Font = Enum.Font.GothamBold
 				nameLabel.TextScaled = true
 				nameLabel.Parent = cardBtn
-				
+
 				-- Corner for label
 				local labelCorner = Instance.new("UICorner")
 				labelCorner.CornerRadius = UDim.new(0, 8)
@@ -139,7 +139,7 @@ local function renderHand()
 				-- Click Animation & Logic
 				cardBtn.MouseButton1Click:Connect(function()
 					print("Playing card: " .. cardVal.Name)
-					
+
 					-- Simple bounce animation
 					local tween = TweenService:Create(cardBtn, TweenInfo.new(0.1), {Size = UDim2.new(0, 90, 0, 126)})
 					tween:Play()
@@ -150,17 +150,17 @@ local function renderHand()
 					playCardEvent:FireServer(cardVal.Name, nil) 
 					tooltip.Visible = false -- Hide tooltip on click
 				end)
-				
+
 				-- Hover Animation & Tooltip
 				cardBtn.MouseEnter:Connect(function()
 					TweenService:Create(cardBtn, TweenInfo.new(0.2), {Position = UDim2.new(0, 0, -0.1, 0)}):Play() -- Move up slightly
-					
+
 					-- Show Tooltip
 					local cardData = CardDB.Cards[cardVal.Name]
 					if cardData then
 						tooltip.Text = cardData.Name .. "\n\n" .. cardData.Description
 						tooltip.Visible = true
-						
+
 						-- Follow mouse (rough position) or sticky
 						-- Let's put it above the card for now
 						local absPos = cardBtn.AbsolutePosition
@@ -168,7 +168,7 @@ local function renderHand()
 						tooltip.Position = UDim2.new(0, absPos.X + (absSize.X/2) - 100, 0, absPos.Y - 70)
 					end
 				end)
-				
+
 				cardBtn.MouseLeave:Connect(function()
 					TweenService:Create(cardBtn, TweenInfo.new(0.2), {Position = UDim2.new(0, 0, 0, 0)}):Play() -- Return
 					tooltip.Visible = false
@@ -185,14 +185,14 @@ local function connectHandListener()
 
 	hand.ChildAdded:Connect(renderHand)
 	hand.ChildRemoved:Connect(renderHand)
-	
+
 	-- Also listen to value changes (if stack size changes)
 	for _, child in pairs(hand:GetChildren()) do
 		if child:IsA("IntValue") then
 			child.Changed:Connect(renderHand)
 		end
 	end
-	
+
 	-- Initial render
 	renderHand()
 end
@@ -202,13 +202,13 @@ end
 -- 4. Async Init
 task.spawn(function()
 	print("🃏 [HandUI] Waiting for CardDB...")
-    local cardDBModule = ReplicatedStorage:WaitForChild("CardDB", 10)
-    
-    if cardDBModule then
-        local success, result = pcall(function()
+	local cardDBModule = ReplicatedStorage:WaitForChild("CardDB", 10)
+
+	if cardDBModule then
+		local success, result = pcall(function()
 			return require(cardDBModule)
 		end)
-		
+
 		if success then
 			CardDB = result
 			print("🃏 [HandUI] CardDB loaded successfully!")
@@ -217,18 +217,18 @@ task.spawn(function()
 			-- Fallback dummy DB
 			CardDB = { Cards = {} }
 		end
-    else
-        warn("🃏 [HandUI] CardDB module not found in ReplicatedStorage!")
+	else
+		warn("🃏 [HandUI] CardDB module not found in ReplicatedStorage!")
 		CardDB = { Cards = {} }
-    end
+	end
 
-    connectHandListener()
-    player.ChildAdded:Connect(function(child)
-        if child.Name == "Hand" then
-            connectHandListener()
-        end
-    end)
-	
+	connectHandListener()
+	player.ChildAdded:Connect(function(child)
+		if child.Name == "Hand" then
+			connectHandListener()
+		end
+	end)
+
 	-- Force check initially in case folder already exists
 	if player:FindFirstChild("Hand") then
 		renderHand()

@@ -35,7 +35,7 @@ function EncounterSystem.init(events, timerSystem, turnManager, playerManager)
 	TimerSystem = timerSystem
 	TurnManager = turnManager
 	PlayerManager = playerManager
-	
+
 	-- Fix: Look inside "Stage" folder
 	local stageFolder = Workspace:WaitForChild("Stage", 10)
 	if stageFolder then
@@ -53,7 +53,7 @@ function EncounterSystem.init(events, timerSystem, turnManager, playerManager)
 	centerStage.Anchored = true -- 🔒 Fixed in place
 	pokemonModels = ServerStorage:WaitForChild("PokemonModels")
 	pokemonModels = ServerStorage:WaitForChild("PokemonModels")
-	
+
 	print("✅ EncounterSystem initialized")
 	print("📂 PokemonModels folder found. Contents:")
 	for _, child in ipairs(pokemonModels:GetChildren()) do
@@ -90,13 +90,13 @@ function EncounterSystem.spawnPokemonEncounter(player)
 	local pokeName = encounter.Name
 	local pokeData = encounter.Data
 	print("🔍 Attempting to spawn: " .. pokeName)
-	
+
 	-- Helper to find model safely
 	local function findModel(name)
 		-- 1. Try exact match
 		local m = pokemonModels:FindFirstChild(name)
 		if m then return m end
-		
+
 		-- 2. Try trimming whitespace
 		for _, child in ipairs(pokemonModels:GetChildren()) do
 			if child.Name:match("^%s*" .. name .. "%s*$") then
@@ -104,7 +104,7 @@ function EncounterSystem.spawnPokemonEncounter(player)
 				return child
 			end
 		end
-		
+
 		-- 3. Try case insensitive
 		for _, child in ipairs(pokemonModels:GetChildren()) do
 			if child.Name:lower() == name:lower() then
@@ -112,7 +112,7 @@ function EncounterSystem.spawnPokemonEncounter(player)
 				return child
 			end
 		end
-		
+
 		return nil
 	end
 
@@ -121,11 +121,11 @@ function EncounterSystem.spawnPokemonEncounter(player)
 	if modelTemplate then
 		print("   ✅ Model found: '" .. modelTemplate.Name .. "'")
 		local clonedModel = modelTemplate:Clone()
-		
+
 		-- Calculate nice spawn position on TOP of the stage
 		local stageTopY = centerStage.Position.Y + (centerStage.Size.Y / 2)
 		local spawnPos = CFrame.new(centerStage.Position.X, stageTopY, centerStage.Position.Z)
-		
+
 		clonedModel:PivotTo(spawnPos)
 		clonedModel.Parent = Workspace
 		currentSpawnedPokemon = clonedModel
@@ -158,7 +158,7 @@ function EncounterSystem.spawnPokemonEncounter(player)
 			mainPart.Anchored = true -- Anchor to prevent falling
 			mainPart.CanCollide = true
 			mainPart.Massless = false
-			
+
 			-- No Gyro needed if anchored
 			-- local gyro = Instance.new("BodyGyro")
 			-- gyro.Name = "Stabilizer"
@@ -168,7 +168,7 @@ function EncounterSystem.spawnPokemonEncounter(player)
 			-- gyro.Parent = mainPart
 
 			if pokeHumanoid then
-			pokeHumanoid.AutomaticScalingEnabled = false
+				pokeHumanoid.AutomaticScalingEnabled = false
 				pokeHumanoid.HipHeight = 0
 			end
 		end
@@ -207,7 +207,7 @@ local MAX_PARTY_SIZE = 6
 -- Handle catch attempt
 function EncounterSystem.handleCatch(player, pokeData)
 	TimerSystem.cancelTimer()
-	
+
 	-- Check if party is full
 	local inventory = player:FindFirstChild("PokemonInventory")
 	if inventory and #inventory:GetChildren() >= MAX_PARTY_SIZE then
@@ -221,7 +221,7 @@ function EncounterSystem.handleCatch(player, pokeData)
 		end)
 		return
 	end
-	
+
 	local balls = player.leaderstats.Pokeballs
 	balls.Value = balls.Value - 1
 
@@ -234,11 +234,11 @@ function EncounterSystem.handleCatch(player, pokeData)
 		local newPoke = Instance.new("StringValue")
 		newPoke.Name = pokeData.Name
 		newPoke.Value = pokeData.Rarity
-		
+
 		-- [[ ⚔️ BATTLE STATS ]] --
 		-- Get base stats from DB
 		local dbStats = PokemonDB.GetPokemon(pokeData.Name)
-		
+
 		-- Current HP
 		newPoke:SetAttribute("CurrentHP", dbStats.HP)
 		-- Max HP
@@ -249,7 +249,7 @@ function EncounterSystem.handleCatch(player, pokeData)
 		newPoke:SetAttribute("Status", "Alive")
 		-- Status (Alive/Dead)
 		newPoke:SetAttribute("Status", "Alive")
-		
+
 		newPoke.Parent = player.PokemonInventory
 		player.leaderstats.Money.Value = player.leaderstats.Money.Value + 5
 	end

@@ -31,10 +31,10 @@ function BattleSystem.init(events, timerSystem, turnManager, playerManager)
 	TimerSystem = timerSystem
 	TurnManager = turnManager
 	PlayerManager = playerManager
-	
+
 	-- Load DB
 	PokemonDB = require(ReplicatedStorage:WaitForChild("PokemonDB"))
-	
+
 	print("✅ BattleSystem initialized")
 end
 
@@ -46,7 +46,7 @@ end
 function BattleSystem.getFirstAlivePokemon(player)
 	local inventory = player:FindFirstChild("PokemonInventory")
 	if not inventory then return nil end
-	
+
 	for _, poke in ipairs(inventory:GetChildren()) do
 		if poke:GetAttribute("Status") == "Alive" then
 			return poke
@@ -75,7 +75,7 @@ end
 -- Start PvE (Wild Pokemon)
 function BattleSystem.startPvE(player)
 	print("⚔️ PvE Started for " .. player.Name)
-	
+
 	-- 1. Check if player has alive pokemon
 	local myPoke = BattleSystem.getFirstAlivePokemon(player)
 	if not myPoke then
@@ -83,7 +83,7 @@ function BattleSystem.startPvE(player)
 		TurnManager.nextTurn()
 		return
 	end
-	
+
 	-- 2. Generate Random Enemy
 	local encounter = PokemonDB.GetRandomEncounter()
 	local enemyStats = {
@@ -104,7 +104,7 @@ function BattleSystem.startPvE(player)
 		EnemyStats = enemyStats,
 		TurnState = "WaitRoll"
 	}
-	
+
 	-- TELEPORT TO BATTLE STAGE
 	local battleStage = game.Workspace:FindFirstChild("Stage")
 	if battleStage then
@@ -112,10 +112,18 @@ function BattleSystem.startPvE(player)
 		if p1Stage and player.Character then
 			player.Character:SetPrimaryPartCFrame(p1Stage.CFrame + Vector3.new(0, 3, 0))
 		end
+
+		-- SPAWN POKEMON MODEL
+		if myPoke then
+			BattleSystem.spawnPokemonModel(myPoke.Name, battleStage:FindFirstChild("PokemonStage1"))
+		end
+		if enemyStats then
+			BattleSystem.spawnPokemonModel(enemyStats.Name, battleStage:FindFirstChild("PokemonStage2"))
+		end
 	else
 		print("⚠️ No Stage folder found in Workspace!")
 	end
-	
+
 	-- 4. Send Client Event (Minimal/No UI Mode)
 	Events.BattleStart:FireClient(player, "PvE", BattleSystem.activeBattles[player.UserId])
 end
@@ -123,16 +131,16 @@ end
 -- Start PvP (Player vs Player)
 function BattleSystem.startPvP(player1, player2)
 	print("⚔️ PvP Started: " .. player1.Name .. " vs " .. player2.Name)
-	
+
 	local p1Poke = BattleSystem.getFirstAlivePokemon(player1)
 	local p2Poke = BattleSystem.getFirstAlivePokemon(player2)
-	
+
 	if not p1Poke or not p2Poke then
 		if Events.Notify then Events.Notify:FireClient(player1, "❌ One of you has no alive Pokemon!") end
 		TurnManager.nextTurn()
 		return
 	end
-	
+
 	-- Setup Battle State
 	local battleData = {
 		Type = "PvP",
@@ -144,24 +152,32 @@ function BattleSystem.startPvP(player1, player2)
 		DefenderStats = BattleSystem.getPokeStats(p2Poke),
 		TurnState = "WaitRoll"
 	}
-	
+
 	BattleSystem.activeBattles[player1.UserId] = battleData
 	BattleSystem.activeBattles[player2.UserId] = battleData
-	
+
 	-- TELEPORT TO BATTLE STAGE
 	local battleStage = game.Workspace:FindFirstChild("Stage")
 	if battleStage then
 		local p1Stage = battleStage:FindFirstChild("PlayerStage1")
 		local p2Stage = battleStage:FindFirstChild("PlayerStage2")
-		
+
 		if p1Stage and player1.Character then
 			player1.Character:SetPrimaryPartCFrame(p1Stage.CFrame + Vector3.new(0, 3, 0))
 		end
 		if p2Stage and player2.Character then
 			player2.Character:SetPrimaryPartCFrame(p2Stage.CFrame + Vector3.new(0, 3, 0))
 		end
+
+		-- SPAWN POKEMON MODELS
+		if p1Poke then
+			BattleSystem.spawnPokemonModel(p1Poke.Name, battleStage:FindFirstChild("PokemonStage1"))
+		end
+		if p2Poke then
+			BattleSystem.spawnPokemonModel(p2Poke.Name, battleStage:FindFirstChild("PokemonStage2"))
+		end
 	end
-	
+
 	-- Notify Both
 	Events.BattleStart:FireClient(player1, "PvP", battleData)
 	Events.BattleStart:FireClient(player2, "PvP", battleData)
@@ -175,13 +191,13 @@ end
 function BattleSystem.processRoll(player, roll)
 	local battle = BattleSystem.activeBattles[player.UserId]
 	if not battle then return end
-	
+
 	-- Store roll
 	if battle.Type == "PvE" then
 		-- Player roll vs AI roll
 		local aiRoll = math.random(1, 6)
 		BattleSystem.resolveTurn(battle, roll, aiRoll)
-		
+
 	elseif battle.Type == "PvP" then
 		-- Wait for both players to roll
 		if player == battle.Attacker then
@@ -189,7 +205,7 @@ function BattleSystem.processRoll(player, roll)
 		elseif player == battle.Defender then
 			battle.DefenderRoll = roll
 		end
-		
+
 		-- If both rolled, resolve
 		if battle.AttackerRoll and battle.DefenderRoll then
 			BattleSystem.resolveTurn(battle, battle.AttackerRoll, battle.DefenderRoll)
@@ -202,7 +218,22 @@ function BattleSystem.resolveTurn(battle, roll1, roll2)
 	-- Determine Winner
 	local winner = nil -- "Attacker" or "Defender" (or "Player"/"Enemy" for PvE)
 	local damage = 0
-	
+
+	if roll1 == roll2 then
+		-- DRAW - NO DAMAGE / REROLL
+		if battle.Type == "PvP" then
+			-- Reset rolls
+			battle.AttackerRoll = nil
+			battle.DefenderRoll = nil
+
+			Events.BattleAttack:FireClient(battle.Attacker, "Draw", 0, {AttackerRoll = roll1, DefenderRoll = roll2})
+			Events.BattleAttack:FireClient(battle.Defender, "Draw", 0, {AttackerRoll = roll1, DefenderRoll = roll2})
+		elseif battle.Type == "PvE" then
+			Events.BattleAttack:FireClient(battle.Player, "Draw", 0, {PlayerRoll = roll1, EnemyRoll = roll2})
+		end
+		return
+	end
+
 	if battle.Type == "PvE" then
 		-- roll1 = Player, roll2 = AI
 		if roll1 > roll2 then
@@ -216,16 +247,14 @@ function BattleSystem.resolveTurn(battle, roll1, roll2)
 			-- Damage Player
 			battle.MyStats.CurrentHP = battle.MyStats.CurrentHP - damage
 			battle.MyPokeObj:SetAttribute("CurrentHP", battle.MyStats.CurrentHP)
-		else
-			winner = "Draw"
 		end
-		
+
 		-- Fire Update
 		Events.BattleAttack:FireClient(battle.Player, winner, damage, {
 			PlayerRoll = roll1, EnemyRoll = roll2,
 			PlayerHP = battle.MyStats.CurrentHP, EnemyHP = battle.EnemyStats.CurrentHP
 		})
-		
+
 		-- Check Death
 		if battle.EnemyStats.CurrentHP <= 0 then
 			BattleSystem.endBattle(battle, "Win")
@@ -233,12 +262,12 @@ function BattleSystem.resolveTurn(battle, roll1, roll2)
 			battle.MyPokeObj:SetAttribute("Status", "Dead")
 			BattleSystem.endBattle(battle, "Lose")
 		end
-		
+
 	elseif battle.Type == "PvP" then
 		-- roll1 = Attacker, roll2 = Defender
 		local attacker = battle.Attacker
 		local defender = battle.Defender
-		
+
 		if roll1 > roll2 then
 			winner = "Attacker"
 			damage = battle.AttackerStats.Attack
@@ -251,10 +280,8 @@ function BattleSystem.resolveTurn(battle, roll1, roll2)
 			-- Damage Attacker
 			battle.AttackerStats.CurrentHP = battle.AttackerStats.CurrentHP - damage
 			battle.AttackerPokeObj:SetAttribute("CurrentHP", battle.AttackerStats.CurrentHP)
-		else
-			winner = "Draw"
 		end
-		
+
 		-- Notify Both
 		local updateData = {
 			Winner = winner, Damage = damage,
@@ -264,7 +291,7 @@ function BattleSystem.resolveTurn(battle, roll1, roll2)
 		}
 		Events.BattleAttack:FireClient(attacker, winner, damage, updateData)
 		Events.BattleAttack:FireClient(defender, winner, damage, updateData)
-		
+
 		-- Check Death
 		if battle.DefenderStats.CurrentHP <= 0 then
 			battle.DefenderPokeObj:SetAttribute("Status", "Dead")
@@ -283,37 +310,37 @@ end
 -- End Battle
 function BattleSystem.endBattle(battle, result)
 	print("🏁 Battle Ended: " .. result)
-	
+
 	local tilesFolder = game.Workspace:FindFirstChild("Tiles")
-	
+
 	if battle.Type == "PvE" then
 		Events.BattleEnd:FireClient(battle.Player, result)
 		BattleSystem.activeBattles[battle.Player.UserId] = nil
-		
+
 		if result == "Win" then
 			-- Reward: Evolution (TODO: Open Evolution UI)
 			if Events.Notify then Events.Notify:FireClient(battle.Player, "🏆 You Won! Evolution logic coming soon.") end
 		end
-		
+
 		-- Return to Board
 		if tilesFolder then
 			PlayerManager.teleportToLastTile(battle.Player, tilesFolder)
 		end
 		TurnManager.nextTurn()
-		
+
 	elseif battle.Type == "PvP" then
 		Events.BattleEnd:FireClient(battle.Attacker, result)
 		Events.BattleEnd:FireClient(battle.Defender, result)
-		
+
 		BattleSystem.activeBattles[battle.Attacker.UserId] = nil
 		BattleSystem.activeBattles[battle.Defender.UserId] = nil
-		
+
 		-- Return both to Board
 		if tilesFolder then
 			PlayerManager.teleportToLastTile(battle.Attacker, tilesFolder)
 			PlayerManager.teleportToLastTile(battle.Defender, tilesFolder)
 		end
-		
+
 		TurnManager.nextTurn()
 	end
 end
@@ -324,10 +351,64 @@ function BattleSystem.connectEvents()
 		Events.BattleAttack.OnServerEvent:Connect(function(player)
 			-- Client creates this event to signal "Roll Dice"
 			-- We reuse it as input signal
-			
+
 			local roll = math.random(1, 6)
 			BattleSystem.processRoll(player, roll)
 		end)
+	end
+
+	if Events.BattleTriggerResponse then
+		Events.BattleTriggerResponse.OnServerEvent:Connect(function(player, action, data)
+			BattleSystem.handleTriggerResponse(player, action, data)
+		end)
+	end
+end
+
+-- Spawn Pokemon Model Helper
+function BattleSystem.spawnPokemonModel(pokeName, stagePart)
+	if not stagePart then return end
+
+	-- Clear existing
+	for _, child in ipairs(stagePart:GetChildren()) do
+		if child:IsA("Model") then child:Destroy() end
+	end
+
+	-- Clone new
+	-- Assumption: specific folder structure or simple search
+	local modelTemplate = ServerStorage:FindFirstChild(pokeName, true) 
+	-- Fallback to "PokemonModels" folder if exists
+	if not modelTemplate then
+		local folder = ServerStorage:FindFirstChild("PokemonModels")
+		if folder then modelTemplate = folder:FindFirstChild(pokeName) end
+	end
+
+	if modelTemplate then
+		local cloned = modelTemplate:Clone()
+		cloned.Parent = stagePart
+		cloned:SetPrimaryPartCFrame(stagePart.CFrame + Vector3.new(0, 2, 0))
+	else
+		print("⚠️ Model not found for: " .. pokeName)
+	end
+end
+
+-- Handle Trigger Response
+function BattleSystem.handleTriggerResponse(player, action, data)
+	print("Battle Trigger Response:", player.Name, action)
+
+	if action == "Fight" then
+		if data and data.Type == "PvE" then
+			BattleSystem.startPvE(player)
+		elseif data and data.Type == "PvP" then
+			-- PvP requires opponent selection if multiple, or just first one
+			-- Simplify: If target provided, fight them
+			local target = data.Target
+			if target then
+				BattleSystem.startPvP(player, target)
+			end
+		end
+	else
+		-- Run / Decline
+		TurnManager.nextTurn()
 	end
 end
 
