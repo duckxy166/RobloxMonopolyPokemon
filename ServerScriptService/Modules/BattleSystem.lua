@@ -359,6 +359,7 @@ function BattleSystem.connectEvents()
 
 	if Events.BattleTriggerResponse then
 		Events.BattleTriggerResponse.OnServerEvent:Connect(function(player, action, data)
+			print("⚔️ [Server] BattleTriggerResponse Received from " .. player.Name .. ": " .. tostring(action))
 			BattleSystem.handleTriggerResponse(player, action, data)
 		end)
 	end

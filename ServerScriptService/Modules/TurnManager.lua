@@ -194,11 +194,12 @@ function TurnManager.processPlayerRoll(player)
 					return
 
 				elseif string.find(tileColor, "red") then -- Red Tile (PvE)
-					print("⚔️ Landed on Red Tile! Requesting PvE Battle...")
+					print("⚔️ [Server] Landed on Red Tile! Firing BattleTrigger/PvE to " .. player.Name)
 					if Events.BattleTrigger then
 						Events.BattleTrigger:FireClient(player, "PvE", nil)
-						-- Wait for response in BattleSystem or separate handler
+						print("   -> Event Fired!")
 					else
+						warn("   -> Events.BattleTrigger is MISSING!")
 						TurnManager.nextTurn()
 					end
 					return

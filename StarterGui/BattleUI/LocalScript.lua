@@ -160,7 +160,7 @@ end)
 -- Battle Trigger Request (Fight or Run?)
 if Events.BattleTrigger then
 	Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
-		print("⚔️ Battle Triggered:", type)
+		print("⚔️ [Client] BattleTrigger Received! Type:", type)
 
 		-- Create a temporary Choice UI
 		local choiceFrame = Instance.new("Frame")
