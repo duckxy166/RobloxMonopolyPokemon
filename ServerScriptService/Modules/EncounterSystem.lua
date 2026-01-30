@@ -21,6 +21,7 @@ local PokemonDB = require(ReplicatedStorage:WaitForChild("PokemonDB"))
 
 -- State
 local currentSpawnedPokemon = nil
+local activeEncounterData = nil -- Store current encounter data
 local centerStage = nil
 local pokemonModels = nil
 
@@ -192,6 +193,7 @@ function EncounterSystem.spawnPokemonEncounter(player)
 		Icon = pokeData.Icon,
 		Image = pokeData.Image
 	}
+	activeEncounterData = encounterData -- Update server state
 	Events.Encounter:FireAllClients(player, encounterData)
 
 	TurnManager.turnPhase = "Encounter"
@@ -206,8 +208,15 @@ end
 local MAX_PARTY_SIZE = 6
 
 -- Handle catch attempt
-function EncounterSystem.handleCatch(player, pokeData)
+function EncounterSystem.handleCatch(player) -- removed pokeData arg
+	print("DEBUG: handleCatch called (New Version)")
 	TimerSystem.cancelTimer()
+
+	local pokeData = activeEncounterData -- Use server state
+	if not pokeData then
+		warn("❌ CRITICAL: No active encounter data found for catch!")
+		return
+	end
 
 	-- Check if party is full (6/6)
 	local inventory = player:FindFirstChild("PokemonInventory")
@@ -227,8 +236,8 @@ function EncounterSystem.handleCatch(player, pokeData)
 	balls.Value = balls.Value - 1
 
 	local target = PokemonDB.GetCatchDifficulty(pokeData.Name)
-	--local roll = math.random(1, 6)
-	local roll = (6)
+	local roll = math.random(1, 6)
+	-- local roll = (6)
 	local success = roll >= target
 
 	if success then
@@ -242,7 +251,9 @@ function EncounterSystem.handleCatch(player, pokeData)
 		-- player.leaderstats.Money.Value = player.leaderstats.Money.Value + 5 
 	end
 
-	local isFinished = success or (balls.Value <= 0)
+	-- Logic Update: Encounter only finishes if CAUGHT. 
+	-- If failed (even with 0 balls), player must manually RUN.
+	local isFinished = success
 	Events.CatchPokemon:FireAllClients(player, success, roll, target, isFinished)
 
 	if isFinished then
@@ -253,6 +264,7 @@ function EncounterSystem.handleCatch(player, pokeData)
 			TurnManager.nextTurn()
 		end)
 	else
+		-- Failed catch -> allow retry or run
 		TurnManager.turnPhase = "Encounter"
 		TimerSystem.startPhaseTimer(TimerSystem.ENCOUNTER_TIMEOUT, "Encounter", function()
 			if TurnManager.turnPhase == "Encounter" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
@@ -374,6 +386,7 @@ function EncounterSystem.spawnPokemonEncounter(player, tileColorName)
 		Icon = pokeData.Icon,
 		Image = pokeData.Image
 	}
+	activeEncounterData = encounterData -- Update server state
 	Events.Encounter:FireAllClients(player, encounterData)
 
 	TurnManager.turnPhase = "Encounter"

@@ -377,14 +377,14 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 	-- Step B: Rolling sequence (Visuals only)
 	sendMsg("🎲 " .. myName .. " is rolling...", Color3.fromRGB(100, 255, 255))
 	activeDice.Player = spawn3NDice(myDiceOffset)
-	task.wait(0.1) -- Fast response
+	task.wait(0.25) -- Restored for visibility
 	if activeDice.Player then activeDice.Player.Stop(myRoll) end
 
 	task.wait(1.0)
 
 	sendMsg("🎲 " .. enemyName .. " is rolling...", Color3.fromRGB(255, 100, 100))
 	activeDice.Enemy = spawn3NDice(enemyDiceOffset)
-	task.wait(0.1) -- Fast response
+	task.wait(0.25) -- Restored for visibility
 	if activeDice.Enemy then activeDice.Enemy.Stop(enemyRoll) end
 
 	task.wait(1.5)

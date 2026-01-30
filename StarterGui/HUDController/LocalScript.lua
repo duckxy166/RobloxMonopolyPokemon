@@ -414,7 +414,7 @@ task.spawn(function()
 			-- Looking at HUD logic, I don't see a capture dice visual. It might just be 'success/fail' prompt.
 			-- Use the LAND sound for capture result.
 			
-			task.wait(0.1) -- Match other roll delays
+			-- task.wait(0.1) -- Removed delay
 			local s = Instance.new("Sound", workspace)
 			s.SoundId = "rbxassetid://90144356226455" -- Land sound
 			s.PlayOnRemove = true
@@ -548,7 +548,7 @@ task.spawn(function()
 			dice.CFrame = CFrame.new(pos.Position) * CFrame.Angles(math.rad(os.clock()*700), math.rad(os.clock()*500), math.rad(os.clock()*600))
 		end)
 
-		task.wait(0.1)
+		task.wait(0.25)
 		connection:Disconnect()
 
 		-- Show Final Face
