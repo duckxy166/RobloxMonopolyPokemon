@@ -209,6 +209,8 @@ function BattleSystem.startPvP(player1, player2)
 	-- Notify Both with Relative Data
 	local attackerBasicData = {
 		Type = "PvP",
+		Attacker = player1,
+		Defender = player2,
 		MyStats = battleData.AttackerStats,
 		EnemyStats = battleData.DefenderStats,
 		Target = "Roll",
@@ -217,6 +219,8 @@ function BattleSystem.startPvP(player1, player2)
 	
 	local defenderBasicData = {
 		Type = "PvP",
+		Attacker = player1,
+		Defender = player2,
 		MyStats = battleData.DefenderStats,
 		EnemyStats = battleData.AttackerStats,
 		Target = "Roll",

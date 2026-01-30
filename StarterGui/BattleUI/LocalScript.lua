@@ -322,37 +322,55 @@ end)
 Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 	isRolling = false
 
-	-- ... (ส่วน Logic การทอยลูกเต๋า 3D Dice เหมือนเดิม) ...
-	local myRoll = 0
-	local enemyRoll = 0
-	local myName = player.Name
-	local enemyName = "Enemy"
-
 	if details then
 		if currentBattleData.Type == "PvP" then
+			-- Fix: Correctly identifying players in PvP to avoid crash and swap
+			-- Attacker is always Player 1 (Left), Defender is always Player 2 (Right)
+			myName = currentBattleData.Attacker.Name
+			enemyName = currentBattleData.Defender.Name
+			
 			if player == currentBattleData.Attacker then
-				myRoll = details.AttackerRoll; enemyRoll = details.DefenderRoll; enemyName = currentBattleData.Defender.Name
+				myRoll = details.AttackerRoll
+				enemyRoll = details.DefenderRoll
+				-- For P1: MyDice is Left (-1), EnemyDice is Right (1)
+				-- This is already handled by the spawn logic below if we keep roles consistent
 			else
-				myRoll = details.DefenderRoll; enemyRoll = details.AttackerRoll; enemyName = currentBattleData.Attacker.Name
+				myRoll = details.DefenderRoll
+				enemyRoll = details.AttackerRoll
+				-- For P2: MyDice is actually Right (1), EnemyDice is Left (-1)
+				-- Wait, to keep it simple: Attacker always on Left, Defender always on Right.
 			end
 		else
-			myRoll = details.PlayerRoll; enemyRoll = details.EnemyRoll; enemyName = currentBattleData.EnemyStats.Name
+			myRoll = details.PlayerRoll
+			enemyRoll = details.EnemyRoll
+			enemyName = currentBattleData.EnemyStats.Name
 		end
 	end
 
 	cleanupDice()
 
-	-- Step A: Player Rolls
+	-- Step A: Position determination
+	local myDiceOffset = -1 -- Default left
+	local enemyDiceOffset = 1 -- Default right
+
+	if currentBattleData.Type == "PvP" then
+		if player == currentBattleData.Defender then
+			-- I am P2, so my dice should be on the right
+			myDiceOffset = 1
+			enemyDiceOffset = -1
+		end
+	end
+
+	-- Step B: Rolling sequence (Visuals only)
 	sendMsg("🎲 " .. myName .. " is rolling...", Color3.fromRGB(100, 255, 255))
-	activeDice.Player = spawn3NDice(-1)
+	activeDice.Player = spawn3NDice(myDiceOffset)
 	task.wait(1.2)
 	if activeDice.Player then activeDice.Player.Stop(myRoll) end
 
 	task.wait(1.0)
 
-	-- Step B: Enemy Rolls
 	sendMsg("🎲 " .. enemyName .. " is rolling...", Color3.fromRGB(255, 100, 100))
-	activeDice.Enemy = spawn3NDice(1)
+	activeDice.Enemy = spawn3NDice(enemyDiceOffset)
 	task.wait(1.2)
 	if activeDice.Enemy then activeDice.Enemy.Stop(enemyRoll) end
 

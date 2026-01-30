@@ -388,29 +388,8 @@ function TurnManager.processPlayerRoll(player)
 				PlayerManager.playerRepelSteps[player.UserId] = repelLeft 
 			end
 
-				-- UPDATE POSITION IMMEDIATELY
-				PlayerManager.playerPositions[player.UserId] = currentPos
-				
-				-- 🔷 PVP CHECK FIRST (Priority)
-				local opponents = {}
-				for _, otherPlayer in ipairs(PlayerManager.playersInGame) do
-					if otherPlayer ~= player and PlayerManager.playerPositions[otherPlayer.UserId] == currentPos then
-						table.insert(opponents, otherPlayer)
-					end
-				end
-
-				if #opponents > 0 and Events.BattleTrigger then
-					print("⚔️ PvP Potential! Triggering Selection...")
-					Events.BattleTrigger:FireClient(player, "PvP", { Opponents = opponents })
-					
-					-- Wait for response (Handled by BattleSystem -> callback)
-					-- We return here to "pause" the turn logic.
-					-- If player chooses RUN, BattleSystem calls TurnManager.resumeTurn(player)
-					return 
-				end
-
-				-- If no PvP, process tile normally
-				TurnManager.processTileEvent(player, currentPos, nextTile)
+			-- UPDATE POSITION CACHE DURING WALK
+			PlayerManager.playerPositions[player.UserId] = currentPos
 		else
 			-- Fallback reset logic
 			currentPos = 0
@@ -421,10 +400,43 @@ function TurnManager.processPlayerRoll(player)
 				end
 			end
 			TurnManager.nextTurn()
-			break
+			return -- Return instead of break to avoid accidental event trigger
 		end
 	end
+
+	-- ==========================================
+	-- 🏁 LANDING LOGIC (ONLY AFTER MOVEMENT)
+	-- ==========================================
 	PlayerManager.playerPositions[player.UserId] = currentPos
+	local landingTile = tilesFolder:FindFirstChild(tostring(currentPos))
+	
+	if landingTile then
+		-- 🛑 SPECIAL: START TILE (Priority over PVP)
+		local isStartTile = (landingTile.Name == "0" or landingTile.Name == "Start")
+		if isStartTile then
+			TurnManager.processTileEvent(player, currentPos, landingTile)
+			return
+		end
+
+		-- 🔷 PVP CHECK
+		local opponents = {}
+		for _, otherPlayer in ipairs(PlayerManager.playersInGame) do
+			if otherPlayer ~= player and PlayerManager.playerPositions[otherPlayer.UserId] == currentPos then
+				table.insert(opponents, otherPlayer)
+			end
+		end
+
+		if #opponents > 0 and Events.BattleTrigger then
+			print("⚔️ PvP Potential on landing! Triggering Selection...")
+			Events.BattleTrigger:FireClient(player, "PvP", { Opponents = opponents })
+			return 
+		end
+
+		-- If no PvP, process tile normally
+		TurnManager.processTileEvent(player, currentPos, landingTile)
+	else
+		TurnManager.nextTurn()
+	end
 end
 
 -- RESUME TURN (Called after declining PvP)
