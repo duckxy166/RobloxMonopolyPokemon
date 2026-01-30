@@ -29,7 +29,7 @@ CardDB.Cards = {
 	
 	["Rare Candy"] = {
 		Name = "Rare Candy",
-		Description = "Gain 15 Coins (Level Up!)",
+		Description = "Evolve your pokemon",
 	},
 
 	["Nugget"] = {

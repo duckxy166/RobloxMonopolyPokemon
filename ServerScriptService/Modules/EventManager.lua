@@ -28,6 +28,19 @@ function EventManager.getOrCreate(name)
 	return ev
 end
 
+-- Create or get existing RemoteFunction
+function EventManager.getOrCreateFunction(name)
+	local func = ReplicatedStorage:FindFirstChild(name)
+	if not func then
+		func = Instance.new("RemoteFunction")
+		func.Name = name
+		func.Parent = ReplicatedStorage
+		print("🔹 Created RemoteFunction: " .. name)
+	end
+	EventManager.Events[name] = func
+	return func
+end
+
 -- Initialize all game events
 function EventManager.init()
 	local events = {
@@ -57,6 +70,13 @@ function EventManager.init()
 		SellPokemon = EventManager.getOrCreate("SellPokemonEvent"),
 		SellUIClose = EventManager.getOrCreate("SellUICloseEvent"),
 		
+		-- Starter Selection
+		ShowStarterSelection = EventManager.getOrCreate("ShowStarterSelectionEvent"),
+		SelectStarter = EventManager.getOrCreate("SelectStarterEvent"),
+		
+		-- Reaction / Counter
+		RequestReaction = EventManager.getOrCreateFunction("RequestReactionFunction"),
+
 		-- Evolution Events
 		EvolutionRequest = EventManager.getOrCreate("EvolutionRequestEvent"),
 		EvolutionSelect = EventManager.getOrCreate("EvolutionSelectEvent"),

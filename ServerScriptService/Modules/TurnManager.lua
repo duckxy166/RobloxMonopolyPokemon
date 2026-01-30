@@ -26,6 +26,7 @@ local PlayerManager = nil
 local EncounterSystem = nil
 local BattleSystem = nil
 local tilesFolder = nil
+local PokemonDB = require(game:GetService("ReplicatedStorage"):WaitForChild("PokemonDB"))
 
 -- Initialize with dependencies
 function TurnManager.init(events, timerSystem, cardSystem, playerManager)
@@ -198,6 +199,106 @@ function TurnManager.connectEvents()
 	Events.ResetCharacter.OnServerEvent:Connect(function(player)
 		PlayerManager.teleportToLastTile(player, tilesFolder)
 	end)
+	
+	-- New: Handle Starter Selection
+	if Events.SelectStarter then
+		Events.SelectStarter.OnServerEvent:Connect(function(player, starterName)
+			TurnManager.handleStarterSelection(player, starterName)
+		end)
+	end
+end
+
+-- ============================================================================
+-- 🎮 GAME START & SELECTION FLOW
+-- ============================================================================
+
+TurnManager.readyPlayers = {}
+TurnManager.gameStarted = false
+
+function TurnManager.checkPreGameStart()
+	if TurnManager.gameStarted then return end
+	
+	print("🔍 Checking Pre-Game Status...")
+	for _, p in ipairs(PlayerManager.playersInGame) do
+		if not TurnManager.readyPlayers[p.UserId] then
+			-- Show Selection UI to unready players
+			if Events.ShowStarterSelection then
+				Events.ShowStarterSelection:FireClient(p)
+			end
+		end
+	end
+end
+
+function TurnManager.handleStarterSelection(player, starterName)
+	if TurnManager.readyPlayers[player.UserId] then return end -- Already picked
+	
+	-- Validate Name
+	local data = PokemonDB.GetPokemon(starterName)
+	if not data then 
+		warn("Invalid starter: " .. tostring(starterName))
+		return 
+	end
+	
+	print("✅ " .. player.Name .. " selected " .. starterName)
+	
+	-- Give Pokemon
+	local inventory = player:FindFirstChild("PokemonInventory")
+	if inventory then
+		local starterPoke = Instance.new("StringValue")
+		starterPoke.Name = starterName
+		starterPoke.Value = data.Rarity or "Common"
+
+		-- Set Stats
+		starterPoke:SetAttribute("CurrentHP", data.HP)
+		starterPoke:SetAttribute("MaxHP", data.HP)
+		starterPoke:SetAttribute("Attack", data.Attack)
+		starterPoke:SetAttribute("Status", "Alive")
+		starterPoke.Parent = inventory
+	end
+	
+	-- Mark Ready
+	TurnManager.readyPlayers[player.UserId] = true
+	
+	if Events.Notify then Events.Notify:FireClient(player, "You selected " .. starterName .. "! Waiting for players...") end
+	
+	-- Check if ALL players are ready
+	local allReady = true
+	local playerCount = #PlayerManager.playersInGame
+	
+	if playerCount == 0 then return end
+	
+	for _, p in ipairs(PlayerManager.playersInGame) do
+		if not TurnManager.readyPlayers[p.UserId] then
+			allReady = false
+			break
+		end
+	end
+	
+	if allReady then
+		TurnManager.startGame()
+	end
+end
+
+function TurnManager.startGame()
+	if TurnManager.gameStarted then return end
+	TurnManager.gameStarted = true
+	
+	print("🚀 ALL PLAYERS READY! STARTING GAME!")
+	if Events.Notify then Events.Notify:FireAllClients("🚀 All players ready! Game Starting!") end
+	
+	task.wait(2)
+	
+	-- Unfreeze Everyone
+	for _, p in ipairs(PlayerManager.playersInGame) do
+		if p.Character and p.Character:FindFirstChild("Humanoid") then
+			p.Character.Humanoid.WalkSpeed = 16
+			p.Character.Humanoid.JumpPower = 50
+		end
+	end
+	
+	-- Start First Turn
+	TurnManager.currentTurnIndex = 0
+	TurnManager.nextTurn()
 end
 
 -- Process player roll and movement

@@ -146,8 +146,22 @@ local function renderHand()
 					tween.Completed:Wait()
 					local tweenBack = TweenService:Create(cardBtn, TweenInfo.new(0.1), {Size = UDim2.new(0, 100, 0, 140)})
 					tweenBack:Play()
+					
+					local cardData = CardDB.Cards[cardVal.Name]
+					if cardData and cardData.NeedsTarget then
+						-- Open Target Selection
+						local bindable = ReplicatedStorage:FindFirstChild("Client_OpenCardTarget")
+						if not bindable then
+							bindable = Instance.new("BindableEvent")
+							bindable.Name = "Client_OpenCardTarget"
+							bindable.Parent = ReplicatedStorage
+						end
+						bindable:Fire(cardVal.Name)
+					else
+						-- Play immediately
+						playCardEvent:FireServer(cardVal.Name, nil) 
+					end
 
-					playCardEvent:FireServer(cardVal.Name, nil) 
 					tooltip.Visible = false -- Hide tooltip on click
 				end)
 

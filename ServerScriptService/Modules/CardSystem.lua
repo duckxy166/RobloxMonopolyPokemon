@@ -218,29 +218,110 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 				end
 			end
 			
-			if cardName == "Twisted Spoon" then
-				-- Logic: Warp to random player (Temporary until UI Selector exists)
-				local opponents = {}
-				for _, p in ipairs(playerManager.playersInGame) do
-					if p ~= player then table.insert(opponents, p) end
+			-- TARGET CARD LOGIC
+			if cardDef.NeedsTarget then
+				local targetPlayer = targetInfo
+				
+				-- Validation
+				if not targetPlayer or typeof(targetPlayer) ~= "Instance" or not targetPlayer:IsA("Player") then
+					if events.Notify then events.Notify:FireClient(player, "❌ Invalid Target!") end
+					-- Refund card? To simplify, we assume client handled it correctly.
+					return 
 				end
 				
-				if #opponents > 0 then
-					local target = opponents[math.random(1, #opponents)]
-					-- Teleport
-					local targetPos = playerManager.playerPositions[target.UserId]
+				if targetPlayer == player then
+					if events.Notify then events.Notify:FireClient(player, "❌ Cannot target yourself!") end
+					return
+				end
+				
+				print("🎯 " .. player.Name .. " used " .. cardName .. " on " .. targetPlayer.Name)
+
+				-- DEFENSE CHECK (Safety Goggles)
+                -- Concept: If target has Goggles, ask if they want to block.
+                local blocked = false
+                if cardName ~= "Twisted Spoon" then
+                    local targetHand = CardSystem.getHandFolder(targetPlayer)
+                    local goggles = targetHand and targetHand:FindFirstChild("Safety Goggles")
+                    
+                    if goggles and events.RequestReaction then
+						-- Notify Attacker
+						if events.Notify then events.Notify:FireClient(player, "⏳ Waiting for response...") end
+						
+                        local decision = events.RequestReaction:InvokeClient(targetPlayer, player.Name, cardName)
+                        if decision then
+                            blocked = true
+                            -- Consume Goggles
+                            CardSystem.removeCardFromHand(targetPlayer, "Safety Goggles", 1)
+                            
+                            if events.Notify then
+                                events.Notify:FireClient(player, "🛡️ Attack BLOCKED by Safety Goggles!")
+                                events.Notify:FireClient(targetPlayer, "🛡️ You blocked the attack!")
+                            end
+                        end
+                    end
+                end
+                
+                if blocked then return end
+
+				-- 1. TWISTED SPOON (Teleport to Target) - Unblockable
+				if cardName == "Twisted Spoon" then
+					local targetPos = playerManager.playerPositions[targetPlayer.UserId]
 					playerManager.playerPositions[player.UserId] = targetPos
 					
-					-- Visual Teleport
-					if player.Character and target.Character then
-						player.Character:SetPrimaryPartCFrame(target.Character.PrimaryPart.CFrame + Vector3.new(3, 0, 0))
+					if player.Character and targetPlayer.Character then
+						player.Character:SetPrimaryPartCFrame(targetPlayer.Character.PrimaryPart.CFrame + Vector3.new(3, 0, 0))
 					end
 					
 					if events.Notify then
-						events.Notify:FireClient(player, "🔮 Warped to " .. target.Name .. "!")
+						events.Notify:FireClient(player, "🔮 Warped to " .. targetPlayer.Name .. "!")
+						events.Notify:FireClient(targetPlayer, "🔮 " .. player.Name .. " warped to you!")
 					end
-				else
-					if events.Notify then events.Notify:FireClient(player, "⚠️ No one to warp to!") end
+				end
+				
+				-- 2. SLEEP POWDER (Sleep 1 Turn)
+				if cardName == "Sleep Powder" then
+					local status = targetPlayer:FindFirstChild("Status")
+					local sleep = status and status:FindFirstChild("SleepTurns")
+					if sleep then
+						sleep.Value = 1
+						if events.Notify then 
+							events.Notify:FireClient(player, "💤 Put " .. targetPlayer.Name .. " to sleep!")
+							events.Notify:FireClient(targetPlayer, "💤 You fell asleep! Skip next turn.")
+						end
+					end
+				end
+				
+				-- 3. ROBBERY (Steal 50% Coins)
+				if cardName == "Robbery" then
+					local targetMoney = targetPlayer.leaderstats.Money
+					local stealAmount = math.floor(targetMoney.Value * 0.5)
+					
+					if stealAmount > 0 then
+						targetMoney.Value -= stealAmount
+						player.leaderstats.Money.Value += stealAmount
+						
+						if events.Notify then
+							events.Notify:FireClient(player, "💰 Stole " .. stealAmount .. " from " .. targetPlayer.Name .. "!")
+							events.Notify:FireClient(targetPlayer, "💸 " .. player.Name .. " stole " .. stealAmount .. " coins from you!")
+						end
+					else
+						if events.Notify then events.Notify:FireClient(player, "Target has no money!") end
+					end
+				end
+				
+				-- 4. PUSH BACK (Move back 3 Spaces)
+				if cardName == "Push Back" then
+					local currentPos = playerManager.playerPositions[targetPlayer.UserId] or 0
+					local newPos = currentPos - 3
+					if newPos < 0 then newPos = 0 end -- Clamp to 0 (Start) for simplicity
+					
+					playerManager.playerPositions[targetPlayer.UserId] = newPos
+					playerManager.teleportToLastTile(targetPlayer, game.Workspace:WaitForChild("Tiles"))
+					
+					if events.Notify then
+						events.Notify:FireClient(player, "💨 Pushed " .. targetPlayer.Name .. " back 3 spaces!")
+						events.Notify:FireClient(targetPlayer, "💨 You were pushed back 3 spaces!")
+					end
 				end
 			end
 			

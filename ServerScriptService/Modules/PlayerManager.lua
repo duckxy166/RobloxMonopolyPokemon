@@ -150,25 +150,20 @@ function PlayerManager.onPlayerAdded(player)
 
 
 
-	-- Add starter pokemon
-	local starterName = "Bulbasaur"
-	local startData = PokemonDB.GetPokemon(starterName)
-
-	local starterPoke = Instance.new("StringValue")
-	starterPoke.Name = starterName
-	starterPoke.Value = "Common"
-
-	-- Set Battle Stats
-	starterPoke:SetAttribute("CurrentHP", startData.HP)
-	starterPoke:SetAttribute("MaxHP", startData.HP)
-	starterPoke:SetAttribute("Attack", startData.Attack)
-	starterPoke:SetAttribute("Status", "Alive")
-
-	starterPoke.Parent = inventory
+	-- Starter Pokemon REMOVED (Handled by Selection UI)
+	-- local starterName = "Bulbasaur" ...
 
 	-- Teleport player to starting tile when character loads
 	local function teleportToStart(character)
 		local tilesFolder = game.Workspace:FindFirstChild("Tiles")
+		local humanoid = character:FindFirstChild("Humanoid")
+		
+		-- FREEZE PLAYER
+		if humanoid then
+			humanoid.WalkSpeed = 0
+			humanoid.JumpPower = 0
+		end
+		
 		if tilesFolder then
 			local startTile = tilesFolder:FindFirstChild("0")
 			if startTile and character.PrimaryPart then
@@ -187,13 +182,10 @@ function PlayerManager.onPlayerAdded(player)
 	if player.Character then
 		teleportToStart(player.Character)
 	end
-
-	-- Start game if first player
-	if #PlayerManager.playersInGame == 1 and TurnManager then
-		print("🚀 [Server] First player joined! Starting game in 3 seconds...")
-		task.wait(3)
-		TurnManager.currentTurnIndex = 0
-		TurnManager.nextTurn()
+	
+	-- Start Pre-Game Check
+	if TurnManager and TurnManager.checkPreGameStart then
+		TurnManager.checkPreGameStart()
 	end
 end
 
