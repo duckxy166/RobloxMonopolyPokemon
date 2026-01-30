@@ -182,6 +182,38 @@ function TurnManager.processPlayerRoll(player)
 				local tileColorLower = string.lower(tileColorName)
 				print("📍 [Server] Landed on tile: " .. nextTile.Name .. " | Color: " .. tileColorName)
 
+				-- 0. START TILE (Tile 0 Logic - Modulo check typically, but here checked by index)
+				-- Note: In this project, Tile 40 wraps to 0 or 1. If logic resets pos to 0, handle it.
+				-- If currentPos is handled linearly (e.g. 1-40), check map.
+				-- Assuming Tile 0 is the start tile or a specific Sell Tile.
+				
+				local isStartTile = (nextTile.Name == "0" or nextTile.Name == "Start")
+				
+				if isStartTile then
+					print("💰 Landed on Start! Opening Sell UI...")
+					PlayerManager.playerPositions[player.UserId] = currentPos -- Ensure pos update
+					
+					-- Trigger Sell UI
+					local SellSystem = require(game.ServerScriptService.Modules.SellSystem)
+					if SellSystem then
+						-- IMPORTANT: Ensure SellSystem handles the NextTurn callback!
+						SellSystem.openSellUI(player)
+						
+						-- Setup Timeout just in case
+						TimerSystem.startPhaseTimer(60, "Sell", function()
+							-- If player still in Sell phase after 60s
+							if player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
+								print("Timer: Sell timeout")
+								TurnManager.nextTurn()
+							end
+						end)
+					else
+						warn("SellSystem not found!")
+						TurnManager.nextTurn()
+					end
+					return
+				end
+
 				-- 1. BLACK TILE (Skip Turn / Sleep)
 				if tileColorLower == "black" or tileColorName == "Black" then
 					print("🛑 Landed on Black Tile! Stunned for 1 turn.")

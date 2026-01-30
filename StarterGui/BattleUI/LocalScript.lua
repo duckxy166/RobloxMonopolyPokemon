@@ -433,29 +433,19 @@ Events.BattleEnd.OnClientEvent:Connect(function(result)
 	rollBtn.Visible = false
 
 	-- === [แก้ไขจุดที่ 2: แสดงผลแพ้ชนะง่ายๆ] ===
-	local msgText = ""
+	local msgText = result -- Server now sends the full message string
 	local msgColor = Color3.fromRGB(255, 255, 255)
-
-	if result == "Win" or result == "AttackerWin" or result == "DefenderWin" then
-		-- เช็คว่าเป็นเราชนะไหม (กรณี PvP ต้องเช็ค Role แต่ถ้า PvE คือ Win แน่นอน)
-		-- เพื่อความง่าย: ถ้า Server ส่ง Win มาหาเรา แสดงว่าเราชนะ (ใน BattleSystem.lua ส่ง Win ให้ผู้ชนะ)
-		if result == "Win" then
-			msgText = "🏆 YOU WIN! 🏆"
-			msgColor = Color3.fromRGB(50, 255, 100)
-		elseif result == "Lose" then
-			msgText = "💀 YOU LOSE... 💀"
-			msgColor = Color3.fromRGB(255, 50, 50)
-		else
-			-- PvP (Server อาจส่ง string อื่นมา เช็คตามบริบท)
-			msgText = "🏁 BATTLE ENDED: " .. result
-		end
-	else
-		msgText = "🏁 BATTLE ENDED: " .. result
+	
+	-- Determine color simply (optional check, or just default white/gold)
+	if string.find(result, "Win") or string.find(result, "defeated") then
+		msgColor = Color3.fromRGB(255, 215, 0) -- Gold
+	elseif string.find(result, "knocked out") then
+		msgColor = Color3.fromRGB(255, 100, 100) -- Red
 	end
 
 	-- ส่งข้อความใหญ่กลางจอ หรือ Chat
 	sendMsg(msgText, msgColor)
-
+	
 	-- (Optional) สร้าง TextLabel กลางจอชั่วคราว
 	local resultLabel = Instance.new("TextLabel")
 	resultLabel.Size = UDim2.new(1, 0, 0.2, 0)
@@ -464,11 +454,12 @@ Events.BattleEnd.OnClientEvent:Connect(function(result)
 	resultLabel.Text = msgText
 	resultLabel.Font = Enum.Font.FredokaOne
 	resultLabel.TextSize = 48
+	resultLabel.TextScaled = true -- Allow long names to fit
 	resultLabel.TextColor3 = msgColor
 	resultLabel.TextStrokeTransparency = 0
 	resultLabel.Parent = screenGui
-
-	game:GetService("Debris"):AddItem(resultLabel, 3) -- ลบใน 3 วินาที
+	
+	game:GetService("Debris"):AddItem(resultLabel, 5) -- Show longer (5s) for reading
 end)
 
 -- Battle Start (Single Source of Truth)
@@ -586,6 +577,48 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 			end
 		end
 
+		-- Handle No Alive Pokemon
+		if #alivePokemons == 0 then
+			local warnFrame = Instance.new("Frame")
+			warnFrame.Size = UDim2.new(0, 320, 0, 180)
+			warnFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+			warnFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+			warnFrame.BackgroundColor3 = Color3.fromRGB(40, 20, 20)
+			warnFrame.BorderSizePixel = 0
+			warnFrame.Parent = screenGui
+			Instance.new("UICorner", warnFrame).CornerRadius = UDim.new(0, 12)
+			Instance.new("UIStroke", warnFrame).Color = Color3.fromRGB(255, 50, 50)
+			Instance.new("UIStroke", warnFrame).Thickness = 2
+			
+			local warnText = Instance.new("TextLabel")
+			warnText.Text = "🚫 NO POKEMON AVAILABLE!\n\nAll your Pokemon are fainted.\nYou cannot fight right now!"
+			warnText.Size = UDim2.new(0.9, 0, 0.6, 0)
+			warnText.Position = UDim2.new(0.05, 0, 0.1, 0)
+			warnText.BackgroundTransparency = 1
+			warnText.TextColor3 = Color3.fromRGB(255, 100, 100)
+			warnText.Font = Enum.Font.FredokaOne
+			warnText.TextSize = 20
+			warnText.TextWrapped = true
+			warnText.Parent = warnFrame
+			
+			local forceRunBtn = Instance.new("TextButton")
+			forceRunBtn.Size = UDim2.new(0, 140, 0, 45)
+			forceRunBtn.Position = UDim2.new(0.5, -70, 0.75, 0)
+			forceRunBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+			forceRunBtn.Text = "🏃 RUN AWAY"
+			forceRunBtn.Font = Enum.Font.FredokaOne
+			forceRunBtn.TextSize = 18
+			forceRunBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+			forceRunBtn.Parent = warnFrame
+			Instance.new("UICorner", forceRunBtn).CornerRadius = UDim.new(0, 8)
+			
+			forceRunBtn.MouseButton1Click:Connect(function()
+				warnFrame:Destroy()
+				Events.BattleTriggerResponse:FireServer("Run", nil)
+			end)
+			return
+		end
+		
 		-- Create Selection Frame
 		local selFrame = Instance.new("Frame")
 		selFrame.Size = UDim2.new(0, 400, 0, 300)
@@ -595,7 +628,7 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 		selFrame.BorderSizePixel = 0
 		selFrame.Parent = screenGui
 		Instance.new("UICorner", selFrame).CornerRadius = UDim.new(0, 12)
-
+		
 		local selTitle = Instance.new("TextLabel")
 		selTitle.Size = UDim2.new(1, 0, 0, 50)
 		selTitle.BackgroundTransparency = 1
@@ -604,18 +637,18 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 		selTitle.Font = Enum.Font.FredokaOne
 		selTitle.TextSize = 24
 		selTitle.Parent = selFrame
-
+		
 		local scroll = Instance.new("ScrollingFrame")
 		scroll.Size = UDim2.new(0.9, 0, 0.7, 0)
 		scroll.Position = UDim2.new(0.05, 0, 0.2, 0)
 		scroll.BackgroundTransparency = 1
 		scroll.Parent = selFrame
-
+		
 		local layout = Instance.new("UIListLayout")
 		layout.Parent = scroll
 		layout.Padding = UDim.new(0, 10)
 		layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
+		
 		-- Generate Buttons
 		for _, poke in ipairs(alivePokemons) do
 			local btn = Instance.new("TextButton")
@@ -628,11 +661,11 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 			btn.TextXAlignment = Enum.TextXAlignment.Left
 			btn.Parent = scroll
 			Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-
+			
 			btn.MouseButton1Click:Connect(function()
 				selFrame:Destroy()
 				choiceFrame:Destroy()
-
+				
 				local responseData = { Type = type, SelectedPokemonName = poke.Name }
 				if type == "PvP" and data and data.Opponents then
 					responseData.Target = data.Opponents[1] 
@@ -640,7 +673,7 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 				Events.BattleTriggerResponse:FireServer("Fight", responseData)
 			end)
 		end
-
+		
 		scroll.CanvasSize = UDim2.new(0, 0, 0, #alivePokemons * 60)
 	end)
 

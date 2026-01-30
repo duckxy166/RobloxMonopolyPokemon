@@ -343,8 +343,25 @@ function BattleSystem.endBattle(battle, result)
 
 	local tilesFolder = game.Workspace:FindFirstChild("Tiles")
 
+	-- === 1. Prepare Global Announcement Message ===
+	local winnerName = "Someone"
+	local loserName = "Someone"
+	local finalMsg = ""
+	
 	if battle.Type == "PvE" then
-		Events.BattleEnd:FireClient(battle.Player, result)
+		winnerName = (result == "Win") and battle.Player.Name or battle.EnemyStats.Name
+		loserName = (result == "Win") and battle.EnemyStats.Name or battle.Player.Name
+		
+		if result == "Win" then
+			finalMsg = "🏆 " .. winnerName .. " defeated wild " .. loserName .. "!"
+		else
+			finalMsg = "💀 " .. winnerName .. " knocked out " .. loserName .. "!"
+		end
+		
+		-- Notify Result Global
+		Events.BattleEnd:FireAllClients(finalMsg) -- Send String Message directly
+		
+		-- Clear reference
 		BattleSystem.activeBattles[battle.Player.UserId] = nil
 
 		if result == "Win" then
@@ -359,8 +376,18 @@ function BattleSystem.endBattle(battle, result)
 		TurnManager.nextTurn()
 
 	elseif battle.Type == "PvP" then
-		Events.BattleEnd:FireClient(battle.Attacker, result)
-		Events.BattleEnd:FireClient(battle.Defender, result)
+		if result == "AttackerWin" then
+			winnerName = battle.Attacker.Name
+			loserName = battle.Defender.Name
+		else
+			winnerName = battle.Defender.Name
+			loserName = battle.Attacker.Name
+		end
+		
+		finalMsg = "⚔️ PvP Result: " .. winnerName .. " defeated " .. loserName .. "!"
+		
+		-- Notify Result Global
+		Events.BattleEnd:FireAllClients(finalMsg)
 
 		BattleSystem.activeBattles[battle.Attacker.UserId] = nil
 		BattleSystem.activeBattles[battle.Defender.UserId] = nil
@@ -372,6 +399,25 @@ function BattleSystem.endBattle(battle, result)
 		end
 
 		TurnManager.nextTurn()
+	end
+	
+	-- === 2. CLEANUP MODELS (Fix for Stuck Models) ===
+	print("🧹 Cleaning up Battle Stage Models...")
+	local battleStage = game.Workspace:FindFirstChild("Stage")
+	if battleStage then
+		local stages = {
+			battleStage:FindFirstChild("PokemonStage1"),
+			battleStage:FindFirstChild("PokemonStage2")
+		}
+		for _, stage in ipairs(stages) do
+			if stage then
+				for _, child in ipairs(stage:GetChildren()) do
+					if child:IsA("Model") then
+						child:Destroy()
+					end
+				end
+			end
+		end
 	end
 end
 
