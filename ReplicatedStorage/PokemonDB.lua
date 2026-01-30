@@ -1,9 +1,9 @@
 --[[
 ================================================================================
-                      🐾 POKEMON DATABASE - Central Pokemon Data
+                      ?? POKEMON DATABASE - Central Pokemon Data
 ================================================================================
-    📌 Location: ReplicatedStorage (accessible by Server & Client)
-    📌 Data Structure:
+    ?? Location: ReplicatedStorage (accessible by Server & Client)
+    ?? Data Structure:
         - Id, Rarity, Attack, HP, Type, Ability
         - Evolution chain, Model, Icon
 ================================================================================
