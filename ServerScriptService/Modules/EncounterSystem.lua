@@ -237,7 +237,6 @@ function EncounterSystem.handleCatch(player) -- removed pokeData arg
 
 	local target = PokemonDB.GetCatchDifficulty(pokeData.Name)
 	local roll = math.random(1, 6)
-	-- local roll = (6)
 	local success = roll >= target
 
 	if success then
@@ -247,8 +246,6 @@ function EncounterSystem.handleCatch(player) -- removed pokeData arg
 			Rarity = pokeData.Rarity,
 			Stats = PokemonDB.GetPokemon(pokeData.Name)
 		}
-		-- Removed Immediate Money Gain
-		-- player.leaderstats.Money.Value = player.leaderstats.Money.Value + 5 
 	end
 
 	-- Logic Update: Encounter only finishes if CAUGHT. 

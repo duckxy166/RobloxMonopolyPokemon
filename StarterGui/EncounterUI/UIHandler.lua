@@ -207,7 +207,7 @@ EncounterEvent.OnClientEvent:Connect(function(otherPlayer, data)
 end)
 
 -- 2. CATCH RESULT
-CatchEvent.OnClientEvent:Connect(function(success, roll, target, isFinished)
+CatchEvent.OnClientEvent:Connect(function(catcher, success, roll, target, isFinished)
 	-- [[ DICE ANIMATION START ]] --
 	local dice
 	local diceTemplate = ReplicatedStorage:FindFirstChild("DiceModel")
@@ -219,6 +219,10 @@ CatchEvent.OnClientEvent:Connect(function(success, roll, target, isFinished)
 		dice = Instance.new("Part"); dice.Size = Vector3.new(3,3,3) 
 	end
 	dice.Parent = workspace; dice.Anchored = true; dice.CanCollide = false
+    
+    -- Check if valid roll for animation
+    local safeRoll = roll
+    if type(safeRoll) ~= "number" then safeRoll = 1 end
 
 	-- Sound
 	local LAND_SOUND_ID = "rbxassetid://90144356226455"
@@ -253,24 +257,31 @@ CatchEvent.OnClientEvent:Connect(function(success, roll, target, isFinished)
 
 	local finalCF = camera.CFrame
 	local dicePos = (finalCF + finalCF.LookVector * 8).Position
-	local safeRoll = roll
 	if not ROTATION_OFFSETS[safeRoll] then safeRoll = 1 end
-
-	playSound(LAND_SOUND_ID)
 
 	local tw = TweenService:Create(dice, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 		CFrame = CFrame.lookAt(dicePos, finalCF.Position) * ROTATION_OFFSETS[safeRoll]
 	})
 	tw:Play()
+    playSound(LAND_SOUND_ID)
 
-	task.wait(1.5)
+	task.wait(0.5) -- Spam fix: Reduced from 1.5 to 0.5
 	dice:Destroy()
 	-- [[ DICE ANIMATION END ]] --
+
+    -- Only update UI text if we are the catcher
+    if catcher ~= player then return end
 
 	-- Show dice roll result or just success/fail messsage
 	if success then
 		statsLbl.Text = "GOTCHA! (Rolled " .. tostring(roll) .. " >= " .. tostring(target) .. ")"
 		statsLbl.TextColor3 = Color3.fromRGB(100, 255, 100)
+		
+		-- Notify Server that animation is done so we can get our Pokemon!
+		local animDoneEvent = ReplicatedStorage:FindFirstChild("CatchAnimationDoneEvent")
+		if animDoneEvent then
+			animDoneEvent:FireServer()
+		end
 	else
 		statsLbl.Text = "ESCAPED... (Rolled " .. tostring(roll) .. " < " .. tostring(target) .. ")"
 		statsLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
@@ -286,7 +297,7 @@ CatchEvent.OnClientEvent:Connect(function(success, roll, target, isFinished)
 		screenGui.Enabled = false
 	else
 		-- Retry allowed? (Yes, until user runs or catches)
-		task.wait(1)
+		task.wait(0.1) -- Spam fix: Reduced from 1 to 0.1
 		if screenGui.Enabled then
 			local ballsLeft = player.leaderstats.Pokeballs.Value
 			
