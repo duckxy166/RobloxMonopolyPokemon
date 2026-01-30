@@ -34,7 +34,7 @@ Instance.new("UIStroke", container).Color = Color3.fromRGB(100, 255, 255)
 Instance.new("UIStroke", container).Thickness = 2
 
 local title = Instance.new("TextLabel")
-title.Text = "✨ EVOLUTION TIME! Choose one:"
+title.Text = "EVOLUTION TIME! Choose one:"
 title.Size = UDim2.new(1, 0, 0.15, 0)
 title.BackgroundTransparency = 1
 title.TextColor3 = Color3.fromRGB(255, 255, 255)

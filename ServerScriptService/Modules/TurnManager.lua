@@ -154,6 +154,8 @@ function TurnManager.enterDrawPhase(player)
 		print("🃏 Drawn card for " .. player.Name)
 	elseif not drawnCard and Events.Notify then
 		-- Hand full or empty deck
+		print("⚠️ Draw failed for " .. player.Name)
+		Events.Notify:FireClient(player, "⚠️ Hand full! No card drawn.")
 	end
 
 	-- Short delay to show card drawn, then go to Roll
@@ -240,8 +242,32 @@ function TurnManager.processPlayerRoll(player)
 			end
 			
 			if Events.Notify then
-				Events.Notify:FireClient(player, "🏁 Lap Completed! +5 🔴 Pokeballs! (Lap " .. (currentLap + 1) .. ")")
+				Events.Notify:FireClient(player, "🏁 Lap Completed! +5 🔴 Pokeballs! Stopping at Sell Center.")
 			end
+
+			-- FORCE STOP AT START (Tile 0)
+			if nextTile and humanoid then
+				humanoid:MoveTo(PlayerManager.getPlayerTilePosition(player, nextTile))
+				humanoid.MoveToFinished:Wait()
+			end
+			
+			PlayerManager.playerPositions[player.UserId] = 0
+			
+			-- Trigger Sell UI Immediately and End Move
+			print("💰 Landed on Start (Forced Stop)! Opening Sell UI...")
+			local SellSystem = require(game.ServerScriptService.Modules.SellSystem)
+			if SellSystem then
+				SellSystem.openSellUI(player)
+				
+				TimerSystem.startPhaseTimer(60, "Sell", function()
+					if player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
+						TurnManager.nextTurn()
+					end
+				end)
+			else
+				TurnManager.nextTurn()
+			end
+			return -- Stop movement here
 		end
 
 		if nextTile and humanoid then
