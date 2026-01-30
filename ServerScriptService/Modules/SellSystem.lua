@@ -46,18 +46,18 @@ end
 function SellSystem.getSellableList(player)
 	local inventory = player:FindFirstChild("PokemonInventory")
 	if not inventory then return {} end
-	
+
 	local pokemons = inventory:GetChildren()
 	local sellable = {}
-	
+
 	-- Filter: Only alive Pokemon can be sold
 	for _, poke in ipairs(pokemons) do
 		local status = poke:GetAttribute("Status") or "Alive"
-		
+
 		if status == "Alive" then
 			local rarity = poke.Value
 			local price = SellSystem.SELL_PRICES[rarity] or 3
-			
+
 			table.insert(sellable, {
 				Name = poke.Name,
 				Rarity = rarity,
@@ -68,16 +68,16 @@ function SellSystem.getSellableList(player)
 			})
 		end
 	end
-	
+
 	return sellable
 end
 
 -- Open Sell UI
 function SellSystem.openSellUI(player)
 	if playerInSell[player.UserId] then return end -- Already open
-	
+
 	local sellList = SellSystem.getSellableList(player)
-	
+
 	if #sellList == 0 then
 		if Events.Notify then
 			Events.Notify:FireClient(player, "❌ No alive Pokemon to sell!")
@@ -86,10 +86,10 @@ function SellSystem.openSellUI(player)
 		TurnManager.nextTurn()
 		return
 	end
-	
+
 	playerInSell[player.UserId] = true
 	Events.SellUI:FireClient(player, sellList)
-	
+
 	-- Start Timer (20 seconds to sell)
 	TurnManager.turnPhase = "Sell"
 	TimerSystem.startPhaseTimer(20, "Sell", function()
@@ -115,17 +115,17 @@ function SellSystem.handleSell(player, pokemonName)
 		warn("❌ Not player's turn!")
 		return 
 	end
-	
+
 	-- Find Pokemon
 	local inventory = player:FindFirstChild("PokemonInventory")
 	if not inventory then return end
-	
+
 	local targetPoke = inventory:FindFirstChild(pokemonName)
 	if not targetPoke then 
 		warn("❌ Pokemon not found:", pokemonName)
 		return 
 	end
-	
+
 	-- Check if Pokemon is alive (Dead Pokemon cannot be sold)
 	local status = targetPoke:GetAttribute("Status") or "Alive"
 	if status == "Dead" then
@@ -134,28 +134,28 @@ function SellSystem.handleSell(player, pokemonName)
 		end
 		return
 	end
-	
+
 	-- Calculate price
 	local rarity = targetPoke.Value
 	local price = SellSystem.SELL_PRICES[rarity] or 3
-	
+
 	-- Add money
 	local leaderstats = player:FindFirstChild("leaderstats")
 	local money = leaderstats and leaderstats:FindFirstChild("Money")
 	if money then
 		money.Value = money.Value + price
 	end
-	
+
 	-- Remove Pokemon
 	targetPoke:Destroy()
-	
+
 	-- Notify
 	if Events.Notify then
 		Events.Notify:FireClient(player, "💰 Sold " .. pokemonName .. " for " .. price .. " coins!")
 	end
-	
+
 	print("✅ " .. player.Name .. " sold " .. pokemonName .. " for " .. price)
-	
+
 	-- Check if any left to sell
 	task.wait(0.5)
 	local remaining = SellSystem.getSellableList(player)
@@ -172,7 +172,7 @@ function SellSystem.connectEvents()
 	if Events.SellPokemon then
 		Events.SellPokemon.OnServerEvent:Connect(SellSystem.handleSell)
 	end
-	
+
 	if Events.SellUIClose then
 		Events.SellUIClose.OnServerEvent:Connect(SellSystem.closeSellUI)
 	end

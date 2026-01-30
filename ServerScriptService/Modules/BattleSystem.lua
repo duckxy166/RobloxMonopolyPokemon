@@ -79,7 +79,7 @@ function BattleSystem.startPvE(player, chosenPoke)
 
 	-- 1. Determine Pokemon (Chosen or Default First Alive)
 	local myPoke = chosenPoke or BattleSystem.getFirstAlivePokemon(player)
-	
+
 	if not myPoke then
 		if Events.Notify then Events.Notify:FireClient(player, "❌ All Pokemon are dead! Cannot battle.") end
 		TurnManager.nextTurn()
@@ -426,7 +426,7 @@ function BattleSystem.spawnPokemonModel(pokeName, stagePart)
 	if modelTemplate then
 		local cloned = modelTemplate:Clone()
 		cloned.Parent = game.Workspace
-		
+
 		-- Ensure PrimaryPart exists
 		if not cloned.PrimaryPart then
 			local root = cloned:FindFirstChild("HumanoidRootPart") or cloned:FindFirstChildWhichIsA("BasePart", true)
@@ -442,7 +442,7 @@ function BattleSystem.spawnPokemonModel(pokeName, stagePart)
 			cloned:SetPrimaryPartCFrame(targetCFrame)
 			print("   ✅ Spawned " .. pokeName .. " at " .. tostring(targetCFrame.Position))
 		end
-		
+
 		-- Anchor EVERYTHING so it doesn't fall
 		for _, desc in ipairs(cloned:GetDescendants()) do
 			if desc:IsA("BasePart") then

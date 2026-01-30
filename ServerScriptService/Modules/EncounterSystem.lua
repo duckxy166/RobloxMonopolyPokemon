@@ -306,4 +306,81 @@ function EncounterSystem.connectEvents()
 	end)
 end
 
+-- Spawn pokemon encounter
+function EncounterSystem.spawnPokemonEncounter(player, tileColorName)
+	-- Use PokemonDB to get encounter based on Tile Color
+	-- ถ้าไม่มีสีส่งมา ให้ใช้ Default
+	local encounter = PokemonDB.GetEncounterFromTile(tileColorName or "Default")
+
+	-- กรณีสุ่มได้ None (ไม่เจอตัว)
+	if not encounter then
+		print("🍃 No encounter (Rolled None). Next turn.")
+		if Events.Notify then
+			Events.Notify:FireClient(player, "🍃 Quiet area... No Pokemon here.")
+		end
+		task.wait(1)
+		TurnManager.nextTurn()
+		return
+	end
+
+	local pokeName = encounter.Name
+	local pokeData = encounter.Data
+	print("🔍 Spawning: " .. pokeName .. " (Rarity: " .. pokeData.Rarity .. ")")
+
+	-- ... (ส่วน logic การหา Model และจัดวางตำแหน่งเหมือนเดิม ไม่ต้องแก้) ...
+	local function findModel(name)
+		local m = pokemonModels:FindFirstChild(name)
+		if m then return m end
+		for _, child in ipairs(pokemonModels:GetChildren()) do
+			if child.Name:match("^%s*" .. name .. "%s*$") then return child end
+		end
+		return nil
+	end
+
+	local modelTemplate = findModel(pokeData.Model)
+	if modelTemplate then
+		-- ... (Code เดิมในการ Clone และวาง Model บน CenterStage) ...
+		local clonedModel = modelTemplate:Clone()
+		local stageTopY = centerStage.Position.Y + (centerStage.Size.Y / 2)
+		local spawnPos = CFrame.new(centerStage.Position.X, stageTopY, centerStage.Position.Z)
+		clonedModel:PivotTo(spawnPos)
+		clonedModel.Parent = Workspace
+		currentSpawnedPokemon = clonedModel
+
+		local pokeHumanoid = clonedModel:FindFirstChild("Humanoid")
+		if pokeHumanoid then
+			clonedModel:PivotTo(spawnPos + Vector3.new(0, pokeHumanoid.HipHeight + 1, 0))
+		else
+			clonedModel:PivotTo(spawnPos + Vector3.new(0, 2, 0))
+		end
+
+		local mainPart = clonedModel.PrimaryPart or clonedModel:FindFirstChild("HumanoidRootPart") or clonedModel:FindFirstChildWhichIsA("BasePart", true)
+		if mainPart then
+			mainPart.Anchored = true
+		end
+	else
+		warn("❌ Model not found for: " .. pokeName)
+		-- ถ้าโมเดลไม่มี ยังให้เล่นต่อได้แต่ไม่เห็นตัว
+	end
+
+	-- Send encounter data to clients
+	local encounterData = {
+		Name = pokeName,
+		Rarity = pokeData.Rarity,
+		Type = pokeData.Type,
+		HP = pokeData.HP,
+		Attack = pokeData.Attack,
+		Icon = pokeData.Icon,
+		Image = pokeData.Image
+	}
+	Events.Encounter:FireAllClients(player, encounterData)
+
+	TurnManager.turnPhase = "Encounter"
+	TimerSystem.startPhaseTimer(TimerSystem.ENCOUNTER_TIMEOUT, "Encounter", function()
+		if TurnManager.turnPhase == "Encounter" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
+			EncounterSystem.forceRunAndEnd(player)
+		end
+	end)
+end
+
 return EncounterSystem

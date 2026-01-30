@@ -221,7 +221,7 @@ local function updatePartyIcons(targetPlayer)
 				-- Check Status
 				local status = pokemons[i]:GetAttribute("Status")
 				local overlay = slot:FindFirstChild("StatusOverlay")
-				
+
 				if status == "Dead" then
 					icon.ImageTransparency = 0.7 -- Heavy fade
 					icon.ImageColor3 = Color3.fromRGB(100, 100, 100) -- Greyed out
@@ -247,7 +247,7 @@ local function setupInventoryListener(targetPlayer)
 	local inventory = targetPlayer:WaitForChild("PokemonInventory", 10)
 	if inventory then
 		updatePartyIcons(targetPlayer)
-		
+
 		-- 1. Inventory Structure Change
 		inventory.ChildAdded:Connect(function(child)
 			updatePartyIcons(targetPlayer)
@@ -257,7 +257,7 @@ local function setupInventoryListener(targetPlayer)
 			end)
 		end)
 		inventory.ChildRemoved:Connect(function() updatePartyIcons(targetPlayer) end)
-		
+
 		-- 2. Initial Bind for Existing
 		for _, child in ipairs(inventory:GetChildren()) do
 			child:GetAttributeChangedSignal("Status"):Connect(function()
@@ -513,7 +513,7 @@ task.spawn(function()
 
 		local finalCF = camera.CFrame
 		local dicePos = (finalCF + finalCF.LookVector * 8).Position
-		
+
 		-- Safety / Re-apply Fix
 		local safeRoll = rollResult
 		if not ROTATION_OFFSETS[safeRoll] then safeRoll = 1 end
