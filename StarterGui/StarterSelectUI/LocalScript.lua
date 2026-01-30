@@ -71,14 +71,15 @@ waitText.Parent = waitFrame
 -- Events
 local Events = {
 	ShowStarterSelection = ReplicatedStorage:WaitForChild("ShowStarterSelectionEvent"),
-	SelectStarter = ReplicatedStorage:WaitForChild("SelectStarterEvent")
+	SelectStarter = ReplicatedStorage:WaitForChild("SelectStarterEvent"),
+	UpdateTurn = ReplicatedStorage:WaitForChild("UpdateTurnEvent")
 }
 
 local function createCard(name)
 	local data = PokemonDB.GetPokemon(name)
 	if not data then return end
 	
-	local btn = Instance.new("ImageButton") -- Changed to ImageButton for background or just keeps container
+	local btn = Instance.new("ImageButton")
 	btn.Name = name
 	btn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 	btn.Image = "" -- No button image
@@ -119,9 +120,6 @@ local function createCard(name)
 	statsLbl.TextSize = 14
 	statsLbl.Parent = btn
 	
-	-- Type Indicator (Optional)
-	-- ...
-	
 	btn.MouseButton1Click:Connect(function()
 		Events.SelectStarter:FireServer(name)
 		bg.Visible = false
@@ -130,9 +128,12 @@ local function createCard(name)
 end
 
 -- Initialize List
-for _, name in ipairs(PokemonDB.Starters or {}) do
-	createCard(name)
-end
+task.spawn(function()
+	-- Wait for DB to be potentially updated? Already required.
+	for _, name in ipairs(PokemonDB.Starters or {}) do
+		createCard(name)
+	end
+end)
 
 -- Listen for trigger
 Events.ShowStarterSelection.OnClientEvent:Connect(function()
@@ -140,4 +141,12 @@ Events.ShowStarterSelection.OnClientEvent:Connect(function()
 	screenGui.Enabled = true
 	bg.Visible = true
 	waitFrame.Visible = false
+end)
+
+-- Hide UI when game starts
+Events.UpdateTurn.OnClientEvent:Connect(function()
+	if screenGui.Enabled then
+		print("🚀 Game Started! Hiding Selection UI.")
+		screenGui.Enabled = false
+	end
 end)
