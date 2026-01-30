@@ -180,6 +180,14 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 			-- 4. Get Card Definition
 			local cardDef = CardDB.Cards[cardName]
 			
+			-- [BLOCK] Safety Goggles - Passive Only
+			if cardName == "Safety Goggles" then
+				if events.Notify then 
+					events.Notify:FireClient(player, "🛡️ Cannot use manually! Activates when attacked.") 
+				end
+				return
+			end
+			
 			-- 5. Process Effect
 			CardSystem.removeCardFromHand(player, cardName, 1)
 			

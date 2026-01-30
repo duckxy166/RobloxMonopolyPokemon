@@ -75,8 +75,8 @@ end
 
 -- Start PvE (Wild Pokemon)
 -- Start PvE (Wild Pokemon / Gym)
-function BattleSystem.startPvE(player, chosenPoke)
-	print("⚔️ PvE Started for " .. player.Name)
+function BattleSystem.startPvE(player, chosenPoke, desiredRarity)
+	print("⚔️ PvE Started for " .. player.Name .. " (Rarity: " .. tostring(desiredRarity) .. ")")
 
 	-- 1. Determine Pokemon (Chosen or Default First Alive)
 	local myPoke = chosenPoke or BattleSystem.getFirstAlivePokemon(player)
@@ -88,13 +88,22 @@ function BattleSystem.startPvE(player, chosenPoke)
 	end
 
 	-- 2. Generate Random Enemy
-	local encounter = PokemonDB.GetRandomEncounter()
+	local encounter = nil
+	if desiredRarity then
+		encounter = PokemonDB.GetRandomByRarity(desiredRarity)
+	end
+	
+	if not encounter then
+		-- Fallback
+		encounter = PokemonDB.GetRandomEncounter() 
+	end
+
 	local enemyStats = {
-		Name = encounter.Name,
+		Name = encounter.Name or encounter.Data.Name or "Unknown",
 		Level = 1,
-		CurrentHP = encounter.Data.HP,
-		MaxHP = encounter.Data.HP,
-		Attack = encounter.Data.Attack,
+		CurrentHP = encounter.Data and encounter.Data.HP or 10,
+		MaxHP = encounter.Data and encounter.Data.HP or 10,
+		Attack = encounter.Data and encounter.Data.Attack or 5,
 		IsNPC = true
 	}
 
@@ -197,9 +206,25 @@ function BattleSystem.startPvP(player1, player2)
 		end
 	end
 
-	-- Notify Both
-	Events.BattleStart:FireClient(player1, "PvP", battleData)
-	Events.BattleStart:FireClient(player2, "PvP", battleData)
+	-- Notify Both with Relative Data
+	local attackerBasicData = {
+		Type = "PvP",
+		MyStats = battleData.AttackerStats,
+		EnemyStats = battleData.DefenderStats,
+		Target = "Roll",
+		TurnState = "WaitRoll"
+	}
+	
+	local defenderBasicData = {
+		Type = "PvP",
+		MyStats = battleData.DefenderStats,
+		EnemyStats = battleData.AttackerStats,
+		Target = "Roll",
+		TurnState = "WaitRoll"
+	}
+
+	Events.BattleStart:FireClient(player1, "PvP", attackerBasicData)
+	Events.BattleStart:FireClient(player2, "PvP", defenderBasicData)
 end
 
 -- ============================================================================
@@ -544,7 +569,8 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 					chosenPoke = inventory:FindFirstChild(data.SelectedPokemonName)
 				end
 			end
-			BattleSystem.startPvE(player, chosenPoke)
+			-- Pass Rarity if available in data
+			BattleSystem.startPvE(player, chosenPoke, data.Rarity)
 		elseif data and data.Type == "PvP" then
 			-- PvP requires opponent selection if multiple, or just first one
 			-- Simplify: If target provided, fight them
@@ -555,7 +581,12 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 		end
 	else
 		-- Run / Decline
-		TurnManager.nextTurn()
+		if data and data.Type == "PvP" then
+			print("🏃 Declined PvP. Resuming Tile Event.")
+			TurnManager.resumeTurn(player)
+		else
+			TurnManager.nextTurn()
+		end
 	end
 end
 

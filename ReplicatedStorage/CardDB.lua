@@ -35,6 +35,7 @@ CardDB.Cards = {
 	["Nugget"] = {
 		Name = "Nugget",
 		Description = "Sell for 5 coins",
+		MoneyGain = 5,
 	},
 
 	-- === ATTACK CARDS ===

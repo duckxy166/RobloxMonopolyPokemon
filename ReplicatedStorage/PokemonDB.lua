@@ -159,6 +159,15 @@ function PokemonDB.GetEncounterFromTile(tileColorName)
 	return nil -- กรณี Database ว่างเปล่าจริงๆ
 end
 
+-- New Helper: Get Random Single Pokemon by Rarity
+function PokemonDB.GetRandomByRarity(rarity)
+	local pool = PokemonDB.GetByRarity(rarity)
+	if #pool > 0 then
+		return pool[math.random(1, #pool)]
+	end
+	return nil
+end
+
 -- (คงฟังก์ชันเดิมไว้)
 function PokemonDB.GetPokemon(name) return PokemonDB.Pokemon[name] end
 function PokemonDB.GetCatchDifficulty(name) 

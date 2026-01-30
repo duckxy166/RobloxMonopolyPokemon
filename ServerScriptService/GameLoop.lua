@@ -27,7 +27,14 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 -- MODULE REFERENCES
 local Modules = ServerScriptService:WaitForChild("Modules")
+-- MODULE REFERENCES
+local Modules = ServerScriptService:WaitForChild("Modules")
 local EventManager = require(Modules:WaitForChild("EventManager"))
+
+-- STEP 1: Initialize Events (CRITICAL: Do this first so Clients don't timeout)
+print("🔹 [GameLoop] Initializing Events...")
+local Events = EventManager.init()
+
 local TimerSystem = require(Modules:WaitForChild("TimerSystem"))
 local CardSystem = require(Modules:WaitForChild("CardSystem"))
 local PlayerManager = require(Modules:WaitForChild("PlayerManager"))
@@ -42,8 +49,7 @@ print("=====================================")
 print("🎮 Pokemon Monopoly - Loading...")
 print("=====================================")
 
--- STEP 1: Initialize Events
-local Events = EventManager.init()
+-- STEP 2: Initialize Systems
 
 -- STEP 2: Initialize Systems
 TimerSystem.init(Events)

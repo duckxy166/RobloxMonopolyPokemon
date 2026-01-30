@@ -140,27 +140,32 @@ function TurnManager.nextTurn()
 	print("⚠️ No valid players found to take turn?")
 end
 
--- Enter draw phase (Auto-draw to 3 cards, then go to Roll)
+-- Enter draw phase (Always draw 1 card at start of turn)
 function TurnManager.enterDrawPhase(player)
 	TurnManager.turnPhase = "Draw"
 	TurnManager.isTurnActive = true
-	print("Phase: Auto-Draw for:", player.Name)
-
-	-- Auto-draw 1 card per turn (Logic Update)
-	-- Previously: Filled hand to 3. Now: +1 Card only.
+	print("Phase: Draw Phase for:", player.Name)
+	
+	-- Force Draw 1 Card
 	local drawnCard = CardSystem.drawOneCard(player)
 	
-	if drawnCard and Events.Notify then
-		-- Notify handled in CardSystem, but extra log here potentially
-		print("🃏 Drawn card for " .. player.Name)
-	elseif not drawnCard and Events.Notify then
-		-- Hand full or empty deck
-		print("⚠️ Draw failed for " .. player.Name)
-		Events.Notify:FireClient(player, "⚠️ Hand full! No card drawn.")
+	if drawnCard then
+		if Events.Notify then
+			-- Notify handled in CardSystem usually, but ensuring feedback
+			-- Events.Notify:FireClient(player, "🃏 Drawn a card!") -- CardSystem does this
+		end
+	else
+		-- Determine why (Hand Full or Deck Empty)
+		local count = CardSystem.countHand(player)
+		if count >= CardSystem.HAND_LIMIT then
+			if Events.Notify then Events.Notify:FireClient(player, "⚠️ Hand Full! Cannot draw more.") end
+		else
+			if Events.Notify then Events.Notify:FireClient(player, "⚠️ Deck Empty! No cards left.") end
+		end
 	end
 
 	-- Short delay to show card drawn, then go to Roll
-	task.wait(1)
+	task.wait(1.5)
 	TurnManager.enterRollPhase(player)
 end
 
@@ -256,6 +261,9 @@ function TurnManager.handleStarterSelection(player, starterName)
 		starterPoke.Parent = inventory
 	end
 	
+	-- Draw 1 Starter Card
+	CardSystem.drawOneCard(player)
+
 	-- Mark Ready
 	TurnManager.readyPlayers[player.UserId] = true
 	
@@ -380,148 +388,29 @@ function TurnManager.processPlayerRoll(player)
 				PlayerManager.playerRepelSteps[player.UserId] = repelLeft 
 			end
 
-			if i == roll then
 				-- UPDATE POSITION IMMEDIATELY
 				PlayerManager.playerPositions[player.UserId] = currentPos
-
-				local tileColorName = nextTile.BrickColor.Name
-				local tileColorLower = string.lower(tileColorName)
-				print("📍 [Server] Landed on tile: " .. nextTile.Name .. " | Color: " .. tileColorName)
-
-				-- 0. START TILE (Tile 0 Logic - Modulo check typically, but here checked by index)
-				-- Note: In this project, Tile 40 wraps to 0 or 1. If logic resets pos to 0, handle it.
-				-- If currentPos is handled linearly (e.g. 1-40), check map.
-				-- Assuming Tile 0 is the start tile or a specific Sell Tile.
 				
-				local isStartTile = (nextTile.Name == "0" or nextTile.Name == "Start")
-				print("🔍 [Debug] Checking Start Tile: Name='" .. nextTile.Name .. "', isStart=" .. tostring(isStartTile))
-				
-				if isStartTile then
-					print("💰 Landed on Start! Opening Sell UI...")
-					PlayerManager.playerPositions[player.UserId] = currentPos -- Ensure pos update
+				-- 🔷 PVP CHECK FIRST (Priority)
+				local opponents = {}
+				for _, otherPlayer in ipairs(PlayerManager.playersInGame) do
+					if otherPlayer ~= player and PlayerManager.playerPositions[otherPlayer.UserId] == currentPos then
+						table.insert(opponents, otherPlayer)
+					end
+				end
+
+				if #opponents > 0 and Events.BattleTrigger then
+					print("⚔️ PvP Potential! Triggering Selection...")
+					Events.BattleTrigger:FireClient(player, "PvP", { Opponents = opponents })
 					
-					-- Trigger Sell UI
-					local SellSystem = require(game.ServerScriptService.Modules.SellSystem)
-					if SellSystem then
-						-- IMPORTANT: Ensure SellSystem handles the NextTurn callback!
-						SellSystem.openSellUI(player)
-						
-						-- Setup Timeout just in case
-						TimerSystem.startPhaseTimer(60, "Sell", function()
-							-- If player still in Sell phase after 60s
-							if player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
-								print("Timer: Sell timeout")
-								TurnManager.nextTurn()
-							end
-						end)
-					else
-						warn("SellSystem not found!")
-						TurnManager.nextTurn()
-					end
-					return
+					-- Wait for response (Handled by BattleSystem -> callback)
+					-- We return here to "pause" the turn logic.
+					-- If player chooses RUN, BattleSystem calls TurnManager.resumeTurn(player)
+					return 
 				end
 
-				-- 1. BLACK TILE (Skip Turn / Sleep)
-				if tileColorLower == "black" or tileColorName == "Black" then
-					print("🛑 Landed on Black Tile! Stunned for 1 turn.")
-					if Events.Notify then Events.Notify:FireClient(player, "🛑 Stuck in Black Tile! Skip 1 turn.") end
-
-					-- Set Status
-					local status = player:FindFirstChild("Status")
-					if status then
-						local sleep = status:FindFirstChild("SleepTurns")
-						if sleep then sleep.Value = 1 end
-					end
-
-					TurnManager.nextTurn()
-					return
-				end
-
-				-- 2. GREEN TILES (Encounter System)
-				-- เช็ครายชื่อสีที่อยู่ใน DB หรือที่มีคำว่า green / gold
-				if tileColorLower == "bright green" or tileColorLower == "forest green" or 
-					tileColorLower == "dark green" or tileColorLower == "earth green" or 
-					tileColorLower == "gold" then
-
-					if repelLeft > 0 then 
-						print("🛡️ Repel Active. No encounter.")
-						TurnManager.nextTurn() 
-					elseif EncounterSystem then 
-						-- ส่งชื่อสีไปให้ EncounterSystem คำนวณ
-						EncounterSystem.spawnPokemonEncounter(player, tileColorName) 
-					else
-						TurnManager.nextTurn()
-					end
-					return
-
-						-- 3. WHITE TILES (Shop/Heal)
-				elseif string.find(tileColorLower, "white") then
-					-- ... (Logic เดิม: Heal & Shop) ...
-					local inventory = player:FindFirstChild("PokemonInventory")
-					if inventory then
-						local revivedCount = 0
-						for _, poke in ipairs(inventory:GetChildren()) do
-							if poke:GetAttribute("Status") == "Dead" then
-								poke:SetAttribute("Status", "Alive")
-								poke:SetAttribute("CurrentHP", poke:GetAttribute("MaxHP"))
-								revivedCount = revivedCount + 1
-							end
-						end
-						if revivedCount > 0 and Events.Notify then 
-							Events.Notify:FireClient(player, "💖 " .. revivedCount .. " Pokemon Revived!") 
-						end
-					end
-
-					PlayerManager.playerPositions[player.UserId] = currentPos
-					PlayerManager.playerInShop[player.UserId] = true
-					Events.Shop:FireClient(player)
-
-					TurnManager.turnPhase = "Shop"
-					TimerSystem.startPhaseTimer(TimerSystem.SHOP_TIMEOUT, "Shop", function()
-						if TurnManager.turnPhase == "Shop" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
-							PlayerManager.playerInShop[player.UserId] = false
-							TurnManager.nextTurn()
-						end
-					end)
-					return
-
-						-- 4. RED TILE (PvE Battle Trigger)
-				elseif string.find(tileColorLower, "red") then
-					print("⚔️ Landed on Red Tile! PvE Trigger.")
-					if Events.BattleTrigger then
-						TurnManager.turnPhase = "BattleSelection"
-						Events.BattleTrigger:FireClient(player, "PvE", nil)
-
-						TimerSystem.startPhaseTimer(30, "BattleSelection", function()
-							if TurnManager.turnPhase == "BattleSelection" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
-								TurnManager.nextTurn()
-							end
-						end)
-					else
-						TurnManager.nextTurn()
-					end
-					return
-
-				else
-					-- 5. OTHER (PvP Check or Draw Card)
-					local opponents = {}
-					for _, otherPlayer in ipairs(PlayerManager.playersInGame) do
-						if otherPlayer ~= player and PlayerManager.playerPositions[otherPlayer.UserId] == currentPos then
-							table.insert(opponents, otherPlayer)
-						end
-					end
-
-					if #opponents > 0 and Events.BattleTrigger then
-						print("⚔️ PvP Potential!")
-						Events.BattleTrigger:FireClient(player, "PvP", { Opponents = opponents })
-						return 
-					end
-
-					-- Default: Draw Card
-					CardSystem.drawOneCard(player)
-					TurnManager.nextTurn()
-				end
-			end
+				-- If no PvP, process tile normally
+				TurnManager.processTileEvent(player, currentPos, nextTile)
 		else
 			-- Fallback reset logic
 			currentPos = 0
@@ -536,6 +425,137 @@ function TurnManager.processPlayerRoll(player)
 		end
 	end
 	PlayerManager.playerPositions[player.UserId] = currentPos
+end
+
+-- RESUME TURN (Called after declining PvP)
+function TurnManager.resumeTurn(player)
+	print("🔄 Resuming turn for " .. player.Name)
+	local currentPos = PlayerManager.playerPositions[player.UserId] or 0
+	local tile = tilesFolder:FindFirstChild(tostring(currentPos))
+	
+	if tile then
+		TurnManager.processTileEvent(player, currentPos, tile)
+	else
+		warn("ResumeTurn: Tile not found!")
+		TurnManager.nextTurn()
+	end
+end
+
+-- CENTRAL TILE EVENT HANDLER
+function TurnManager.processTileEvent(player, currentPos, nextTile)
+	local tileColorName = nextTile.BrickColor.Name
+	local tileColorLower = string.lower(tileColorName)
+	print("📍 [Server] Processing Tile: " .. nextTile.Name .. " | Color: " .. tileColorName)
+
+	-- 0. START TILE
+	local isStartTile = (nextTile.Name == "0" or nextTile.Name == "Start")
+	if isStartTile then
+		print("💰 Landed on Start! Opening Sell UI...")
+		
+		local SellSystem = require(game.ServerScriptService.Modules.SellSystem)
+		if SellSystem then
+			SellSystem.openSellUI(player)
+			TimerSystem.startPhaseTimer(60, "Sell", function()
+				if player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
+					TurnManager.nextTurn()
+				end
+			end)
+		else
+			TurnManager.nextTurn()
+		end
+		return
+	end
+
+	-- 1. BLACK TILE (Skip Turn / Sleep)
+	if tileColorLower == "black" or tileColorName == "Black" then
+		print("🛑 Landed on Black Tile! Stunned for 1 turn.")
+		if Events.Notify then Events.Notify:FireClient(player, "🛑 Stuck in Black Tile! Skip 1 turn.") end
+
+		local status = player:FindFirstChild("Status")
+		if status then
+			local sleep = status:FindFirstChild("SleepTurns")
+			if sleep then sleep.Value = 1 end
+		end
+
+		TurnManager.nextTurn()
+		return
+	end
+
+	-- 2. GREEN TILES (Encounter System)
+	if tileColorLower == "bright green" or tileColorLower == "forest green" or 
+		tileColorLower == "dark green" or tileColorLower == "earth green" or 
+		tileColorLower == "gold" then
+
+		local repelLeft = PlayerManager.playerRepelSteps[player.UserId] or 0
+		if repelLeft > 0 then 
+			print("🛡️ Repel Active. No encounter.")
+			TurnManager.nextTurn() 
+		elseif EncounterSystem then 
+			EncounterSystem.spawnPokemonEncounter(player, tileColorName) 
+		else
+			TurnManager.nextTurn()
+		end
+		return
+	end
+
+	-- 3. WHITE TILES (Shop/Heal)
+	if string.find(tileColorLower, "white") then
+		local inventory = player:FindFirstChild("PokemonInventory")
+		if inventory then
+			local revivedCount = 0
+			for _, poke in ipairs(inventory:GetChildren()) do
+				if poke:GetAttribute("Status") == "Dead" then
+					poke:SetAttribute("Status", "Alive")
+					poke:SetAttribute("CurrentHP", poke:GetAttribute("MaxHP"))
+					revivedCount = revivedCount + 1
+				end
+			end
+			if revivedCount > 0 and Events.Notify then 
+				Events.Notify:FireClient(player, "💖 " .. revivedCount .. " Pokemon Revived!") 
+			end
+		end
+
+		PlayerManager.playerInShop[player.UserId] = true
+		Events.Shop:FireClient(player)
+
+		TurnManager.turnPhase = "Shop"
+		TimerSystem.startPhaseTimer(TimerSystem.SHOP_TIMEOUT, "Shop", function()
+			if TurnManager.turnPhase == "Shop" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
+				PlayerManager.playerInShop[player.UserId] = false
+				TurnManager.nextTurn()
+			end
+		end)
+		return
+	end
+
+	-- 4. RED TILE (PvE Battle Trigger)
+	if string.find(tileColorLower, "red") or string.find(tileColorLower, "crimson") or string.find(tileColorLower, "maroon") then
+		local rarity = "Common"
+		if string.find(tileColorLower, "crimson") then rarity = "Uncommon" end
+		if string.find(tileColorLower, "maroon") then rarity = "Rare" end
+		
+		print("⚔️ Landed on Red Tile (" .. tileColorName .. ") -> PvE: " .. rarity)
+		
+		if Events.BattleTrigger then
+			TurnManager.turnPhase = "BattleSelection"
+			-- Pass Rarity info to Client (for local display if needed) and back to Server in response
+			Events.BattleTrigger:FireClient(player, "PvE", { Rarity = rarity })
+
+			TimerSystem.startPhaseTimer(30, "BattleSelection", function()
+				if TurnManager.turnPhase == "BattleSelection" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
+					TurnManager.nextTurn()
+				end
+			end)
+		else
+			TurnManager.nextTurn()
+		end
+		return
+	end
+
+	-- 5. DEFAULT (Draw Card - if logic falls through)
+	-- Previously checked for PvP here. Now handled before.
+	CardSystem.drawOneCard(player)
+	TurnManager.nextTurn()
 end
 
 return TurnManager
