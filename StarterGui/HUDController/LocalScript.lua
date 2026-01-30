@@ -93,23 +93,35 @@ local function createPlayerBox(targetPlayer, index)
 	layout.Padding = UDim.new(0, 10)
 	layout.Parent = statsRow
 
-	local function createStat(icon, valName, color)
+	local function createStat(iconOrId, valName, color)
 		local f = Instance.new("Frame")
-		f.Size = UDim2.new(0, 45, 1, 0)
+		f.Size = UDim2.new(0, 50, 1, 0) -- Slightly wider for icon
 		f.BackgroundTransparency = 1
 		f.Parent = statsRow
 
-		local icn = Instance.new("TextLabel")
-		icn.Size = UDim2.new(0, 20, 1, 0)
-		icn.BackgroundTransparency = 1
-		icn.Text = icon
-		icn.TextSize = 14
-		icn.Parent = f
+		local isImage = tostring(iconOrId):match("rbxassetid://")
+		
+		if isImage then
+			local icn = Instance.new("ImageLabel")
+			icn.Size = UDim2.new(0, 24, 0, 24) -- 24px Icon
+			icn.Position = UDim2.new(0, 0, 0.5, 0)
+			icn.AnchorPoint = Vector2.new(0, 0.5)
+			icn.BackgroundTransparency = 1
+			icn.Image = iconOrId
+			icn.Parent = f
+		else
+			local icn = Instance.new("TextLabel")
+			icn.Size = UDim2.new(0, 20, 1, 0)
+			icn.BackgroundTransparency = 1
+			icn.Text = iconOrId
+			icn.TextSize = 14
+			icn.Parent = f
+		end
 
 		local val = Instance.new("TextLabel")
 		val.Name = "ValueLabel_" .. valName -- Tag for updating
-		val.Size = UDim2.new(1, -20, 1, 0)
-		val.Position = UDim2.new(0, 20, 0, 0)
+		val.Size = UDim2.new(1, -25, 1, 0)
+		val.Position = UDim2.new(0, 25, 0, 0)
 		val.BackgroundTransparency = 1
 		val.Text = "0"
 		val.TextColor3 = color
@@ -119,9 +131,13 @@ local function createPlayerBox(targetPlayer, index)
 		val.Parent = f
 	end
 
-	createStat("$", "Money", Color3.fromRGB(255, 220, 0))
-	createStat("C", "Cards", Color3.fromRGB(200, 200, 200))
-	createStat("B", "Balls", Color3.fromRGB(255, 100, 100))
+	-- REPLACE THESE IDs WITH YOUR UPLOADED IMAGE IDs
+	local COIN_ICON_ID = "rbxassetid://88871535760357" -- Put Coin Image ID here
+	local BALL_ICON_ID = "rbxassetid://136940926868953" -- Put Pokeball Image ID here
+
+	createStat(COIN_ICON_ID, "Money", Color3.fromRGB(255, 220, 0))
+	createStat("C", "Cards", Color3.fromRGB(200, 200, 200)) -- Keep Cards as Text 'C' or change if needed
+	createStat(BALL_ICON_ID, "Balls", Color3.fromRGB(255, 100, 100))
 
 	-- Pokemon Party Row (6 slots)
 	local partyRow = Instance.new("Frame")
@@ -385,6 +401,26 @@ task.spawn(function()
 
 	resetCamEvent = ReplicatedStorage:FindFirstChild("ResetCameraEvent") or Instance.new("BindableEvent")
 	lockEvent = ReplicatedStorage:FindFirstChild("CameraLockEvent") or Instance.new("BindableEvent")
+	
+	-- CATCH SOUND
+	local catchEvent = ReplicatedStorage:WaitForChild("CatchPokemonEvent", 5)
+	if catchEvent then
+		catchEvent.OnClientEvent:Connect(function()
+			-- Play Throw/Catch Sound
+			local CATCH_SOUND_ID = "rbxassetid://111044334523010" -- Using same rolling sound for now as placeholder or maybe a different one?
+			-- User asked for 'Encounter dice sound'. Capture mechanic uses a 'roll'.
+			-- If there is a visual dice roll for capture, I need to find it.
+			-- Looking at EncounterSystem.lua (server), it fires 'CatchPokemon'.
+			-- Looking at HUD logic, I don't see a capture dice visual. It might just be 'success/fail' prompt.
+			-- Use the LAND sound for capture result.
+			
+			task.wait(0.1) -- Match other roll delays
+			local s = Instance.new("Sound", workspace)
+			s.SoundId = "rbxassetid://90144356226455" -- Land sound
+			s.PlayOnRemove = true
+			s:Destroy()
+		end)
+	end
 
 	timerLabel.Text = "Waiting for game..."
 
@@ -490,6 +526,20 @@ task.spawn(function()
 		if diceTemplate then dice = diceTemplate:Clone() else dice = Instance.new("Part"); dice.Size = Vector3.new(3,3,3) end
 		dice.Parent = workspace; dice.Anchored = true; dice.CanCollide = false
 
+		-- SOUNDS
+		-- SOUNDS
+		-- local ROLL_SOUND_ID = "rbxassetid://111044334523010" -- Rolling Sound
+		local LAND_SOUND_ID = "rbxassetid://90144356226455" -- Landing Sound
+		
+		local function playSound(id) 
+			local s = Instance.new("Sound", workspace)
+			s.SoundId = id
+			s.PlayOnRemove = true -- Play when destroyed
+			s:Destroy()
+		end
+		
+		-- (Rolling sound removed)
+
 		-- Spin Animation
 		local connection
 		connection = RunService.RenderStepped:Connect(function()
@@ -498,7 +548,7 @@ task.spawn(function()
 			dice.CFrame = CFrame.new(pos.Position) * CFrame.Angles(math.rad(os.clock()*700), math.rad(os.clock()*500), math.rad(os.clock()*600))
 		end)
 
-		task.wait(1.5)
+		task.wait(0.1)
 		connection:Disconnect()
 
 		-- Show Final Face
@@ -517,6 +567,9 @@ task.spawn(function()
 		-- Safety / Re-apply Fix
 		local safeRoll = rollResult
 		if not ROTATION_OFFSETS[safeRoll] then safeRoll = 1 end
+
+		-- Play Land Sound
+		playSound(LAND_SOUND_ID)
 
 		local tw = TweenService:Create(dice, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 			CFrame = CFrame.lookAt(dicePos, finalCF.Position) * ROTATION_OFFSETS[safeRoll]

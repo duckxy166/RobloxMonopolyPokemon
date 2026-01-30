@@ -197,6 +197,12 @@ local function spawn3NDice(sideOffset)
 	-- sideOffset: -1 for left (Player), 1 for right (Enemy)
 	local startCF = camera.CFrame * CFrame.new(sideOffset * 4, -2, -8) -- 4 studs left/right, 2 down, 8 forward
 	dice.CFrame = startCF
+	
+	-- SOUNDS
+	-- local ROLL_SOUND_ID = "rbxassetid://111044334523010" 
+	local LAND_SOUND_ID = "rbxassetid://90144356226455"
+
+	-- (Cards Removed: Roll sound removed as requested)
 
 	-- Spin Animation
 	local connection
@@ -211,7 +217,14 @@ local function spawn3NDice(sideOffset)
 		Object = dice,
 		Stop = function(finalVal)
 			if connection then connection:Disconnect() end
+			-- Roll sound cleanup removed
 
+			-- Play Land Sound
+			local landSound = Instance.new("Sound", workspace)
+			landSound.SoundId = LAND_SOUND_ID
+			landSound.PlayOnRemove = true
+			landSound:Destroy()
+			
 			-- Tween to result
 			local finalCF = camera.CFrame * CFrame.new(sideOffset * 4, -2, -8) -- End at same spot roughly
 			-- Look at camera
@@ -364,14 +377,14 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 	-- Step B: Rolling sequence (Visuals only)
 	sendMsg("🎲 " .. myName .. " is rolling...", Color3.fromRGB(100, 255, 255))
 	activeDice.Player = spawn3NDice(myDiceOffset)
-	task.wait(1.2)
+	task.wait(0.1) -- Fast response
 	if activeDice.Player then activeDice.Player.Stop(myRoll) end
 
 	task.wait(1.0)
 
 	sendMsg("🎲 " .. enemyName .. " is rolling...", Color3.fromRGB(255, 100, 100))
 	activeDice.Enemy = spawn3NDice(enemyDiceOffset)
-	task.wait(1.2)
+	task.wait(0.1) -- Fast response
 	if activeDice.Enemy then activeDice.Enemy.Stop(enemyRoll) end
 
 	task.wait(1.5)

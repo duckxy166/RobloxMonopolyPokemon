@@ -13,7 +13,7 @@
 local ShopSystem = {}
 
 -- Constants
-ShopSystem.BALL_PRICE = 2
+ShopSystem.BALL_PRICE = 1
 
 -- State
 local shopDebounce = {}

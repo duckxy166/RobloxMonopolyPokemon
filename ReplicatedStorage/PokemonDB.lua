@@ -29,85 +29,166 @@ PokemonDB.EncounterRates = {
 
 -- Pokemon Data
 PokemonDB.Pokemon = {
-	-- ===== NONE POOL (Level 1 / Creep) =====
+	-- ===== NONE POOL (Creeps) =====
+	["Caterpie"] = { 
+		Id = 10, Rarity = "None", Attack = 4, HP = 5, Type = "Bug",
+		Model = "010 - Caterpie", EvolveTo = "Metapod", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
 	["Pidgey"] = { 
 		Id = 16, Rarity = "None", Attack = 5, HP = 5, Type = "Normal",
-		Model = "Pidgey", Icon = "rbxassetid://0", Image = "rbxassetid://0" 
+		Model = "016 - Pidgey", EvolveTo = "Pidgeotto", Icon = "rbxassetid://0", Image = "rbxassetid://0"
 	},
 	["Rattata"] = { 
 		Id = 19, Rarity = "None", Attack = 6, HP = 5, Type = "Normal",
-		Model = "Rattata", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+		Model = "019 - Rattata", EvolveTo = "Raticate", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Magikarp"] = { 
+		Id = 129, Rarity = "None", Attack = 1, HP = 5, Type = "Water",
+		Model = "129 - Magikarp", EvolveTo = "Gyarados", Icon = "rbxassetid://0", Image = "rbxassetid://0"
 	},
 
-	-- ===== COMMON POOL (Base Forms - Atk ~8-10) =====
-	["Bulbasaur"] = {
-		Id = 1, Rarity = "Common", Attack = 8, HP = 10, Type = "Grass",
-		Model = "Bulbasaur", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650",
-		EvolveTo = "Ivysaur"
+	-- ===== COMMON POOL (Base Forms) =====
+	["Charmander"] = {
+		Id = 4, Rarity = "Common", Attack = 10, HP = 10, Type = "Fire",
+		Model = "004 - Charmander", EvolveTo = "Charmeleon", Icon = "rbxassetid://0", Image = "rbxassetid://0"
 	},
-	["Gible"] = { Id=443, Rarity="Common", Attack=9, HP=8, Type="Dragon", Model="Gible", EvolveTo="Gabite", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Larvitar"] = { Id=246, Rarity="Common", Attack=9, HP=8, Type="Rock", Model="Larvitar", EvolveTo="Pupitar", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Bagon"] = { Id=371, Rarity="Common", Attack=9, HP=8, Type="Dragon", Model="Bagon", EvolveTo="Shelgon", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Axew"] = { Id=610, Rarity="Common", Attack=9, HP=8, Type="Dragon", Model="Axew", EvolveTo="Fraxure", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Deino"] = { Id=633, Rarity="Common", Attack=8, HP=8, Type="Dragon", Model="Deino", EvolveTo="Zweilous", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Ralts"] = { Id=280, Rarity="Common", Attack=6, HP=6, Type="Psychic", Model="Ralts", EvolveTo="Kirlia", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Pichu"] = { Id=172, Rarity="Common", Attack=6, HP=6, Type="Electric", Model="Pichu", EvolveTo="Pikachu", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Machop"] = { Id=66, Rarity="Common", Attack=10, HP=10, Type="Fighting", Model="Machop", EvolveTo="Machoke", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Gastly"] = { Id=92, Rarity="Common", Attack=10, HP=6, Type="Ghost", Model="Gastly", EvolveTo="Haunter", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Litwick"] = { Id=607, Rarity="Common", Attack=8, HP=8, Type="Ghost", Model="Litwick", EvolveTo="Lampent", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Dratini"] = { Id=147, Rarity="Common", Attack=8, HP=8, Type="Dragon", Model="Dratini", EvolveTo="Dragonair", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Magnemite"] = { Id=81, Rarity="Common", Attack=7, HP=7, Type="Electric", Model="Magnemite", EvolveTo="Magneton", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Swinub"] = { Id=220, Rarity="Common", Attack=7, HP=8, Type="Ice", Model="Swinub", EvolveTo="Piloswine", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Abra"] = { Id=63, Rarity="Common", Attack=10, HP=5, Type="Psychic", Model="Abra", EvolveTo="Kadabra", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Jangmo-o"] = { Id=782, Rarity="Common", Attack=8, HP=8, Type="Dragon", Model="Jangmo-o", EvolveTo="Hakamo-o", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-
-	-- ===== UNCOMMON POOL (Stage 1 - Atk ~12-15) =====
-	["Ivysaur"] = {
-		Id = 2, Rarity = "Uncommon", Attack = 14, HP = 15, Type = "Grass",
-		Model = "Ivysaur", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650",
-		EvolveTo = "Venusaur"
+	["Squirtle"] = {
+		Id = 7, Rarity = "Common", Attack = 9, HP = 11, Type = "Water",
+		Model = "007 - Squirtle", EvolveTo = "Wartortle", Icon = "rbxassetid://0", Image = "rbxassetid://0"
 	},
-	["Gabite"] = { Id=444, Rarity="Uncommon", Attack=15, HP=14, Type="Dragon", Model="Gabite", EvolveTo="Garchomp", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Pupitar"] = { Id=247, Rarity="Uncommon", Attack=14, HP=15, Type="Rock", Model="Pupitar", EvolveTo="Tyranitar", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Shelgon"] = { Id=372, Rarity="Uncommon", Attack=14, HP=16, Type="Dragon", Model="Shelgon", EvolveTo="Salamence", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Fraxure"] = { Id=611, Rarity="Uncommon", Attack=15, HP=12, Type="Dragon", Model="Fraxure", EvolveTo="Haxorus", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Zweilous"] = { Id=634, Rarity="Uncommon", Attack=14, HP=14, Type="Dragon", Model="Zweilous", EvolveTo="Hydreigon", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Kirlia"] = { Id=281, Rarity="Uncommon", Attack=12, HP=12, Type="Psychic", Model="Kirlia", EvolveTo="Gardevoir", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Pikachu"] = { Id=25, Rarity="Uncommon", Attack=12, HP=10, Type="Electric", Model="Pikachu", EvolveTo="Raichu", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Machoke"] = { Id=67, Rarity="Uncommon", Attack=16, HP=16, Type="Fighting", Model="Machoke", EvolveTo="Machamp", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Haunter"] = { Id=93, Rarity="Uncommon", Attack=16, HP=10, Type="Ghost", Model="Haunter", EvolveTo="Gengar", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Lampent"] = { Id=608, Rarity="Uncommon", Attack=14, HP=12, Type="Ghost", Model="Lampent", EvolveTo="Chandelure", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Dragonair"] = { Id=148, Rarity="Uncommon", Attack=14, HP=14, Type="Dragon", Model="Dragonair", EvolveTo="Dragonite", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Magneton"] = { Id=82, Rarity="Uncommon", Attack=13, HP=12, Type="Electric", Model="Magneton", EvolveTo="Magnezone", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Piloswine"] = { Id=221, Rarity="Uncommon", Attack=14, HP=15, Type="Ice", Model="Piloswine", EvolveTo="Mamoswine", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Kadabra"] = { Id=64, Rarity="Uncommon", Attack=16, HP=10, Type="Psychic", Model="Kadabra", EvolveTo="Alakazam", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Hakamo-o"] = { Id=783, Rarity="Uncommon", Attack=14, HP=14, Type="Dragon", Model="Hakamo-o", EvolveTo="Kommo-o", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
+	["Pikachu"] = {
+		Id = 25, Rarity = "Common", Attack = 12, HP = 8, Type = "Electric",
+		Model = "025 - Pikachu", EvolveTo = "Raichu", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Meowth"] = {
+		Id = 52, Rarity = "Common", Attack = 8, HP = 8, Type = "Normal",
+		Model = "052 - Meowth", EvolveTo = "Persian", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Gastly"] = {
+		Id = 92, Rarity = "Common", Attack = 12, HP = 6, Type = "Ghost",
+		Model = "092 - Gastly", EvolveTo = "Haunter", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Dratini"] = {
+		Id = 147, Rarity = "Common", Attack = 10, HP = 10, Type = "Dragon",
+		Model = "147 - Dratini", EvolveTo = "Dragonair", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Chikorita"] = {
+		Id = 152, Rarity = "Common", Attack = 8, HP = 10, Type = "Grass",
+		Model = "152 - Chikorita", EvolveTo = "Bayleef", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Cyndaquil"] = {
+		Id = 155, Rarity = "Common", Attack = 10, HP = 8, Type = "Fire",
+		Model = "155 - Cyndaquil", EvolveTo = "Quilava", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Totodile"] = {
+		Id = 158, Rarity = "Common", Attack = 10, HP = 10, Type = "Water",
+		Model = "158 - Totodile", EvolveTo = "Croconaw", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
 
-	-- ===== RARE POOL (Stage 2 - Atk ~18-20) =====
+	-- ===== UNCOMMON POOL (Stage 1) =====
+	["Metapod"] = {
+		Id = 11, Rarity = "Uncommon", Attack = 6, HP = 10, Type = "Bug",
+		Model = "011 - Metapod", EvolveTo = "Butterfree", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Pidgeotto"] = {
+		Id = 17, Rarity = "Uncommon", Attack = 12, HP = 12, Type = "Normal",
+		Model = "017 - Pidgeotto", EvolveTo = "Pidgeot", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Raticate"] = {
+		Id = 20, Rarity = "Uncommon", Attack = 14, HP = 10, Type = "Normal",
+		Model = "020 - Raticate", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Charmeleon"] = {
+		Id = 5, Rarity = "Uncommon", Attack = 16, HP = 14, Type = "Fire",
+		Model = "005 - Charmeleon", EvolveTo = "Charizard", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Wartortle"] = {
+		Id = 8, Rarity = "Uncommon", Attack = 14, HP = 16, Type = "Water",
+		Model = "008 - Wartortle", EvolveTo = "Blastoise", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Persian"] = {
+		Id = 53, Rarity = "Uncommon", Attack = 14, HP = 12, Type = "Normal",
+		Model = "053 - Persian", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Haunter"] = {
+		Id = 93, Rarity = "Uncommon", Attack = 18, HP = 10, Type = "Ghost",
+		Model = "093 - Haunter", EvolveTo = "Gengar", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Dragonair"] = {
+		Id = 148, Rarity = "Uncommon", Attack = 16, HP = 16, Type = "Dragon",
+		Model = "148 - Dragonair", EvolveTo = "Dragonite", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Bayleef"] = {
+		Id = 153, Rarity = "Uncommon", Attack = 14, HP = 16, Type = "Grass",
+		Model = "153 - Bayleef", EvolveTo = "Meganium", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Quilava"] = {
+		Id = 156, Rarity = "Uncommon", Attack = 16, HP = 14, Type = "Fire",
+		Model = "156 - Quilava", EvolveTo = "Typhlosion", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Croconaw"] = {
+		Id = 159, Rarity = "Uncommon", Attack = 16, HP = 16, Type = "Water",
+		Model = "159 - Croconaw", EvolveTo = "Feraligatr", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+
+	-- ===== RARE POOL (Stage 2 / Single Strong) =====
 	["Venusaur"] = {
-		Id = 3, Rarity = "Rare", Attack = 20, HP = 22, Type = "Grass",
-		Model = "Venusaur", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650"
+		Id = 3, Rarity = "Rare", Attack = 22, HP = 24, Type = "Grass",
+		Model = "003 - Venusaur", Icon = "rbxassetid://0", Image = "rbxassetid://0"
 	},
-	["Garchomp"] = { Id=445, Rarity="Rare", Attack=21, HP=20, Type="Dragon", Model="Garchomp", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Tyranitar"] = { Id=248, Rarity="Rare", Attack=22, HP=22, Type="Rock", Model="Tyranitar", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Salamence"] = { Id=373, Rarity="Rare", Attack=21, HP=19, Type="Dragon", Model="Salamence", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Haxorus"] = { Id=612, Rarity="Rare", Attack=22, HP=18, Type="Dragon", Model="Haxorus", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Hydreigon"] = { Id=635, Rarity="Rare", Attack=20, HP=20, Type="Dragon", Model="Hydreigon", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Gardevoir"] = { Id=282, Rarity="Rare", Attack=20, HP=16, Type="Psychic", Model="Gardevoir", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Raichu"] = { Id=26, Rarity="Rare", Attack=18, HP=16, Type="Electric", Model="Raichu", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Machamp"] = { Id=68, Rarity="Rare", Attack=22, HP=22, Type="Fighting", Model="Machamp", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Gengar"] = { Id=94, Rarity="Rare", Attack=22, HP=16, Type="Ghost", Model="Gengar", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Chandelure"] = { Id=609, Rarity="Rare", Attack=21, HP=16, Type="Ghost", Model="Chandelure", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Dragonite"] = { Id=149, Rarity="Rare", Attack=22, HP=20, Type="Dragon", Model="Dragonite", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Magnezone"] = { Id=462, Rarity="Rare", Attack=19, HP=18, Type="Electric", Model="Magnezone", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Mamoswine"] = { Id=473, Rarity="Rare", Attack=20, HP=22, Type="Ice", Model="Mamoswine", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Alakazam"] = { Id=65, Rarity="Rare", Attack=22, HP=14, Type="Psychic", Model="Alakazam", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
-	["Kommo-o"] = { Id=784, Rarity="Rare", Attack=19, HP=20, Type="Dragon", Model="Kommo-o", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650" },
+	["Charizard"] = {
+		Id = 6, Rarity = "Rare", Attack = 25, HP = 20, Type = "Fire",
+		Model = "006 - Charizard", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Blastoise"] = {
+		Id = 9, Rarity = "Rare", Attack = 22, HP = 25, Type = "Water",
+		Model = "009 - Blastoise", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Butterfree"] = {
+		Id = 12, Rarity = "Rare", Attack = 15, HP = 15, Type = "Bug",
+		Model = "012 - Butterfree", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Pidgeot"] = {
+		Id = 18, Rarity = "Rare", Attack = 18, HP = 18, Type = "Normal",
+		Model = "018 - Pidgeot", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Raichu"] = {
+		Id = 26, Rarity = "Rare", Attack = 20, HP = 18, Type = "Electric",
+		Model = "026 - Raichu", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Gengar"] = {
+		Id = 94, Rarity = "Rare", Attack = 25, HP = 16, Type = "Ghost",
+		Model = "094 - Gengar", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Gyarados"] = {
+		Id = 130, Rarity = "Rare", Attack = 25, HP = 22, Type = "Water",
+		Model = "130 - Gyarados", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Lapras"] = {
+		Id = 131, Rarity = "Rare", Attack = 20, HP = 28, Type = "Water",
+		Model = "131 - Lapras", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Dragonite"] = {
+		Id = 149, Rarity = "Rare", Attack = 28, HP = 25, Type = "Dragon",
+		Model = "149 - Dragonite", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Meganium"] = {
+		Id = 154, Rarity = "Rare", Attack = 22, HP = 26, Type = "Grass",
+		Model = "154 - Meganium", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Typhlosion"] = {
+		Id = 157, Rarity = "Rare", Attack = 25, HP = 22, Type = "Fire",
+		Model = "157 - Typhlosion", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
+	["Feraligatr"] = {
+		Id = 160, Rarity = "Rare", Attack = 24, HP= 24, Type = "Water",
+		Model = "160 - Feraligatr", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+	},
 
-	-- ===== LEGENDARY POOL (Max ~25) =====
+	-- ===== LEGENDARY POOL =====
 	["Mewtwo"] = {
-		Id = 150, Rarity = "Legend", Attack = 25, HP = 25, Type = "Psychic",
-		Model = "Mewtwo", Icon = "rbxassetid://0", Image = "rbxassetid://0"
+		Id = 150, Rarity = "Legend", Attack = 35, HP = 30, Type = "Psychic",
+		Model = "150 - Mewtwo", Icon = "rbxassetid://0", Image = "rbxassetid://0"
 	},
 }
 
@@ -176,8 +257,9 @@ function PokemonDB.GetCatchDifficulty(name)
 end
 
 PokemonDB.Starters = {
-	"Gible", "Larvitar", "Bagon", "Axew", "Deino", 
-	"Ralts", "Pichu", "Machop", "Gastly", "Litwick", "Dratini"
+	"Charmander", "Squirtle", "Pikachu", 
+	"Chikorita", "Cyndaquil", "Totodile",
+	"Dratini", "Gastly", "Meowth"
 }
 
 function PokemonDB.GetRandomEncounter() 
