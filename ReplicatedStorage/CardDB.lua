@@ -20,28 +20,21 @@ local CardDB = {}
 -- Card Registry
 CardDB.Cards = {
 	-- === BUFF/SUPPORT CARDS ===
-	["Potion"] = {
-		Name = "Potion",
-		Description = "Gain 5 coins",
-		MoneyGain = 5,
-	},
-
-	["Super Potion"] = {
-		Name = "Super Potion", 
-		Description = "Gain 10 coins",
-		MoneyGain = 10,
-	},
 
 	["Lucky Draw"] = {
 		Name = "Lucky Draw",
 		Description = "Draw 2 cards",
 		Draw = 2,
 	},
+	
+	["Rare Candy"] = {
+		Name = "Rare Candy",
+		Description = "Gain 15 Coins (Level Up!)",
+	},
 
 	["Nugget"] = {
 		Name = "Nugget",
 		Description = "Sell for 5 coins",
-		MoneyGain = 5,
 	},
 
 	-- === ATTACK CARDS ===
@@ -69,34 +62,35 @@ CardDB.Cards = {
 		Negative = true,
 	},
 
+	["Twisted Spoon"] = {
+		Name = "Twisted Spoon",
+		Description = "Teleport to a selected player",
+		Warp = true,
+		NeedsTarget = true,
+	},
+
 	-- === DEFENSE CARDS ===
-	["Safety Shield"] = {
-		Name = "Safety Shield",
-		Description = "Block next negative card",
+	["Safety Goggles"] = {
+		Name = "Safety Goggles",
+		Description = "Block negative card",
 		Shield = true,
 	},
 
-	["Full Heal"] = {
-		Name = "Full Heal",
-		Description = "Remove sleep status",
-		Cleanse = true,
-	},
 }
 
 -- Deck Builder
 function CardDB:BuildDeck()
 	local deck = {}
 
-	-- Add cards to deck (Configure quantities here)
 	local cardCounts = {
-		["Potion"] = 10,
-		["Super Potion"] = 5,
-		["Lucky Draw"] = 5,
-		["Nugget"] = 8,
-		["Robbery"] = 3,
-		["Push Back"] = 3,
+		["Lucky Draw"] = 6,
+		["Rare Candy"] = 4,
+		["Nugget"] = 10,
+		["Robbery"] = 4,
+		["Push Back"] = 4,
 		["Sleep Powder"] = 2,
-		["Safety Shield"] = 5,
+		["Twisted Spoon"] = 3,
+		["Safety Goggles"] = 5,
 		["Full Heal"] = 4,
 	}
 

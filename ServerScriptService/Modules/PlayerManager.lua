@@ -25,6 +25,8 @@ PlayerManager.playerPositions = {}
 PlayerManager.playerRepelSteps = {}
 PlayerManager.playerSlots = {}
 PlayerManager.playerInShop = {}
+PlayerManager.playerLaps = {} -- Track laps (0-3)
+PlayerManager.playerFinished = {} -- Track if finished game
 
 -- Token offset positions
 local TOKEN_OFFSETS = {
@@ -91,6 +93,8 @@ function PlayerManager.onPlayerAdded(player)
 	PlayerManager.playerPositions[player.UserId] = 0 
 	PlayerManager.playerRepelSteps[player.UserId] = 0 
 	PlayerManager.playerSlots[player.UserId] = #PlayerManager.playersInGame
+	PlayerManager.playerLaps[player.UserId] = 1
+	PlayerManager.playerFinished[player.UserId] = false
 
 	-- Create leaderstats
 	local leaderstats = Instance.new("Folder")

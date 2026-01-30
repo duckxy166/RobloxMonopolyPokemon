@@ -80,11 +80,9 @@ function SellSystem.openSellUI(player)
 
 	if #sellList == 0 then
 		if Events.Notify then
-			Events.Notify:FireClient(player, "❌ No alive Pokemon to sell!")
+			Events.Notify:FireClient(player, "⚠️ No Pokemon to sell, but opening Sell Center.")
 		end
-		-- Skip sell phase
-		TurnManager.nextTurn()
-		return
+		-- Continue to open UI so player can close it manually
 	end
 
 	playerInSell[player.UserId] = true
@@ -105,6 +103,19 @@ function SellSystem.closeSellUI(player)
 	playerInSell[player.UserId] = false
 	Events.SellUI:FireClient(player, nil) -- Close signal
 	TimerSystem.cancelTimer()
+	
+	-- CHECK LAPS for Finish Condition
+	local laps = PlayerManager.playerLaps[player.UserId] or 1
+	-- Note: Lap starts at 1. Completing 3 laps means starting Lap 4 (or Laps > 3).
+	-- Let's say completing 3 full loops.
+	if laps > 3 then
+		PlayerManager.playerFinished[player.UserId] = true
+		print("🏁 " .. player.Name .. " finished the game!")
+		if Events.Notify then
+			Events.Notify:FireClient(player, "🎉 You have finished the race! Waiting for others...")
+		end
+	end
+
 	TurnManager.nextTurn()
 end
 

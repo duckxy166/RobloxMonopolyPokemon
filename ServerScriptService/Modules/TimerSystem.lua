@@ -31,7 +31,7 @@ end
 -- Cancel any active timer
 function TimerSystem.cancelTimer()
 	if turnTimerTask then 
-		task.cancel(turnTimerTask)
+		pcall(function() task.cancel(turnTimerTask) end)
 		turnTimerTask = nil 
 	end
 	if timerUpdateEvent then

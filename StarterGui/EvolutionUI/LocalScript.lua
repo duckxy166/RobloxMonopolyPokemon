@@ -51,24 +51,80 @@ local layout = Instance.new("UIListLayout", scroll)
 layout.Padding = UDim.new(0, 5)
 
 -- Events
-local NotifyEvent = ReplicatedStorage:WaitForChild("NotifyEvent") -- Using Notify for now, need specific event
--- Ideally, we need "OpenEvolutionEvent"
+-- Events
+local Events = {
+	EvolutionRequest = ReplicatedStorage:WaitForChild("EvolutionRequestEvent"),
+	EvolutionSelect = ReplicatedStorage:WaitForChild("EvolutionSelectEvent")
+}
 
-local function createSlot(pokeName, pokeIdObj)
+local function createSlot(pokeObj)
+	local pokeName = pokeObj.Name
+	local rarity = pokeObj.Value
+	local hp = pokeObj:GetAttribute("MaxHP") or "?"
+	
 	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(1, 0, 0, 50)
-	btn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-	btn.Text = pokeName
-	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Size = UDim2.new(1, 0, 0, 60)
+	btn.BackgroundColor3 = Color3.fromRGB(50, 60, 80)
+	btn.Text = "" -- Rich layout inside
 	btn.Parent = scroll
 	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
 	
+	-- Info Labels
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Text = pokeName
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextSize = 18
+	nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Size = UDim2.new(0.6, 0, 0.5, 0)
+	nameLabel.Position = UDim2.new(0.05, 0, 0.1, 0)
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+	nameLabel.Parent = btn
+	
+	local detailLabel = Instance.new("TextLabel")
+	detailLabel.Text = rarity .. " | HP: " .. hp
+	detailLabel.Font = Enum.Font.Gotham
+	detailLabel.TextSize = 14
+	detailLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	detailLabel.BackgroundTransparency = 1
+	detailLabel.Size = UDim2.new(0.6, 0, 0.4, 0)
+	detailLabel.Position = UDim2.new(0.05, 0, 0.5, 0)
+	detailLabel.TextXAlignment = Enum.TextXAlignment.Left
+	detailLabel.Parent = btn
+
+	local selectLabel = Instance.new("TextLabel")
+	selectLabel.Text = "SELECT"
+	selectLabel.Font = Enum.Font.GothamBlack
+	selectLabel.TextSize = 14
+	selectLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+	selectLabel.BackgroundTransparency = 1
+	selectLabel.Size = UDim2.new(0.3, 0, 1, 0)
+	selectLabel.Position = UDim2.new(0.7, 0, 0, 0)
+	selectLabel.Parent = btn
+	
 	btn.MouseButton1Click:Connect(function()
 		-- Fire evolution selection
-		-- Events.EvolutionSelect:FireServer(pokeIdObj) -- Placeholder
+		print("Selected to evolve: " .. pokeName)
+		Events.EvolutionSelect:FireServer(pokeObj)
 		screenGui.Enabled = false
 	end)
 end
 
--- Listen for Evolution Trigger (Need to implement in Server Event)
--- For now, placeholder structure
+-- Listen for Evolution Trigger
+if Events.EvolutionRequest then
+	Events.EvolutionRequest.OnClientEvent:Connect(function(candidates)
+		print("✨ Evolution UI triggered! Candidates: " .. #candidates)
+		
+		-- Clear old
+		for _, v in pairs(scroll:GetChildren()) do
+			if v:IsA("GuiObject") then v:Destroy() end
+		end
+		
+		-- Populate
+		for _, pokeObj in ipairs(candidates) do
+			createSlot(pokeObj)
+		end
+		
+		screenGui.Enabled = true
+	end)
+end

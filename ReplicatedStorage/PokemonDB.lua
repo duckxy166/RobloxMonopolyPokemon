@@ -42,13 +42,15 @@ PokemonDB.Pokemon = {
 	-- ===== COMMON POOL =====
 	["Bulbasaur"] = {
 		Id = 1, Rarity = "Common", Attack = 49, HP = 45, Type = "Grass",
-		Model = "Bulbasaur", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650"
+		Model = "Bulbasaur", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650",
+		EvolveTo = "Ivysaur"
 	},
 
 	-- ===== UNCOMMON POOL =====
 	["Ivysaur"] = {
 		Id = 2, Rarity = "Uncommon", Attack = 62, HP = 60, Type = "Grass",
-		Model = "Ivysaur", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650"
+		Model = "Ivysaur", Icon = "rbxassetid://131802015396239", Image = "rbxassetid://71744981746650",
+		EvolveTo = "Venusaur"
 	},
 
 	-- ===== RARE POOL =====

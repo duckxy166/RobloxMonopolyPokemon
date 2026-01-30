@@ -271,6 +271,16 @@ if catchEvent then
 	end)
 end
 
+-- 6. Hide on Roll
+local rollDiceEvent = ReplicatedStorage:FindFirstChild("RollDiceEvent")
+if rollDiceEvent then
+	rollDiceEvent.OnClientEvent:Connect(function(rollingPlayer, roll)
+		if rollingPlayer == player then
+			screenGui.Enabled = false
+		end
+	end)
+end
+
 -- 6. Battle Hide/Show
 local battleStart = ReplicatedStorage:FindFirstChild("BattleStartEvent")
 local battleEnd = ReplicatedStorage:FindFirstChild("BattleEndEvent")

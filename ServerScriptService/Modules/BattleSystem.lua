@@ -21,6 +21,7 @@ local TimerSystem = nil
 local TurnManager = nil
 local PlayerManager = nil
 local PokemonDB = nil
+local EvolutionSystem = require(script.Parent:WaitForChild("EvolutionSystem"))
 
 -- State
 BattleSystem.activeBattles = {} -- Key: PlayerId, Value: BattleData
@@ -280,7 +281,7 @@ function BattleSystem.resolveTurn(battle, roll1, roll2)
 				BattleSystem.endBattle(battle, "Win")
 			end)
 		elseif battle.MyStats.CurrentHP <= 0 then
-			battle.MyPokeObj:SetAttribute("Status", "Dead")
+			-- Do NOT set "Dead" status yet effectively to avoid UI spoiler
 			task.spawn(function()
 				task.wait(6) -- Wait for client animation
 				BattleSystem.endBattle(battle, "Lose")
@@ -318,13 +319,13 @@ function BattleSystem.resolveTurn(battle, roll1, roll2)
 
 		-- Check Death
 		if battle.DefenderStats.CurrentHP <= 0 then
-			battle.DefenderPokeObj:SetAttribute("Status", "Dead")
+			-- battle.DefenderPokeObj:SetAttribute("Status", "Dead") -- Delayed to endBattle
 			task.spawn(function()
 				task.wait(6)
 				BattleSystem.endBattle(battle, "AttackerWin")
 			end)
 		elseif battle.AttackerStats.CurrentHP <= 0 then
-			battle.AttackerPokeObj:SetAttribute("Status", "Dead")
+			-- battle.AttackerPokeObj:SetAttribute("Status", "Dead") -- Delayed to endBattle
 			task.spawn(function()
 				task.wait(6)
 				BattleSystem.endBattle(battle, "DefenderWin")
@@ -340,6 +341,20 @@ end
 -- End Battle
 function BattleSystem.endBattle(battle, result)
 	print("🏁 Battle Ended: " .. result)
+
+	-- === 0. Update Dead Status (Delayed from resolveTurn) ===
+	if battle.Type == "PvE" then
+		if battle.MyStats.CurrentHP <= 0 then
+			battle.MyPokeObj:SetAttribute("Status", "Dead")
+		end
+	elseif battle.Type == "PvP" then
+		if battle.AttackerStats.CurrentHP <= 0 then
+			battle.AttackerPokeObj:SetAttribute("Status", "Dead")
+		end
+		if battle.DefenderStats.CurrentHP <= 0 then
+			battle.DefenderPokeObj:SetAttribute("Status", "Dead")
+		end
+	end
 
 	local tilesFolder = game.Workspace:FindFirstChild("Tiles")
 
@@ -365,8 +380,12 @@ function BattleSystem.endBattle(battle, result)
 		BattleSystem.activeBattles[battle.Player.UserId] = nil
 
 		if result == "Win" then
-			-- Reward: Evolution (TODO: Open Evolution UI)
-			if Events.Notify then Events.Notify:FireClient(battle.Player, "🏆 You Won! Evolution logic coming soon.") end
+			-- Reward: Evolution or Money
+			local success = EvolutionSystem.tryEvolve(battle.Player)
+			if not success then
+				battle.Player.leaderstats.Money.Value += 3
+				if Events.Notify then Events.Notify:FireClient(battle.Player, "⭐ No evolution available. +3 Coins!") end
+			end
 		end
 
 		-- Return to Board
@@ -376,15 +395,25 @@ function BattleSystem.endBattle(battle, result)
 		TurnManager.nextTurn()
 
 	elseif battle.Type == "PvP" then
+		local winner = nil
 		if result == "AttackerWin" then
+			winner = battle.Attacker
 			winnerName = battle.Attacker.Name
 			loserName = battle.Defender.Name
 		else
+			winner = battle.Defender
 			winnerName = battle.Defender.Name
 			loserName = battle.Attacker.Name
 		end
 		
 		finalMsg = "⚔️ PvP Result: " .. winnerName .. " defeated " .. loserName .. "!"
+		
+		-- Reward Winner
+		local success = EvolutionSystem.tryEvolve(winner)
+		if not success then
+			winner.leaderstats.Money.Value += 3
+			if Events.Notify then Events.Notify:FireClient(winner, "⭐ No evolution available. +3 Coins!") end
+		end
 		
 		-- Notify Result Global
 		Events.BattleEnd:FireAllClients(finalMsg)
@@ -471,7 +500,7 @@ function BattleSystem.spawnPokemonModel(pokeName, stagePart)
 
 	if modelTemplate then
 		local cloned = modelTemplate:Clone()
-		cloned.Parent = game.Workspace
+		cloned.Parent = stagePart -- Parent to stage so cleanup works!
 
 		-- Ensure PrimaryPart exists
 		if not cloned.PrimaryPart then

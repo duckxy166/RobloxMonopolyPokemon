@@ -250,12 +250,13 @@ local function updateUI(pokemonList)
 		end
 	end
 	
-	if not pokemonList or #pokemonList == 0 then
+	-- If list is nil, it means Close Command
+	if pokemonList == nil then
 		screenGui.Enabled = false
 		return
 	end
 	
-	-- Show UI
+	-- If list is empty, just show empty UI
 	screenGui.Enabled = true
 	
 	-- Create slots

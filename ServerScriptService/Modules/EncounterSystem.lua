@@ -238,7 +238,8 @@ function EncounterSystem.handleCatch(player, pokeData)
 			Rarity = pokeData.Rarity,
 			Stats = PokemonDB.GetPokemon(pokeData.Name)
 		}
-		player.leaderstats.Money.Value = player.leaderstats.Money.Value + 5
+		-- Removed Immediate Money Gain
+		-- player.leaderstats.Money.Value = player.leaderstats.Money.Value + 5 
 	end
 
 	local isFinished = success or (balls.Value <= 0)

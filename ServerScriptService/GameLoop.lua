@@ -35,6 +35,8 @@ local TurnManager = require(Modules:WaitForChild("TurnManager"))
 local ShopSystem = require(Modules:WaitForChild("ShopSystem"))
 local EncounterSystem = require(Modules:WaitForChild("EncounterSystem"))
 local BattleSystem = require(Modules:WaitForChild("BattleSystem"))
+local SellSystem = require(Modules:WaitForChild("SellSystem"))
+local EvolutionSystem = require(Modules:WaitForChild("EvolutionSystem"))
 
 print("=====================================")
 print("🎮 Pokemon Monopoly - Loading...")
@@ -50,6 +52,8 @@ TurnManager.init(Events, TimerSystem, CardSystem, PlayerManager)
 ShopSystem.init(Events, TimerSystem, TurnManager, PlayerManager)
 EncounterSystem.init(Events, TimerSystem, TurnManager, PlayerManager)
 BattleSystem.init(Events, TimerSystem, TurnManager, PlayerManager)
+SellSystem.init(Events, TimerSystem, TurnManager, PlayerManager)
+EvolutionSystem.init(Events)
 
 -- STEP 3: Fix circular dependencies
 TurnManager.setSystems(EncounterSystem, BattleSystem)
@@ -61,6 +65,7 @@ ShopSystem.connectEvents()
 EncounterSystem.connectEvents()
 PlayerManager.connectEvents()
 BattleSystem.connectEvents()
+SellSystem.connectEvents()
 CardSystem.connectEvents(Events, TurnManager, PlayerManager)
 
 -- STEP 5: Handle Item Usage

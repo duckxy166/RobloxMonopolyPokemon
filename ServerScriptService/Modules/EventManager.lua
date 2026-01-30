@@ -51,6 +51,15 @@ function EventManager.init()
 		TimerUpdate = EventManager.getOrCreate("TimerUpdateEvent"),
 		DrawPhase = EventManager.getOrCreate("DrawPhaseEvent"),
 		ResetCharacter = EventManager.getOrCreate("ResetCharacterEvent"),
+		
+		-- Sell System Events
+		SellUI = EventManager.getOrCreate("SellUIEvent"),
+		SellPokemon = EventManager.getOrCreate("SellPokemonEvent"),
+		SellUIClose = EventManager.getOrCreate("SellUICloseEvent"),
+		
+		-- Evolution Events
+		EvolutionRequest = EventManager.getOrCreate("EvolutionRequestEvent"),
+		EvolutionSelect = EventManager.getOrCreate("EvolutionSelectEvent"),
 	}
 
 	print("✅ EventManager initialized with " .. #events .. " events")

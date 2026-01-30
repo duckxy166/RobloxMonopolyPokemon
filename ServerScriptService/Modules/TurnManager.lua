@@ -45,6 +45,38 @@ end
 
 -- ... (inside processPlayerRoll) ...
 
+-- End Game Logic
+function TurnManager.endGame()
+	print("🏆 GAME OVER! All players finished.")
+	
+	-- Determine Winner (Richest Player)
+	local winner = nil
+	local maxMoney = -1
+	
+	for _, p in ipairs(PlayerManager.playersInGame) do
+		local moneyVal = 0
+		if p:FindFirstChild("leaderstats") then
+			moneyVal = p.leaderstats.Money.Value
+		end
+		
+		print(p.Name .. " finished with $" .. moneyVal)
+		
+		if moneyVal > maxMoney then
+			maxMoney = moneyVal
+			winner = p
+		end
+	end
+	
+	local msg = "🏆 GAME OVER! Winner: " .. (winner and winner.Name or "None")
+	if Events.BattleEnd then
+		Events.BattleEnd:FireAllClients(msg) -- Reuse existing announcer
+	end
+	
+	if Events.Notify and winner then
+		Events.Notify:FireAllClients("🏆 " .. winner.Name .. " WINS THE GAME with $" .. maxMoney .. "!")
+	end
+end
+
 -- Next turn logic
 function TurnManager.nextTurn()
 	print("🔄 [Server] nextTurn() called")
@@ -54,14 +86,39 @@ function TurnManager.nextTurn()
 		print("⚠️ [Server] No players in game!")
 		return
 	end
+	
+	-- Check if everyone finished
+	local allFinished = true
+	for _, p in ipairs(PlayerManager.playersInGame) do
+		if not PlayerManager.playerFinished[p.UserId] then
+			allFinished = false
+			break
+		end
+	end
+	
+	if allFinished then
+		TurnManager.endGame()
+		return
+	end
 
-	for _ = 1, #PlayerManager.playersInGame do
+	-- Find next valid player
+	local attempts = 0
+	while attempts < #PlayerManager.playersInGame * 2 do
+		attempts = attempts + 1
 		TurnManager.currentTurnIndex += 1
 		if TurnManager.currentTurnIndex > #PlayerManager.playersInGame then 
 			TurnManager.currentTurnIndex = 1 
 		end
 
 		local p = PlayerManager.playersInGame[TurnManager.currentTurnIndex]
+		
+		-- Skip if player finished
+		if PlayerManager.playerFinished[p.UserId] then
+			print("⏩ Skipping finished player: " .. p.Name)
+			continue
+		end
+		
+		-- Process Active Player
 		local status = p:FindFirstChild("Status")
 		local sleep = status and status:FindFirstChild("SleepTurns")
 
@@ -78,6 +135,8 @@ function TurnManager.nextTurn()
 			return
 		end
 	end
+	
+	print("⚠️ No valid players found to take turn?")
 end
 
 -- Enter draw phase (Auto-draw to 3 cards, then go to Roll)
@@ -86,17 +145,15 @@ function TurnManager.enterDrawPhase(player)
 	TurnManager.isTurnActive = true
 	print("Phase: Auto-Draw for:", player.Name)
 
-	-- Auto-draw until player has 3 cards
-	local handCount = CardSystem.countHand(player)
-	local cardsNeeded = 3 - handCount
-
-	if cardsNeeded > 0 then
-		for i = 1, cardsNeeded do
-			CardSystem.drawOneCard(player)
-		end
-		if Events.Notify then
-			Events.Notify:FireClient(player, "🃏 Auto-draw: +" .. cardsNeeded .. " cards!")
-		end
+	-- Auto-draw 1 card per turn (Logic Update)
+	-- Previously: Filled hand to 3. Now: +1 Card only.
+	local drawnCard = CardSystem.drawOneCard(player)
+	
+	if drawnCard and Events.Notify then
+		-- Notify handled in CardSystem, but extra log here potentially
+		print("🃏 Drawn card for " .. player.Name)
+	elseif not drawnCard and Events.Notify then
+		-- Hand full or empty deck
 	end
 
 	-- Short delay to show card drawn, then go to Roll
@@ -164,6 +221,28 @@ function TurnManager.processPlayerRoll(player)
 	for i = 1, roll do
 		currentPos = currentPos + 1
 		local nextTile = tilesFolder:FindFirstChild(tostring(currentPos))
+		
+		-- Logic: Board Wrapping (If tile 40 doesn't exist, wrap to 0)
+		if not nextTile then
+			print("🔄 Wrapping board! " .. currentPos .. " -> 0")
+			currentPos = 0
+			nextTile = tilesFolder:FindFirstChild(tostring(currentPos))
+			
+			-- Increment Lap
+			local currentLap = PlayerManager.playerLaps[player.UserId] or 1
+			PlayerManager.playerLaps[player.UserId] = currentLap + 1
+			print("🏁 " .. player.Name .. " finished Lap " .. currentLap .. "!")
+			
+			-- Reward: 5 Pokeballs
+			local balls = player.leaderstats:FindFirstChild("Pokeballs")
+			if balls then
+				balls.Value += 5
+			end
+			
+			if Events.Notify then
+				Events.Notify:FireClient(player, "🏁 Lap Completed! +5 🔴 Pokeballs! (Lap " .. (currentLap + 1) .. ")")
+			end
+		end
 
 		if nextTile and humanoid then
 			humanoid:MoveTo(PlayerManager.getPlayerTilePosition(player, nextTile))
@@ -188,6 +267,7 @@ function TurnManager.processPlayerRoll(player)
 				-- Assuming Tile 0 is the start tile or a specific Sell Tile.
 				
 				local isStartTile = (nextTile.Name == "0" or nextTile.Name == "Start")
+				print("🔍 [Debug] Checking Start Tile: Name='" .. nextTile.Name .. "', isStart=" .. tostring(isStartTile))
 				
 				if isStartTile then
 					print("💰 Landed on Start! Opening Sell UI...")
