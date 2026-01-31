@@ -21,8 +21,8 @@ local CardDB = {}
 CardDB.Cards = {
 	-- === BUFF/SUPPORT CARDS ===
 
-	["Lucky Draw"] = {
-		Name = "Lucky Draw",
+	["Lucky Energy"] = {
+		Name = "Lucky Energy",
 		Description = "Draw 2 cards",
 		Draw = 2,
 	},
@@ -39,16 +39,16 @@ CardDB.Cards = {
 	},
 
 	-- === ATTACK CARDS ===
-	["Robbery"] = {
-		Name = "Robbery",
+	["Grabber"] = {
+		Name = "Grabber",
 		Description = "Steal 5 coins from target player",
 		Steal = 5,
 		NeedsTarget = true,
 		Negative = true,
 	},
 
-	["Push Back"] = {
-		Name = "Push Back",
+	["Air Balloon"] = {
+		Name = "Air Balloon",
 		Description = "Target player moves back 3 tiles",
 		BackSteps = 3,
 		NeedsTarget = true,
@@ -71,9 +71,9 @@ CardDB.Cards = {
 	},
 
 	-- === DEFENSE CARDS ===
-	["Safety Goggles"] = {
-		Name = "Safety Goggles",
-		Description = "PASSIVE: Auto-blocks one negative card (Robbery, Sleep Powder, Push Back)",
+	["Protective Goggles"] = {
+		Name = "Protective Goggles",
+		Description = "PASSIVE: Auto-blocks one negative card (Grabber, Sleep Powder, Air Balloon)",
 		Shield = true,
 	},
 
@@ -89,14 +89,14 @@ function CardDB:BuildDeck()
 	local deck = {}
 
 	local cardCounts = {
-		["Lucky Draw"] = 6,
+		["Lucky Energy"] = 6,
 		["Rare Candy"] = 4,
 		["Nugget"] = 10,
-		["Robbery"] = 4,
-		["Push Back"] = 4,
+		["Grabber"] = 4,
+		["Air Balloon"] = 4,
 		["Sleep Powder"] = 2,
 		["Twisted Spoon"] = 3,
-		["Safety Goggles"] = 5,
+		["Protective Goggles"] = 5,
 		["Revive"] = 4,
 	}
 

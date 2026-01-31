@@ -12,19 +12,35 @@ local playCardEvent = ReplicatedStorage:WaitForChild("PlayCardEvent")
 local discardCardEvent = ReplicatedStorage:WaitForChild("DiscardCardEvent")
 
 -- [[ 🎨 CARD TEXTURE CONFIGURATION ]] --
--- Replace the IDs below with your uploaded asset IDs (rbxassetid://...)
+--[[
+    📝 วิธีเพิ่ม Asset สำหรับการ์ด:
+    1. อัปโหลดรูปการ์ดไปที่ Roblox Creator Dashboard > Development Items > Decals
+    2. คัดลอก Asset ID ที่ได้ (เช่น rbxassetid://123456789)
+    3. แทนที่ "rbxassetid://YOUR_ASSET_ID" ด้วย Asset ID ของคุณ
+    
+    ⚠️ ชื่อการ์ดต้องตรงกับ CardDB.lua เท่านั้น!
+--]]
+
 local CARD_ASSETS = {
-	["Potion"] = "rbxassetid://123456789", 
-	["Super Potion"] = "rbxassetid://123456789",
-	["Lucky Draw"] = "rbxassetid://123456789",
-	["Nugget"] = "rbxassetid://123456789",
-	["Robbery"] = "rbxassetid://123456789",
-	["Push Back"] = "rbxassetid://123456789",
-	["Sleep Powder"] = "rbxassetid://123456789",
-	["Safety Shield"] = "rbxassetid://123456789",
-	["Revive"] = "rbxassetid://123456789",
+	-- === BUFF/SUPPORT CARDS ===
+	["Lucky Energy"]       = "rbxassetid://138003285804084",  -- Draw 2 cards
+	["Rare Candy"]         = "rbxassetid://YOUR_ASSET_ID",    -- Evolve pokemon
+	["Nugget"]             = "rbxassetid://94398927196782",   -- Sell for 5 coins
+	
+	-- === ATTACK CARDS ===
+	["Grabber"]            = "rbxassetid://138472885114608",  -- Steal 5 coins from target
+	["Air Balloon"]        = "rbxassetid://78200625874512",   -- Target moves back 3 tiles
+	["Sleep Powder"]       = "rbxassetid://83291246189733",   -- Target skips 1 turn
+	["Twisted Spoon"]      = "rbxassetid://YOUR_ASSET_ID",    -- Teleport to player
+	
+	-- === DEFENSE CARDS ===
+	["Protective Goggles"] = "rbxassetid://81676374047060",   -- Block negative cards
+	["Revive"]             = "rbxassetid://138915839363218",  -- Revive fainted Pokemon
+	
+	-- === เพิ่มการ์ดใหม่ด้านล่างนี้ (Template) ===
+	-- ["Card Name"]       = "rbxassetid://YOUR_ASSET_ID",    -- Description
 }
-local DEFAULT_CARD_IMAGE = "rbxassetid://0" -- Placeholder if missing
+local DEFAULT_CARD_IMAGE = "rbxassetid://0" -- Placeholder if card image missing
 
 -- 1. Create UI Elements Programmatically
 local screenGui = Instance.new("ScreenGui")

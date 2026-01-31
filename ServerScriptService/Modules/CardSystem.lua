@@ -203,10 +203,10 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 				return
 			end
 			
-			-- Safety Goggles is passive only (auto-activates when attacked)
-			if cardName == "Safety Goggles" then
+			-- Protective Goggles is passive only (auto-activates when attacked)
+			if cardName == "Protective Goggles" then
 				if events.Notify then
-					events.Notify:FireClient(player, "🛡️ Safety Goggles activates automatically when you're attacked!")
+					events.Notify:FireClient(player, "🛡️ Protective Goggles activates automatically when you're attacked!")
 				end
 				return
 			end
@@ -307,7 +307,7 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
                 local blocked = false
                 if cardName ~= "Twisted Spoon" then
                     local targetHand = CardSystem.getHandFolder(targetPlayer)
-                    local goggles = targetHand and targetHand:FindFirstChild("Safety Goggles")
+                    local goggles = targetHand and targetHand:FindFirstChild("Protective Goggles")
                     
                     if goggles and events.RequestReaction then
 						-- Notify Attacker
@@ -316,17 +316,16 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
                         local decision = events.RequestReaction:InvokeClient(targetPlayer, player.Name, cardName)
                         if decision then
                             blocked = true
-                            -- Consume Goggles
-                            CardSystem.removeCardFromHand(targetPlayer, "Safety Goggles", 1)
+                            CardSystem.removeCardFromHand(targetPlayer, "Protective Goggles", 1)
                             
                             if events.Notify then
-                                events.Notify:FireClient(player, "🛡️ Attack BLOCKED by Safety Goggles!")
+                                events.Notify:FireClient(player, "🛡️ Attack BLOCKED by Protective Goggles!")
                                 events.Notify:FireClient(targetPlayer, "🛡️ You blocked the attack!")
                             end
                             -- UI Notification to all players
                             if events.CardNotification then
                                 events.CardNotification:FireAllClients({
-                                    CardName = "Safety Goggles",
+                                    CardName = "Protective Goggles",
                                     UserName = targetPlayer.Name,
                                     TargetName = player.Name,
                                     CardType = "Defense",
@@ -401,8 +400,8 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 					end
 				end
 				
-				-- 3. ROBBERY (Steal 5 Coins)
-				if cardName == "Robbery" then
+				-- 3. GRABBER (Steal 5 Coins)
+				if cardName == "Grabber" then
 					local targetMoney = targetPlayer.leaderstats.Money
 					local stealAmount = math.min(5, targetMoney.Value)
 					
@@ -417,7 +416,7 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 						-- UI Notification to all players
 						if events.CardNotification then
 							events.CardNotification:FireAllClients({
-								CardName = "Robbery",
+								CardName = "Grabber",
 								UserName = player.Name,
 								TargetName = targetPlayer.Name,
 								CardType = "Attack",
@@ -429,8 +428,8 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 					end
 				end
 				
-				-- 4. PUSH BACK (Move back 3 Spaces)
-				if cardName == "Push Back" then
+				-- 4. AIR BALLOON (Move back 3 Spaces)
+				if cardName == "Air Balloon" then
 					local currentPos = playerManager.playerPositions[targetPlayer.UserId] or 0
 					local newPos = currentPos - 3
 					if newPos < 0 then newPos = 0 end -- Clamp to 0 (Start) for simplicity
@@ -439,15 +438,15 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 					playerManager.teleportToLastTile(targetPlayer, game.Workspace:WaitForChild("Tiles"))
 					
 					if events.Notify then
-						events.Notify:FireClient(player, "💨 Pushed " .. targetPlayer.Name .. " back 3 spaces!")
-						events.Notify:FireClient(targetPlayer, "💨 You were pushed back 3 spaces!")
+						events.Notify:FireClient(player, "🎈 Pushed " .. targetPlayer.Name .. " back 3 spaces!")
+						events.Notify:FireClient(targetPlayer, "🎈 You were pushed back 3 spaces!")
 						-- Broadcast to all
-						events.Notify:FireAllClients("💨 " .. player.Name .. " pushed " .. targetPlayer.Name .. " back 3 spaces!")
+						events.Notify:FireAllClients("🎈 " .. player.Name .. " pushed " .. targetPlayer.Name .. " back 3 spaces!")
 					end
 					-- UI Notification to all players
 					if events.CardNotification then
 						events.CardNotification:FireAllClients({
-							CardName = "Push Back",
+							CardName = "Air Balloon",
 							UserName = player.Name,
 							TargetName = targetPlayer.Name,
 							CardType = "Attack",
