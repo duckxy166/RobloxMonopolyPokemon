@@ -168,68 +168,128 @@ local ROTATION_OFFSETS = {
 local diceTemplate = ReplicatedStorage:FindFirstChild("DiceModel")
 local camera = workspace.CurrentCamera
 
+local DICE_SIDE = 9
+local DICE_DOWN = 2.2
+local DICE_FORWARD = 12
+
+local function getDiceCF(sideOffset)
+	local cam = workspace.CurrentCamera
+	if not cam then return CFrame.new() end
+
+	local camCF = cam.CFrame
+	local pos =
+		camCF.Position
+		+ camCF.LookVector * DICE_FORWARD
+		+ camCF.RightVector * (sideOffset * DICE_SIDE)
+	- camCF.UpVector * DICE_DOWN
+
+	return CFrame.lookAt(pos, camCF.Position)
+end
 -- Spawn and Animate a single 3D Die
 local function spawn3NDice(sideOffset)
 	local dice
+
+	-- Create / clone
 	if diceTemplate then
 		dice = diceTemplate:Clone()
 	else
 		dice = Instance.new("Part")
 		dice.Size = Vector3.new(3,3,3)
 		dice.Color = Color3.fromRGB(240, 240, 240)
-		-- Add text faces if generic part
-		for _, face in pairs(Enum.NormalId:GetEnumItems()) do
-			local s = Instance.new("SurfaceGui", dice)
-			s.Face = face
-			local t = Instance.new("TextLabel", s)
-			t.Size = UDim2.new(1,0,1,0)
-			t.BackgroundTransparency = 1
-			t.Text = math.random(1,6)
-			t.TextScaled = true
-		end
 	end
 
 	dice.Parent = workspace
-	dice.Anchored = true
-	dice.CanCollide = false
 
-	-- Position in front of camera
-	-- sideOffset: -1 for left (Player), 1 for right (Enemy)
-	local startCF = camera.CFrame * CFrame.new(sideOffset * 4, -2, -8) -- 4 studs left/right, 2 down, 8 forward
-	dice.CFrame = startCF
+	-- Anchor + no collide (Part or Model)
+	for _, d in ipairs(dice:GetDescendants()) do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+		end
+	end
+	if dice:IsA("BasePart") then
+		dice.Anchored = true
+		dice.CanCollide = false
+	end
 
-	-- Spin Animation
+	-- Part/Model set CFrame
+	local function setCF(cf)
+		if dice:IsA("Model") then
+			dice:PivotTo(cf)
+		else
+			dice.CFrame = cf
+		end
+	end
+
+	-- Start at correct spot
+	setCF(getDiceCF(sideOffset))
+
+	-- Spin while staying in front of camera
 	local connection
-	local spinSpeed = Vector3.new(math.random(300,700), math.random(300,700), math.random(300,700))
+	local ax, ay, az = 0, 0, 0
+	local spinSpeed = Vector3.new(
+		math.rad(math.random(300,700)),
+		math.rad(math.random(300,700)),
+		math.rad(math.random(300,700))
+	)
+
 	connection = RunService.RenderStepped:Connect(function(dt)
-		if not dice.Parent then connection:Disconnect() return end
-		dice.CFrame = dice.CFrame * CFrame.Angles(math.rad(spinSpeed.X*dt), math.rad(spinSpeed.Y*dt), math.rad(spinSpeed.Z*dt))
+		if not dice.Parent then
+			if connection then connection:Disconnect() end
+			return
+		end
+
+		ax += spinSpeed.X * dt
+		ay += spinSpeed.Y * dt
+		az += spinSpeed.Z * dt
+
+		-- lock position to camera each frame
+		setCF(getDiceCF(sideOffset) * CFrame.Angles(ax, ay, az))
 	end)
 
-	-- Return object to control externally or handle lifecycle here
 	return {
 		Object = dice,
 		Stop = function(finalVal)
 			if connection then connection:Disconnect() end
 
-			-- Tween to result
-			local finalCF = camera.CFrame * CFrame.new(sideOffset * 4, -2, -8) -- End at same spot roughly
-			-- Look at camera
-			-- Apply face rotation
-			local targetOri = CFrame.lookAt(finalCF.Position, camera.CFrame.Position) * ROTATION_OFFSETS[finalVal]
+			local targetCF = getDiceCF(sideOffset) * ROTATION_OFFSETS[finalVal]
 
-			local tw = TweenService:Create(dice, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-				CFrame = targetOri
-			})
-			tw:Play()
+			-- Tween Part directly
+			if not dice:IsA("Model") then
+				TweenService:Create(dice, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+					CFrame = targetCF
+				}):Play()
+			else
+				-- Tween Model via CFrameValue
+				local cfVal = Instance.new("CFrameValue")
+				cfVal.Value = dice:GetPivot()
 
-			-- Cleanup after show
+				local conn2
+				conn2 = cfVal.Changed:Connect(function(v)
+					if dice.Parent then
+						dice:PivotTo(v)
+					else
+						if conn2 then conn2:Disconnect() end
+					end
+				end)
+
+				TweenService:Create(cfVal, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+					Value = targetCF
+				}):Play()
+
+				task.delay(1, function()
+					if conn2 then conn2:Disconnect() end
+					cfVal:Destroy()
+				end)
+			end
+
 			task.delay(3, function()
 				if dice then dice:Destroy() end
 			end)
 		end
 	}
 end
+
 
 local activeDice = {} -- {Player=?, Enemy=?}
 
@@ -288,8 +348,13 @@ rollBtn.MouseButton1Click:Connect(function()
 
 	-- Start 3D Spin
 	cleanupDice() -- Clear old
-	activeDice.Player = spawn3NDice(-1) -- -1 Left
 
+	local myOffset = -1
+	if currentBattleData and currentBattleData.Type == "PvP" and player == currentBattleData.Defender then
+		myOffset = 1
+	end
+
+	activeDice.Player = spawn3NDice(myOffset) -- ✅ start spinning immediately
 	Events.BattleAttack:FireServer()
 end)
 

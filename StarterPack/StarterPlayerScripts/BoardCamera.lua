@@ -1,126 +1,101 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local ContextActionService = game:GetService("ContextActionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 local camera = Workspace.CurrentCamera
-local playerGui = player:WaitForChild("PlayerGui")
 
--- Constants
-local BUTTON_NAME = "ResetCamButton" -- Name of the Reset button in ScreenGui
+-- Camera Mode State: "Main", "Encounter", "Battle"
+local currentMode = "Main"
 
-local MOVE_SPEED = 1.0     
-local ROTATE_SPEED = 0.2   
-local SCROLL_SPEED = 5     
-local MIN_ZOOM = 10        
-local MAX_ZOOM = 150       
-local START_HEIGHT = 60    
-local START_ANGLE = math.rad(-45)
+-- Camera Folder Reference
+local cameraFolder = Workspace:WaitForChild("Camera", 10)
 
--- State
-local defaultFocus = Vector3.new(0, 0, 0) -- Target position for camera reset
-local cameraFocus = Vector3.new(0, 0, 0)  -- Current target position
-local cameraDistance = START_HEIGHT
-local currentYaw = 0
-local currentPitch = START_ANGLE
+-- Camera Part References
+local mainCameraPart = cameraFolder and cameraFolder:FindFirstChild("MainCamera")
+local encounterCameraPart = cameraFolder and cameraFolder:FindFirstChild("EncounterCamera")
+local battleCameraPart = cameraFolder and cameraFolder:FindFirstChild("BattleCamera")
 
--- Initial focus point (CenterStage)
-local startPart = Workspace:FindFirstChild("CenterStage")
-if startPart then 
-	defaultFocus = startPart.Position 
-	cameraFocus = defaultFocus -- Initial setup
-end
-
--- Reset Camera Function
-local function resetCamera()
-	print("Resetting Camera to Player Position...")
-	
-	-- Reset to player character position
-	local character = player.Character
-	if character then
-		local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-		if humanoidRootPart then
-			cameraFocus = humanoidRootPart.Position
-		else
-			cameraFocus = defaultFocus -- fallback to default if HRP missing
-		end
-	else
-		cameraFocus = defaultFocus -- fallback to default if no character
-	end
-	
-	cameraDistance = START_HEIGHT -- reset distance
-	currentYaw = 0 -- reset yaw
-	currentPitch = START_ANGLE -- reset pitch
-end
-
--- Connect Reset Event
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local resetCamEvent = ReplicatedStorage:WaitForChild("ResetCameraEvent", 10)
-
-if not resetCamEvent then
-	resetCamEvent = Instance.new("BindableEvent")
-	resetCamEvent.Name = "ResetCameraEvent"
-	resetCamEvent.Parent = ReplicatedStorage
-end
-
-resetCamEvent.Event:Connect(resetCamera)
-print("✅ BoardCamera connected to ResetCameraEvent")
-
--- Utility Functions
-local function freezePlayer(actionName, inputState, inputObject)
-	return Enum.ContextActionResult.Sink 
-end
-
-ContextActionService:BindActionAtPriority("FreezeMovement", freezePlayer, false, 3000, 
-	Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D, 
-	Enum.KeyCode.Space, Enum.KeyCode.Tab
-)
-
--- Mouse Input Handling
-UserInputService.InputChanged:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
-
-	-- Zoom
-	if input.UserInputType == Enum.UserInputType.MouseWheel then
-		cameraDistance = cameraDistance - (input.Position.Z * SCROLL_SPEED)
-		cameraDistance = math.clamp(cameraDistance, MIN_ZOOM, MAX_ZOOM)
-	end
-
-	-- Rotate (RMB)
-	if input.UserInputType == Enum.UserInputType.MouseMovement and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
-		local delta = input.Delta
-		currentYaw = currentYaw - (delta.X * ROTATE_SPEED * 0.01)
-		currentPitch = currentPitch - (delta.Y * ROTATE_SPEED * 0.01)
-		currentPitch = math.clamp(currentPitch, math.rad(-85), math.rad(-10))
-	else
-		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-	end
-end)
-
--- Render Step Handler (WASD + Camera Update)
+-- Render Step Handler (Camera Update)
 RunService.RenderStepped:Connect(function()
 	camera.CameraType = Enum.CameraType.Scriptable
 
-	-- WASD Move
-	local moveDir = Vector3.new(0, 0, 0)
-	if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + Vector3.new(0, 0, -1) end
-	if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir + Vector3.new(0, 0, 1) end
-	if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir + Vector3.new(-1, 0, 0) end
-	if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + Vector3.new(1, 0, 0) end
+	-- Mode: Main (Lock to MainCamera Part)
+	if currentMode == "Main" then
+		if mainCameraPart then
+			camera.CFrame = mainCameraPart.CFrame
+		end
 
-	if moveDir.Magnitude > 0 then
-		local camCFrame = CFrame.fromEulerAnglesYXZ(0, currentYaw, 0)
-		local worldMoveDir = camCFrame:VectorToWorldSpace(moveDir)
-		cameraFocus = cameraFocus + (worldMoveDir * MOVE_SPEED)
+	-- Mode: Encounter (Lock to EncounterCamera Part)
+	elseif currentMode == "Encounter" then
+		if encounterCameraPart then
+			camera.CFrame = encounterCameraPart.CFrame
+		end
+
+	-- Mode: Battle (Lock to BattleCamera Part)
+	elseif currentMode == "Battle" then
+		if battleCameraPart then
+			camera.CFrame = battleCameraPart.CFrame
+		end
 	end
-
-	-- Update Position
-	local rotation = CFrame.fromEulerAnglesYXZ(currentPitch, currentYaw, 0)
-	local offset = Vector3.new(0, 0, cameraDistance)
-	local finalPos = cameraFocus + (rotation * offset)
-
-	camera.CFrame = CFrame.new(finalPos, cameraFocus)
 end)
+
+-- ================================================================================
+--                           📷 CAMERA MODE EVENTS
+-- ================================================================================
+
+-- Events
+local EncounterEvent = ReplicatedStorage:WaitForChild("EncounterEvent", 10)
+local BattleStartEvent = ReplicatedStorage:WaitForChild("BattleStartEvent", 10)
+local BattleEndEvent = ReplicatedStorage:WaitForChild("BattleEndEvent", 10)
+local RunEvent = ReplicatedStorage:WaitForChild("RunEvent", 10)
+local CatchPokemonEvent = ReplicatedStorage:WaitForChild("CatchPokemonEvent", 10)
+
+-- Encounter Started -> Switch to Encounter Camera
+if EncounterEvent then
+	EncounterEvent.OnClientEvent:Connect(function(targetPlayer, data)
+		if targetPlayer == player then
+			print("📷 [Camera] Switching to Encounter Mode")
+			currentMode = "Encounter"
+		end
+	end)
+end
+
+-- Battle Started -> Switch to Battle Camera
+if BattleStartEvent then
+	BattleStartEvent.OnClientEvent:Connect(function(type, data)
+		print("📷 [Camera] Switching to Battle Mode")
+		currentMode = "Battle"
+	end)
+end
+
+-- Battle Ended -> Return to Main Camera
+if BattleEndEvent then
+	BattleEndEvent.OnClientEvent:Connect(function()
+		print("📷 [Camera] Battle Ended, returning to Main Mode")
+		currentMode = "Main"
+	end)
+end
+
+-- Ran from Encounter -> Return to Main Camera
+if RunEvent then
+	RunEvent.OnClientEvent:Connect(function()
+		print("📷 [Camera] Run Event, returning to Main Mode")
+		currentMode = "Main"
+	end)
+end
+
+-- Catch Result Event -> Return to Main Camera if finished
+if CatchPokemonEvent then
+	CatchPokemonEvent.OnClientEvent:Connect(function(catcher, success, roll, target, isFinished)
+		if catcher == player and isFinished then
+			print("📷 [Camera] Catch finished, returning to Main Mode")
+			task.delay(1.5, function() -- Delay to allow UI animation
+				currentMode = "Main"
+			end)
+		end
+	end)
+end
+
+print("✅ BoardCamera Loaded (Fixed Camera Modes: Main, Encounter, Battle)")
