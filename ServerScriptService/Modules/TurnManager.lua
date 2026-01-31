@@ -146,6 +146,28 @@ function TurnManager.enterDrawPhase(player)
 	TurnManager.isTurnActive = true
 	print("Phase: Draw Phase for:", player.Name)
 
+	-- Highlight Current Turn Player
+	local UIHelpers = require(game:GetService("ReplicatedStorage"):WaitForChild("UIHelpers"))
+	
+	-- Remove highlight from all other players
+	for _, p in ipairs(PlayerManager.playersInGame) do
+		if p.Character then
+			UIHelpers.CreatePlayerHighlight(p.Character, false)
+			-- Remove old name label
+			local head = p.Character:FindFirstChild("Head")
+			if head then
+				local oldLabel = head:FindFirstChild("TurnNameLabel")
+				if oldLabel then oldLabel:Destroy() end
+			end
+		end
+	end
+	
+	-- Add highlight to current player
+	if player.Character then
+		UIHelpers.CreatePlayerHighlight(player.Character, true)
+		UIHelpers.CreatePlayerNameLabel(player.Character, player.Name, true)
+	end
+
 	-- Force Draw 1 Card
 	local drawnCard = CardSystem.drawOneCard(player)
 

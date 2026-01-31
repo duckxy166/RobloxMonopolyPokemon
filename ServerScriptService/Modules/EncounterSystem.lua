@@ -183,10 +183,14 @@ function EncounterSystem.spawnPokemonEncounter(player, tileColorName)
 					end
 				end
 	
-				mainPart.Anchored = true -- Anchor to prevent falling
+			mainPart.Anchored = true -- Anchor to prevent falling
 				mainPart.CanCollide = false -- Prevent physics collision with player
 				mainPart.Massless = false
 			end
+
+			-- Add Name Label with Rarity Color
+			local UIHelpers = require(game:GetService("ReplicatedStorage"):WaitForChild("UIHelpers"))
+			UIHelpers.CreateNameLabel(clonedModel, pokeName, pokeData.Rarity)
 		end)
 		
 		if not success then

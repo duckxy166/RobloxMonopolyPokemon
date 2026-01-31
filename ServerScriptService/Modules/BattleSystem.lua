@@ -171,7 +171,7 @@ local function resolveModelName(pokemonName)
 	return pokemonName
 end
 
-function BattleSystem.spawnPokemonModel(modelName, stageObj)
+function BattleSystem.spawnPokemonModel(modelName, stageObj, pokemonName, rarity)
 	local stageRoot = workspace:FindFirstChild("Stage")
 	if not stageRoot then
 		warn("⚠️ spawnPokemonModel: Workspace.Stage not found")
@@ -210,6 +210,14 @@ function BattleSystem.spawnPokemonModel(modelName, stageObj)
 
 	clone:PivotTo(anchor.CFrame * CFrame.new(0, 3, 0))
 	print(("✅ Spawned '%s' on %s"):format(modelName, key))
+
+	-- Add Name Label with Rarity Color
+	if pokemonName and rarity then
+		local UIHelpers = require(ReplicatedStorage:WaitForChild("UIHelpers"))
+		UIHelpers.CreateNameLabel(clone, pokemonName, rarity)
+	end
+
+	return clone
 end
 
 
@@ -289,11 +297,13 @@ function BattleSystem.startPvE(player, chosenPoke, desiredRarity)
 	end
 
 	local myModelName = myPoke:GetAttribute("ModelName") or resolveModelName(myPoke.Name)
-	BattleSystem.spawnPokemonModel(myModelName, pokeStage1)
+	local myRarity = myPoke.Value or "Common"
+	BattleSystem.spawnPokemonModel(myModelName, pokeStage1, myPoke.Name, myRarity)
 
 	-- prefer DB model name if it exists, fallback to resolving by name
 	local enemyModel = (encounter and encounter.Data and encounter.Data.Model) or resolveModelName(enemyStats.Name)
-	BattleSystem.spawnPokemonModel(enemyModel, pokeStage2)
+	local enemyRarity = (encounter and encounter.Data and encounter.Data.Rarity) or "Common"
+	BattleSystem.spawnPokemonModel(enemyModel, pokeStage2, enemyStats.Name, enemyRarity)
 
 
 	-- 4. Notify Player
@@ -359,8 +369,10 @@ function BattleSystem.startPvP(player1, player2)
 
 	local aModel = p1Poke:GetAttribute("ModelName") or resolveModelName(p1Poke.Name)
 	local dModel = p2Poke:GetAttribute("ModelName") or resolveModelName(p2Poke.Name)
-	BattleSystem.spawnPokemonModel(aModel, pokeStage1)
-	BattleSystem.spawnPokemonModel(dModel, pokeStage2)
+	local aRarity = p1Poke.Value or "Common"
+	local dRarity = p2Poke.Value or "Common"
+	BattleSystem.spawnPokemonModel(aModel, pokeStage1, p1Poke.Name, aRarity)
+	BattleSystem.spawnPokemonModel(dModel, pokeStage2, p2Poke.Name, dRarity)
 
 
 	-- Notify Both

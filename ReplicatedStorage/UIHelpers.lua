@@ -33,7 +33,7 @@ function UIHelpers.CreateNameLabel(parent, name, rarity)
 	billboard.Name = "NameLabel"
 	billboard.Size = UDim2.new(0, 200, 0, 50)
 	billboard.StudsOffset = Vector3.new(0, 5, 0) -- Above model
-	billboard.AlwaysOnTop = true
+	billboard.AlwaysOnTop = false
 	billboard.LightInfluence = 0
 	billboard.Parent = parent
 
@@ -92,7 +92,7 @@ function UIHelpers.CreatePlayerNameLabel(character, playerName, isCurrentTurn)
 	billboard.Name = "TurnNameLabel"
 	billboard.Size = UDim2.new(0, 150, 0, 40)
 	billboard.StudsOffset = Vector3.new(0, 2.5, 0) -- Above head
-	billboard.AlwaysOnTop = true
+	billboard.AlwaysOnTop = false
 	billboard.LightInfluence = 0
 	billboard.Parent = head
 	billboard.Adornee = head
