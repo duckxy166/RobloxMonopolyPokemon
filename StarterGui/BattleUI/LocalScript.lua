@@ -338,7 +338,7 @@ UserInputService.InputBegan:Connect(function(input, gamProcessed)
 	end
 end)
 
--- Button Handler
+-- Button Handler	
 rollBtn.MouseButton1Click:Connect(function()
 	if not isBattleActive or isRolling then return end
 	isRolling = true
