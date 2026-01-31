@@ -72,7 +72,8 @@ waitText.Parent = waitFrame
 local Events = {
 	ShowStarterSelection = ReplicatedStorage:WaitForChild("ShowStarterSelectionEvent"),
 	SelectStarter = ReplicatedStorage:WaitForChild("SelectStarterEvent"),
-	UpdateTurn = ReplicatedStorage:WaitForChild("UpdateTurnEvent")
+	UpdateTurn = ReplicatedStorage:WaitForChild("UpdateTurnEvent"),
+	GameStarted = ReplicatedStorage:WaitForChild("GameStartedEvent", 5) -- New: explicit game start signal
 }
 
 local function createCard(name)
@@ -150,3 +151,11 @@ Events.UpdateTurn.OnClientEvent:Connect(function()
 		screenGui.Enabled = false
 	end
 end)
+
+-- NEW: Explicit GameStarted event (more reliable)
+if Events.GameStarted then
+	Events.GameStarted.OnClientEvent:Connect(function()
+		print("🎮 GameStarted event received! Hiding Selection UI.")
+		screenGui.Enabled = false
+	end)
+end

@@ -79,8 +79,8 @@ CardDB.Cards = {
 
 	["Revive"] = {
 		Name = "Revive",
-		Description = "Revive all fainted Pokemon",
-		Revive = true,
+		Description = "Choose 1 fainted Pokemon to revive",
+		NeedsSelfPokemon = true,
 	},
 }
 

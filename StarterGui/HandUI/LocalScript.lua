@@ -170,10 +170,18 @@ local function renderHand()
 					local cardData = CardDB.Cards[cardVal.Name]
 					if cardData and cardData.NeedsTarget then
 						-- Open Target Selection
-						local bindable = ReplicatedStorage:FindFirstChild("Client_OpenCardTarget")
 						if not bindable then
 							bindable = Instance.new("BindableEvent")
 							bindable.Name = "Client_OpenCardTarget"
+							bindable.Parent = ReplicatedStorage
+						end
+						bindable:Fire(cardVal.Name)
+					elseif cardData and cardData.NeedsSelfPokemon then
+						-- Open Pokemon Selection
+						local bindable = ReplicatedStorage:FindFirstChild("Client_OpenPokemonSelect")
+						if not bindable then
+							bindable = Instance.new("BindableEvent")
+							bindable.Name = "Client_OpenPokemonSelect"
 							bindable.Parent = ReplicatedStorage
 						end
 						bindable:Fire(cardVal.Name)
@@ -214,9 +222,16 @@ end
 
 -- 3. Listen for Hand Changes
 local function connectHandListener()
-	local hand = player:WaitForChild("Hand", 10)
-	if not hand then warn("Hand folder not found!") return end
+	-- Wait for Hand folder reliably (Server might create it slightly later)
+	local hand = player:WaitForChild("Hand", 20) -- Wait up to 20 seconds
+	
+	if not hand then
+		warn("⚠️ [HandUI] Hand folder not found after waiting. Retrying in 5 seconds...")
+		task.delay(5, connectHandListener)
+		return
+	end
 
+	print("✅ [HandUI] Hand folder connected.")
 	hand.ChildAdded:Connect(renderHand)
 	hand.ChildRemoved:Connect(renderHand)
 

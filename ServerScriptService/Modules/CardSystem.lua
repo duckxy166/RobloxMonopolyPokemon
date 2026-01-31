@@ -44,8 +44,12 @@ function CardSystem.init(events)
 	end
 	CardDB = require(CardDBModule)
 	notifyEvent = events.Notify
-
+	
 	print("✅ CardSystem initialized")
+	print("📂 Loaded CardDB Contents:")
+	for name, _ in pairs(CardDB.Cards) do
+		print("   - " .. tostring(name))
+	end
 end
 
 -- Refill deck from discard pile
@@ -64,6 +68,33 @@ end
 -- Get hand folder for player
 function CardSystem.getHandFolder(player)
 	return player:FindFirstChild("Hand")
+end
+
+-- Validate Hand (Cleanup Legacy Cards)
+function CardSystem.validateHand(player)
+	local hand = CardSystem.getHandFolder(player)
+	if not hand then return end
+	
+	print("🔍 [CardSystem] Validating hand for " .. player.Name)
+	for _, card in ipairs(hand:GetChildren()) do
+		print("   🃏 Found card: " .. card.Name .. " (Count: " .. tostring(card.Value) .. ")")
+		
+		if card.Name == "Full Heal" then
+			print("🧹 [CardSystem] Removing legacy 'Full Heal' card from " .. player.Name)
+			
+			-- Check if they already have Revive
+			local reviveCard = hand:FindFirstChild("Revive")
+			if reviveCard then
+				reviveCard.Value += card.Value
+				card:Destroy()
+				print("   ✨ Merged into existing 'Revive'")
+			else
+				card.Name = "Revive"
+				-- card.Value remains the same (count)
+				print("   ✨ Swapped to 'Revive'")
+			end
+		end
+	end
 end
 
 -- Count total cards in hand
@@ -154,82 +185,65 @@ end
 function CardSystem.connectEvents(events, turnManager, playerManager)
 	if events.PlayCard then
 		events.PlayCard.OnServerEvent:Connect(function(player, cardName, targetInfo)
-			print("🃏 [Server] PlayCard Request form " .. player.Name .. ": " .. tostring(cardName))
-			
-			-- 1. Phase Check (Pre-Roll Only & Turn Active)
-			if turnManager.turnPhase ~= "Roll" or not turnManager.isTurnActive then
-				if events.Notify then 
-					events.Notify:FireClient(player, "❌ Can only use cards before rolling!") 
-				end
-				return
-			end
-			
-			-- 2. Turn Check
-			if player ~= playerManager.playersInGame[turnManager.currentTurnIndex] then
-				if events.Notify then
-					events.Notify:FireClient(player, "❌ Not your turn!")
-				end
-				return
-			end
-			
-			-- 3. Verify Ownership
-			local hand = CardSystem.getHandFolder(player)
-			local cardObj = hand and hand:FindFirstChild(cardName)
-			if not cardObj then return end -- Player doesn't have card
-			
-			-- 4. Get Card Definition
+			print("🃏 Playing card: " .. cardName)
 			local cardDef = CardDB.Cards[cardName]
 			
-			-- [BLOCK] Safety Goggles - Passive Only
-			if cardName == "Safety Goggles" then
-				if events.Notify then 
-					events.Notify:FireClient(player, "🛡️ Cannot use manually! Activates when attacked.") 
-				end
+			-- Validate card exists in CardDB
+			if not cardDef then
+				if events.Notify then events.Notify:FireClient(player, "❌ Unknown card: " .. cardName) end
 				return
 			end
 			
-			-- 5. Process Effect
-			CardSystem.removeCardFromHand(player, cardName, 1)
+			-- Consume the card from hand first
+			if not CardSystem.removeCardFromHand(player, cardName, 1) then
+				if events.Notify then events.Notify:FireClient(player, "❌ You don't have that card!") end
+				return
+			end
+			CardSystem.discardCard(cardName)
 			
-			if cardDef then
-				-- [A] Money Gain (Nugget)
-				if cardDef.MoneyGain and cardName ~= "Rare Candy" then
-					local money = player.leaderstats.Money
-					money.Value += cardDef.MoneyGain
-					if events.Notify then events.Notify:FireClient(player, "💰 Gained " .. cardDef.MoneyGain .. " Coins!") end
-				end
-				
-				-- [B] Draw Cards (Lucky Draw)
-				if cardDef.Draw then
-					for i=1, cardDef.Draw do
-						CardSystem.drawOneCard(player)
-					end
-					if events.Notify then events.Notify:FireClient(player, "🃏 Drew " .. cardDef.Draw .. " cards!") end
-				end
-				
-				-- [C] Revive (Restore all fainted Pokemon)
-				if cardDef.Revive then
+			-- [C] Revive (Single Pokemon)
+			if cardDef and cardDef.NeedsSelfPokemon then
+				local pokeName = targetInfo -- Pass pokemon name as targetInfo
+				if pokeName and typeof(pokeName) == "string" then
 					local inventory = player:FindFirstChild("PokemonInventory")
-					local revivedCount = 0
 					if inventory then
+						local found = false
 						for _, poke in ipairs(inventory:GetChildren()) do
-							local status = poke:GetAttribute("Status")
-							if status == "Dead" or status == "Fainted" then
+							-- Check name AND status
+							if poke.Name == pokeName and (poke:GetAttribute("Status") == "Dead" or poke:GetAttribute("Status") == "Fainted") then
 								poke:SetAttribute("Status", "Alive")
 								poke:SetAttribute("CurrentHP", poke:GetAttribute("MaxHP"))
-								revivedCount = revivedCount + 1
+								found = true
+								if events.Notify then events.Notify:FireClient(player, "💖 Revived " .. pokeName .. "!") end
+								break -- Only revive one
 							end
 						end
+						if not found then
+							-- Fallback if name not found or already alive (refund logic could go here)
+							if events.Notify then events.Notify:FireClient(player, "⚠️ Pokemon not found or already alive.") end
+						end
 					end
-					if revivedCount > 0 then
-						if events.Notify then events.Notify:FireClient(player, "💖 Revived " .. revivedCount .. " Pokemon!") end
-					else
-						if events.Notify then events.Notify:FireClient(player, "No fainted Pokemon to revive.") end
-					end
+				else
+					if events.Notify then events.Notify:FireClient(player, "❌ Select a pokemon to revive!") end
 				end
 			end
 			
-			-- [D] Special Cards
+			-- [A] MoneyGain Cards (Nugget, etc.)
+			if cardDef.MoneyGain then
+				local amount = cardDef.MoneyGain
+				player.leaderstats.Money.Value += amount
+				if events.Notify then events.Notify:FireClient(player, "💰 +" .. amount .. " coins!") end
+			end
+			
+			-- [B] Draw Cards (Lucky Draw, etc.)
+			if cardDef.Draw then
+				local drawCount = cardDef.Draw
+				for i = 1, drawCount do
+					CardSystem.drawOneCard(player)
+				end
+			end
+			
+			-- [C] Special Cards
 			if cardName == "Rare Candy" then
 				local EvolutionSystem = require(script.Parent:WaitForChild("EvolutionSystem"))
 				local success = EvolutionSystem.tryEvolve(player)
@@ -240,7 +254,7 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 			end
 			
 			-- TARGET CARD LOGIC
-			if cardDef.NeedsTarget then
+			if cardDef and cardDef.NeedsTarget then
 				local targetPlayer = targetInfo
 				
 				-- Validation
@@ -349,10 +363,6 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 						events.Notify:FireClient(targetPlayer, "💨 You were pushed back 3 spaces!")
 					end
 				end
-			end
-			
-			if events.Notify then
-				events.Notify:FireClient(player, "✅ Used " .. cardName .. "!")
 			end
 			
 			if events.Notify then

@@ -134,4 +134,68 @@ local function connectBindable()
 	end)
 end
 
+
+-- Listen for Pokemon Select Request (For Revive)
+local function connectPokemonBindable()
+	local bindable = ReplicatedStorage:WaitForChild("Client_OpenPokemonSelect", 5)
+	if not bindable then
+		bindable = Instance.new("BindableEvent")
+		bindable.Name = "Client_OpenPokemonSelect"
+		bindable.Parent = ReplicatedStorage
+	end
+
+	bindable.Event:Connect(function(cardName)
+		print("🎯 Opening Pokemon Select UI for: " .. cardName)
+		currentCardName = cardName
+
+		-- Refresh List
+		for _, child in pairs(scroll:GetChildren()) do
+			if child:IsA("GuiObject") then child:Destroy() end
+		end
+
+		local inventory = player:FindFirstChild("PokemonInventory")
+		local found = false
+
+		if inventory then
+			for _, poke in ipairs(inventory:GetChildren()) do
+				local status = poke:GetAttribute("Status")
+				if status == "Dead" or status == "Fainted" then
+					local btn = Instance.new("TextButton")
+					btn.Size = UDim2.new(1, 0, 0, 50)
+					btn.BackgroundColor3 = Color3.fromRGB(60, 40, 40)
+					btn.Text = poke.Name .. " (Fainted)"
+					btn.TextColor3 = Color3.fromRGB(255, 150, 150)
+					btn.Font = Enum.Font.GothamBold
+					btn.TextSize = 18
+					btn.Parent = scroll
+					Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+
+					btn.MouseButton1Click:Connect(function()
+						if currentCardName then
+							print("🎯 Pokemon Selected: " .. poke.Name)
+							-- Pass poke.Name as the target
+							playCardEvent:FireServer(currentCardName, poke.Name)
+							screenGui.Enabled = false
+						end
+					end)
+					found = true
+				end
+			end
+		end
+
+		if not found then
+			local lbl = Instance.new("TextLabel")
+			lbl.Text = "No fainted Pokemon found!"
+			lbl.Size = UDim2.new(1, 0, 1, 0)
+			lbl.BackgroundTransparency = 1
+			lbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+			lbl.Parent = scroll
+		end
+		
+		title.Text = "SELECT POKEMON"
+		screenGui.Enabled = true
+	end)
+end
+
 task.spawn(connectBindable)
+task.spawn(connectPokemonBindable)

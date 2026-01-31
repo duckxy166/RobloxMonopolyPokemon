@@ -131,6 +131,12 @@ function PlayerManager.onPlayerAdded(player)
 		for i = 1, 2 do
 			CardSystem.drawOneCard(player)
 		end
+		-- FIX: Validate hand to remove/swap legacy cards if any
+		task.delay(1, function()
+			if CardSystem.validateHand then
+				CardSystem.validateHand(player)
+			end
+		end)
 	end
 
 	-- Create status folder

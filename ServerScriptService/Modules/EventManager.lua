@@ -83,6 +83,9 @@ function EventManager.init()
 		
 		-- Card Management
 		DiscardCard = EventManager.getOrCreate("DiscardCardEvent"),
+		
+		-- Game State
+		GameStarted = EventManager.getOrCreate("GameStartedEvent"),
 	}
 
 	print("✅ EventManager initialized with " .. #events .. " events")

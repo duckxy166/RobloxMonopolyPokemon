@@ -237,17 +237,28 @@ TurnManager.readyPlayers = {}
 TurnManager.gameStarted = false
 
 function TurnManager.checkPreGameStart()
-	if TurnManager.gameStarted then return end
+	-- ALLOW LATE JOINERS: Don't return if gameStarted. 
+	-- We still want to check for unready players (late joiners) and show them the UI.
+	-- if TurnManager.gameStarted then return end
 
-	print("🔍 Checking Pre-Game Status...")
-	for _, p in ipairs(PlayerManager.playersInGame) do
-		if not TurnManager.readyPlayers[p.UserId] then
-			-- Show Selection UI to unready players
-			if Events.ShowStarterSelection then
-				Events.ShowStarterSelection:FireClient(p)
+	print("🔍 Checking Pre-Game Status... Players in game: " .. #PlayerManager.playersInGame)
+	
+	-- Small delay to ensure client scripts have loaded
+	task.spawn(function()
+		task.wait(0.5)
+		
+		for _, p in ipairs(PlayerManager.playersInGame) do
+			if not TurnManager.readyPlayers[p.UserId] then
+				-- Show Selection UI to unready players
+				print("📋 Sending ShowStarterSelection to: " .. p.Name)
+				if Events.ShowStarterSelection then
+					Events.ShowStarterSelection:FireClient(p)
+				end
+			else
+				print("✅ Player " .. p.Name .. " already ready, skipping...")
 			end
 		end
-	end
+	end)
 end
 
 function TurnManager.handleStarterSelection(player, starterName)
@@ -300,6 +311,26 @@ function TurnManager.handleStarterSelection(player, starterName)
 
 	if allReady then
 		TurnManager.startGame()
+	elseif TurnManager.gameStarted then
+		-- LATE JOINER HANDLING:
+		print("🕒 Late joiner " .. player.Name .. " ready! Syncing turn...")
+		
+		-- 1. Sync Current Turn (Also hides Waiting UI because StarterSelectUI listens to UpdateTurn)
+		local activePlayerName = "Waiting"
+		if #PlayerManager.playersInGame > 0 and TurnManager.currentTurnIndex > 0 then
+			local activePlayer = PlayerManager.playersInGame[TurnManager.currentTurnIndex]
+			if activePlayer then
+				activePlayerName = activePlayer.Name
+			end
+		end
+		if Events.UpdateTurn then
+			Events.UpdateTurn:FireClient(player, activePlayerName)
+		end
+
+		-- 2. Notify others
+		if Events.Notify then
+			Events.Notify:FireAllClients(player.Name .. " has joined the game!")
+		end
 	end
 end
 
@@ -309,6 +340,12 @@ function TurnManager.startGame()
 
 	print("🚀 ALL PLAYERS READY! STARTING GAME!")
 	if Events.Notify then Events.Notify:FireAllClients("🚀 All players ready! Game Starting!") end
+	
+	-- Fire GameStarted event to hide starter selection UI on all clients
+	if Events.GameStarted then 
+		Events.GameStarted:FireAllClients() 
+		print("📡 GameStarted event fired to all clients")
+	end
 
 	task.wait(2)
 

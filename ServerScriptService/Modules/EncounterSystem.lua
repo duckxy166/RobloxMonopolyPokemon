@@ -86,12 +86,25 @@ function EncounterSystem.forceRunAndEnd(player)
 end
 
 -- Spawn pokemon encounter
-function EncounterSystem.spawnPokemonEncounter(player)
-	-- Use PokemonDB for random encounter
-	local encounter = PokemonDB.GetRandomEncounter()
+function EncounterSystem.spawnPokemonEncounter(player, tileColorName)
+	-- Use PokemonDB to get encounter based on Tile Color (or random if not provided)
+	-- Fallback to "Default" if no color provided
+	local encounter = PokemonDB.GetEncounterFromTile(tileColorName or "Default")
+
+	-- Handle Case: No encounter found (None rolled)
+	if not encounter then
+		print("🍃 No encounter (Rolled None). Next turn.")
+		if Events.Notify then
+			Events.Notify:FireClient(player, "🍃 Quiet area... No Pokemon here.")
+		end
+		task.wait(1)
+		TurnManager.nextTurn()
+		return
+	end
+
 	local pokeName = encounter.Name
 	local pokeData = encounter.Data
-	print("🔍 Attempting to spawn: " .. pokeName)
+	print("🔍 Spawning: " .. pokeName .. " (Rarity: " .. (pokeData.Rarity or "?") .. ")")
 
 	-- Helper to find model safely
 	local function findModel(name)
@@ -102,7 +115,6 @@ function EncounterSystem.spawnPokemonEncounter(player)
 		-- 2. Try trimming whitespace
 		for _, child in ipairs(pokemonModels:GetChildren()) do
 			if child.Name:match("^%s*" .. name .. "%s*$") then
-				print("   ⚠️ Found model with whitespace: '" .. child.Name .. "'")
 				return child
 			end
 		end
@@ -110,7 +122,6 @@ function EncounterSystem.spawnPokemonEncounter(player)
 		-- 3. Try case insensitive
 		for _, child in ipairs(pokemonModels:GetChildren()) do
 			if child.Name:lower() == name:lower() then
-				print("   ⚠️ Found model with different case: '" .. child.Name .. "'")
 				return child
 			end
 		end
@@ -121,66 +132,68 @@ function EncounterSystem.spawnPokemonEncounter(player)
 	local modelTemplate = findModel(pokeData.Model)
 
 	if modelTemplate then
-		print("   ✅ Model found: '" .. modelTemplate.Name .. "'")
-		local clonedModel = modelTemplate:Clone()
-
-		-- Calculate nice spawn position on TOP of the stage
-		local stageTopY = centerStage.Position.Y + (centerStage.Size.Y / 2)
-		local spawnPos = CFrame.new(centerStage.Position.X, stageTopY, centerStage.Position.Z)
-
-		clonedModel:PivotTo(spawnPos)
-		clonedModel.Parent = Workspace
-		currentSpawnedPokemon = clonedModel
-
-		-- Adjust height based on HipHeight if Humanoid exists
-		local pokeHumanoid = clonedModel:FindFirstChild("Humanoid")
-		if pokeHumanoid then
-			clonedModel:PivotTo(spawnPos + Vector3.new(0, pokeHumanoid.HipHeight + 1, 0))
-		else
-			-- Fallback: Just bump it up a bit
-			clonedModel:PivotTo(spawnPos + Vector3.new(0, 2, 0))
-		end
-
-		local mainPart = clonedModel.PrimaryPart or clonedModel:FindFirstChild("HumanoidRootPart") or clonedModel:FindFirstChildWhichIsA("BasePart", true)
-		local pokeHumanoid = clonedModel:FindFirstChild("Humanoid")
-
-		if mainPart then
-			for _, part in pairs(clonedModel:GetDescendants()) do
-				if part:IsA("BasePart") and part ~= mainPart then
-					local weld = Instance.new("WeldConstraint")
-					weld.Part0 = mainPart
-					weld.Part1 = part
-					weld.Parent = mainPart
-					part.Anchored = false
-					part.CanCollide = false
-					part.Massless = true
-				end
+		local success, err = pcall(function()
+			print("   ✅ Model found: '" .. modelTemplate.Name .. "'")
+			local clonedModel = modelTemplate:Clone()
+	
+			-- Calculate nice spawn position on TOP of the stage
+			-- Handle if CenterStage is a Model or Part
+			local centerPos = centerStage.Position
+			local centerSizeY = centerStage.Size.Y
+			
+			if centerStage:IsA("Model") then
+				local cf, size = centerStage:GetBoundingBox()
+				centerPos = cf.Position
+				centerSizeY = size.Y
 			end
-
-			mainPart.Anchored = true -- Anchor to prevent falling
-			mainPart.CanCollide = true
-			mainPart.Massless = false
-
-			-- No Gyro needed if anchored
-			-- local gyro = Instance.new("BodyGyro")
-			-- gyro.Name = "Stabilizer"
-			-- gyro.MaxTorque = Vector3.new(math.huge, 0, math.huge)
-			-- gyro.P = 5000
-			-- gyro.CFrame = CFrame.new()
-			-- gyro.Parent = mainPart
-
-			if pokeHumanoid then
+	
+			local stageTopY = centerPos.Y + (centerSizeY / 2)
+			local spawnPos = CFrame.new(centerPos.X, stageTopY, centerPos.Z)
+	
+			clonedModel:PivotTo(spawnPos)
+			clonedModel.Parent = Workspace
+			currentSpawnedPokemon = clonedModel
+	
+			-- Adjust height based on HipHeight if Humanoid exists
+			local pokeHumanoid = clonedModel:FindFirstChild("Humanoid")
+			if pokeHumanoid and pokeHumanoid:IsA("Humanoid") then
+				clonedModel:PivotTo(spawnPos + Vector3.new(0, pokeHumanoid.HipHeight + 1, 0))
 				pokeHumanoid.AutomaticScalingEnabled = false
-				pokeHumanoid.HipHeight = 0
+				
+				-- Optional: Freeze animation or loaded animation?
+				-- For now, just let it be
+			else
+				-- Fallback: Just bump it up a bit
+				clonedModel:PivotTo(spawnPos + Vector3.new(0, 2, 0))
 			end
+	
+			local mainPart = clonedModel.PrimaryPart or clonedModel:FindFirstChild("HumanoidRootPart") or clonedModel:FindFirstChildWhichIsA("BasePart", true)
+	
+			if mainPart then
+				-- Weld parts to main part to anchor them together
+				for _, part in pairs(clonedModel:GetDescendants()) do
+					if part:IsA("BasePart") and part ~= mainPart then
+						local weld = Instance.new("WeldConstraint")
+						weld.Part0 = mainPart
+						weld.Part1 = part
+						weld.Parent = mainPart
+						part.Anchored = false
+						part.CanCollide = false
+						part.Massless = true
+					end
+				end
+	
+				mainPart.Anchored = true -- Anchor to prevent falling
+				mainPart.CanCollide = false -- Prevent physics collision with player
+				mainPart.Massless = false
+			end
+		end)
+		
+		if not success then
+			warn("❌ Error spawning Pokemon model: " .. tostring(err))
 		end
 	else
-		warn("❌ CRITICAL: Model NOT found for: " .. pokeName)
-		warn("   Expected name: '" .. pokeData.Model .. "'")
-		warn("   Available models in folder:")
-		for _, child in ipairs(pokemonModels:GetChildren()) do
-			warn("      - '" .. child.Name .. "'")
-		end
+		warn("❌ CRITICAL: Model NOT found for: " .. pokeName .. " (Expected: " .. pokeData.Model .. ")")
 	end
 
 	-- Send encounter data to clients
@@ -192,7 +205,7 @@ function EncounterSystem.spawnPokemonEncounter(player)
 		Attack = pokeData.Attack,
 		Icon = pokeData.Icon,
 		Image = pokeData.Image,
-		CatchDifficulty = PokemonDB.GetCatchDifficulty(pokeName)
+		CatchDifficulty = PokemonDB.GetCatchDifficulty(pokeName) or 3 -- Safety fallback
 	}
 	activeEncounterData = encounterData -- Update server state
 	Events.Encounter:FireAllClients(player, encounterData)
@@ -209,8 +222,8 @@ end
 local MAX_PARTY_SIZE = 6
 
 -- Handle catch attempt
-function EncounterSystem.handleCatch(player) -- removed pokeData arg
-	print("DEBUG: handleCatch called (New Version)")
+function EncounterSystem.handleCatch(player)
+	print("DEBUG: handleCatch called")
 	TimerSystem.cancelTimer()
 
 	local pokeData = activeEncounterData -- Use server state
@@ -222,7 +235,7 @@ function EncounterSystem.handleCatch(player) -- removed pokeData arg
 	-- Check if party is full (6/6)
 	local inventory = player:FindFirstChild("PokemonInventory")
 	if inventory and #inventory:GetChildren() >= MAX_PARTY_SIZE then
-		Events.Notify:FireClient(player, "❌ Party full! (6/6)")
+		if Events.Notify then Events.Notify:FireClient(player, "❌ Party full! (6/6)") end
 		-- Restart encounter timer so they don't get stuck
 		TurnManager.turnPhase = "Encounter"
 		TimerSystem.startPhaseTimer(TimerSystem.ENCOUNTER_TIMEOUT, "Encounter", function()
@@ -249,8 +262,6 @@ function EncounterSystem.handleCatch(player) -- removed pokeData arg
 		}
 	end
 
-	-- Logic Update: Encounter only finishes if CAUGHT. 
-	-- If failed (even with 0 balls), player must manually RUN.
 	local isFinished = success
 	Events.CatchPokemon:FireAllClients(player, success, roll, target, isFinished)
 
@@ -271,6 +282,7 @@ function EncounterSystem.handleCatch(player) -- removed pokeData arg
 		end)
 	end
 end
+
 -- Handle run
 function EncounterSystem.handleRun(player)
 	TimerSystem.cancelTimer()
@@ -317,83 +329,5 @@ function EncounterSystem.connectEvents()
 	end)
 end
 
--- Spawn pokemon encounter
-function EncounterSystem.spawnPokemonEncounter(player, tileColorName)
-	-- Use PokemonDB to get encounter based on Tile Color
-	-- ถ้าไม่มีสีส่งมา ให้ใช้ Default
-	local encounter = PokemonDB.GetEncounterFromTile(tileColorName or "Default")
-
-	-- กรณีสุ่มได้ None (ไม่เจอตัว)
-	if not encounter then
-		print("🍃 No encounter (Rolled None). Next turn.")
-		if Events.Notify then
-			Events.Notify:FireClient(player, "🍃 Quiet area... No Pokemon here.")
-		end
-		task.wait(1)
-		TurnManager.nextTurn()
-		return
-	end
-
-	local pokeName = encounter.Name
-	local pokeData = encounter.Data
-	print("🔍 Spawning: " .. pokeName .. " (Rarity: " .. pokeData.Rarity .. ")")
-
-	-- ... (ส่วน logic การหา Model และจัดวางตำแหน่งเหมือนเดิม ไม่ต้องแก้) ...
-	local function findModel(name)
-		local m = pokemonModels:FindFirstChild(name)
-		if m then return m end
-		for _, child in ipairs(pokemonModels:GetChildren()) do
-			if child.Name:match("^%s*" .. name .. "%s*$") then return child end
-		end
-		return nil
-	end
-
-	local modelTemplate = findModel(pokeData.Model)
-	if modelTemplate then
-		-- ... (Code เดิมในการ Clone และวาง Model บน CenterStage) ...
-		local clonedModel = modelTemplate:Clone()
-		local stageTopY = centerStage.Position.Y + (centerStage.Size.Y / 2)
-		local spawnPos = CFrame.new(centerStage.Position.X, stageTopY, centerStage.Position.Z)
-		clonedModel:PivotTo(spawnPos)
-		clonedModel.Parent = Workspace
-		currentSpawnedPokemon = clonedModel
-
-		local pokeHumanoid = clonedModel:FindFirstChild("Humanoid")
-		if pokeHumanoid then
-			clonedModel:PivotTo(spawnPos + Vector3.new(0, pokeHumanoid.HipHeight + 1, 0))
-		else
-			clonedModel:PivotTo(spawnPos + Vector3.new(0, 2, 0))
-		end
-
-		local mainPart = clonedModel.PrimaryPart or clonedModel:FindFirstChild("HumanoidRootPart") or clonedModel:FindFirstChildWhichIsA("BasePart", true)
-		if mainPart then
-			mainPart.Anchored = true
-		end
-	else
-		warn("❌ Model not found for: " .. pokeName)
-		-- ถ้าโมเดลไม่มี ยังให้เล่นต่อได้แต่ไม่เห็นตัว
-	end
-
-	-- Send encounter data to clients
-	local encounterData = {
-		Name = pokeName,
-		Rarity = pokeData.Rarity,
-		Type = pokeData.Type,
-		HP = pokeData.HP,
-		Attack = pokeData.Attack,
-		Icon = pokeData.Icon,
-		Image = pokeData.Image,
-		CatchDifficulty = PokemonDB.GetCatchDifficulty(pokeName)
-	}
-	activeEncounterData = encounterData -- Update server state
-	Events.Encounter:FireAllClients(player, encounterData)
-
-	TurnManager.turnPhase = "Encounter"
-	TimerSystem.startPhaseTimer(TimerSystem.ENCOUNTER_TIMEOUT, "Encounter", function()
-		if TurnManager.turnPhase == "Encounter" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
-			EncounterSystem.forceRunAndEnd(player)
-		end
-	end)
-end
 
 return EncounterSystem
