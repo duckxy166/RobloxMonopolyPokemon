@@ -100,7 +100,7 @@ local function createPlayerBox(targetPlayer, index)
 		f.Parent = statsRow
 
 		local isImage = tostring(iconOrId):match("rbxassetid://")
-		
+
 		if isImage then
 			local icn = Instance.new("ImageLabel")
 			icn.Size = UDim2.new(0, 24, 0, 24) -- 24px Icon
@@ -167,7 +167,7 @@ local function createPlayerBox(targetPlayer, index)
 
 		local icon = Instance.new("ImageLabel")
 		icon.Name = "IconImg"
-		icon.Size = UDim2.new(2.5, 0, 2.5, 0) -- Zoom in (130%)
+		icon.Size = UDim2.new(2, 0, 2, 0) -- Zoom in (130%)
 		icon.Position = UDim2.new(0.5, 0, -0.1, 0) -- Center
 		icon.AnchorPoint = Vector2.new(0.5, 0.5) -- Center Anchor
 		icon.BackgroundTransparency = 1
@@ -401,7 +401,7 @@ task.spawn(function()
 
 	resetCamEvent = ReplicatedStorage:FindFirstChild("ResetCameraEvent") or Instance.new("BindableEvent")
 	lockEvent = ReplicatedStorage:FindFirstChild("CameraLockEvent") or Instance.new("BindableEvent")
-	
+
 	-- CATCH SOUND
 	local catchEvent = ReplicatedStorage:WaitForChild("CatchPokemonEvent", 5)
 	if catchEvent then
@@ -413,7 +413,7 @@ task.spawn(function()
 			-- Looking at EncounterSystem.lua (server), it fires 'CatchPokemon'.
 			-- Looking at HUD logic, I don't see a capture dice visual. It might just be 'success/fail' prompt.
 			-- Use the LAND sound for capture result.
-			
+
 			-- task.wait(0.1) -- Removed delay
 			local s = Instance.new("Sound", workspace)
 			s.SoundId = "rbxassetid://90144356226455" -- Land sound
@@ -530,14 +530,14 @@ task.spawn(function()
 		-- SOUNDS
 		-- local ROLL_SOUND_ID = "rbxassetid://111044334523010" -- Rolling Sound
 		local LAND_SOUND_ID = "rbxassetid://90144356226455" -- Landing Sound
-		
+
 		local function playSound(id) 
 			local s = Instance.new("Sound", workspace)
 			s.SoundId = id
 			s.PlayOnRemove = true -- Play when destroyed
 			s:Destroy()
 		end
-		
+
 		-- (Rolling sound removed)
 
 		-- Spin Animation

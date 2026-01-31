@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      🌿 ENCOUNTER UI HANDLER (BOTTOM STYLE)
+                      🐾 ENCOUNTER UI HANDLER (BOTTOM STYLE)
 ================================================================================
     📌 Location: StarterGui/EncounterUI/UIHandler
     📌 Responsibilities:
@@ -13,38 +13,38 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService") -- Added RunService
+local RunService = game:GetService("RunService")
 local Debris = game:GetService("Debris")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- [[ 🎨 UI CONSTRUCTION ]] --
+-- [NEW] ตัวแปร Debounce ป้องกันการกดรัว
+local isThrowing = false 
+
+-- [[ 🎧 UI CONSTRUCTION ]] --
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "EncounterGui"
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
-screenGui.DisplayOrder = 10 -- Above HUD
+screenGui.DisplayOrder = 10 
 screenGui.Parent = playerGui
 screenGui.Enabled = false
 
--- HUD is likely filling the bottom corners, so we fit in the bottom center
 local container = Instance.new("Frame")
 container.Name = "BottomPanel"
-container.Size = UDim2.new(0.6, 0, 0, 150) -- Wide bottom bar
-container.Position = UDim2.new(0.5, 0, 1, 160) -- Start off-screen (bottom)
+container.Size = UDim2.new(0.6, 0, 0, 150)
+container.Position = UDim2.new(0.5, 0, 1, 160)
 container.AnchorPoint = Vector2.new(0.5, 1)
 container.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 container.BorderSizePixel = 0
 container.Parent = screenGui
 
--- Styling
 Instance.new("UICorner", container).CornerRadius = UDim.new(0, 16)
 local stroke = Instance.new("UIStroke", container)
 stroke.Color = Color3.fromRGB(100, 255, 150)
 stroke.Thickness = 2
 
--- 1. Pokemon Icon (Left)
 local iconFrame = Instance.new("Frame")
 iconFrame.Name = "IconFrame"
 iconFrame.Size = UDim2.new(0, 120, 0, 120)
@@ -64,7 +64,6 @@ pokeImage.ScaleType = Enum.ScaleType.Fit
 pokeImage.Image = "rbxassetid://0"
 pokeImage.Parent = iconFrame
 
--- 2. Info Text (Center)
 local infoFrame = Instance.new("Frame")
 infoFrame.Name = "InfoFrame"
 infoFrame.Size = UDim2.new(0.4, 0, 0.8, 0)
@@ -95,19 +94,45 @@ nameLbl.BackgroundTransparency = 1
 nameLbl.TextXAlignment = Enum.TextXAlignment.Left
 nameLbl.Parent = infoFrame
 
+-- Rarity Label (color-coded)
+local rarityLbl = Instance.new("TextLabel")
+rarityLbl.Name = "Rarity"
+rarityLbl.Text = "★ Common"
+rarityLbl.Font = Enum.Font.GothamBold
+rarityLbl.TextSize = 16
+rarityLbl.TextColor3 = Color3.fromRGB(150, 150, 150)
+rarityLbl.Size = UDim2.new(1, 0, 0, 20)
+rarityLbl.Position = UDim2.new(0, 0, 0, 60)
+rarityLbl.BackgroundTransparency = 1
+rarityLbl.TextXAlignment = Enum.TextXAlignment.Left
+rarityLbl.Parent = infoFrame
+
+-- Stats Label (HP/ATK)
 local statsLbl = Instance.new("TextLabel")
 statsLbl.Name = "Stats"
-statsLbl.Text = "Common | HP: 100/100 | ATK: 15"
+statsLbl.Text = "HP: 100 | ATK: 15"
 statsLbl.Font = Enum.Font.GothamMedium
 statsLbl.TextSize = 14
 statsLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
 statsLbl.Size = UDim2.new(1, 0, 0, 20)
-statsLbl.Position = UDim2.new(0, 0, 0, 65)
+statsLbl.Position = UDim2.new(0, 0, 0, 82)
 statsLbl.BackgroundTransparency = 1
 statsLbl.TextXAlignment = Enum.TextXAlignment.Left
 statsLbl.Parent = infoFrame
 
--- 3. Actions (Right)
+-- Catch Info Label
+local catchInfoLbl = Instance.new("TextLabel")
+catchInfoLbl.Name = "CatchInfo"
+catchInfoLbl.Text = "🎯 Roll 3+ to Catch"
+catchInfoLbl.Font = Enum.Font.GothamBold
+catchInfoLbl.TextSize = 14
+catchInfoLbl.TextColor3 = Color3.fromRGB(255, 200, 50)
+catchInfoLbl.Size = UDim2.new(1, 0, 0, 20)
+catchInfoLbl.Position = UDim2.new(0, 0, 0, 102)
+catchInfoLbl.BackgroundTransparency = 1
+catchInfoLbl.TextXAlignment = Enum.TextXAlignment.Left
+catchInfoLbl.Parent = infoFrame
+
 local actionsFrame = Instance.new("Frame")
 actionsFrame.Name = "ActionsFrame"
 actionsFrame.Size = UDim2.new(0.3, 0, 0.8, 0)
@@ -121,18 +146,17 @@ layout.FillDirection = Enum.FillDirection.Horizontal
 layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
 layout.Padding = UDim.new(0, 10)
 
--- BUTTON CREATOR
 local function createButton(name, text, color, callback)
 	local btn = Instance.new("TextButton")
 	btn.Name = name
-	btn.Size = UDim2.new(0.45, 0, 1, 0) -- 50% width each
+	btn.Size = UDim2.new(0.45, 0, 1, 0)
 	btn.BackgroundColor3 = color
 	btn.Text = ""
 	btn.Parent = actionsFrame
 	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-	
-	-- Inner Text
+
 	local lbl = Instance.new("TextLabel")
+	lbl.Name = "TextLabel" -- ตั้งชื่อเพื่อให้เรียกใช้ได้ง่าย
 	lbl.Size = UDim2.new(1, 0, 1, 0)
 	lbl.BackgroundTransparency = 1
 	lbl.Text = text
@@ -141,7 +165,6 @@ local function createButton(name, text, color, callback)
 	lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
 	lbl.Parent = btn
 
-	-- Hover Effect
 	btn.MouseEnter:Connect(function()
 		TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = color:Lerp(Color3.new(1,1,1), 0.2)}):Play()
 	end)
@@ -153,15 +176,26 @@ local function createButton(name, text, color, callback)
 	return btn
 end
 
--- Events
 local EncounterEvent = ReplicatedStorage:WaitForChild("EncounterEvent")
 local CatchEvent = ReplicatedStorage:WaitForChild("CatchPokemonEvent")
 local RunEvent = ReplicatedStorage:WaitForChild("RunEvent")
 
 -- Action Buttons
-local catchBtn = createButton("CatchBtn", "CATCH", Color3.fromRGB(46, 204, 113), function()
-	-- Check balls locally just for UI feedback
+-- [FIX] ประกาศตัวแปรล่วงหน้าเพื่อให้ Function ภายในมองเห็นตัวแปร catchBtn
+local catchBtn 
+local runBtn 
+
+catchBtn = createButton("CatchBtn", "CATCH", Color3.fromRGB(46, 204, 113), function()
+	-- Anti-spam check
+	if isThrowing then return end
 	if player.leaderstats.Pokeballs.Value <= 0 then return end
+
+	isThrowing = true -- Lock button
+
+	-- Visual Feedback
+	catchBtn.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+	local lbl = catchBtn:FindFirstChild("TextLabel")
+	if lbl then lbl.Text = "..." end
 
 	local e = ReplicatedStorage:FindFirstChild("CatchPokemonEvent")
 	if e then e:FireServer() end
@@ -169,7 +203,8 @@ local catchBtn = createButton("CatchBtn", "CATCH", Color3.fromRGB(46, 204, 113),
 	statsLbl.TextColor3 = Color3.fromRGB(255, 255, 100)
 end)
 
-local runBtn = createButton("RunBtn", "RUN", Color3.fromRGB(231, 76, 60), function()
+runBtn = createButton("RunBtn", "RUN", Color3.fromRGB(231, 76, 60), function()
+	if isThrowing then return end -- ห้ามหนีตอนกำลังปา
 	local e = ReplicatedStorage:FindFirstChild("RunEvent")
 	if e then e:FireServer() end
 	screenGui.Enabled = false
@@ -177,54 +212,62 @@ end)
 
 -- [[ 🔌 LOGIC CONNECTIONS ]] --
 
--- 1. SHOW ENCOUNTER
-EncounterEvent.OnClientEvent:Connect(function(otherPlayer, data)
-	-- Filter: Only show if it's OUR encounter
-	if otherPlayer ~= player then return end
+-- Rarity Colors
+local RARITY_COLORS = {
+	["None"] = Color3.fromRGB(150, 150, 150),
+	["Common"] = Color3.fromRGB(100, 200, 100),
+	["Uncommon"] = Color3.fromRGB(80, 180, 255),
+	["Rare"] = Color3.fromRGB(200, 100, 255),
+	["Legend"] = Color3.fromRGB(255, 215, 0)
+}
 
-	-- Update UI
+EncounterEvent.OnClientEvent:Connect(function(otherPlayer, data)
+	if otherPlayer ~= player then return end
+	isThrowing = false -- Reset state on new encounter
+
 	if data then
 		nameLbl.Text = data.Name or "Unknown"
-		statsLbl.Text = (data.Rarity or "?") .. " | HP: " .. (data.HP or "?")
-		
-		if data.Image and data.Image ~= "" then
-			pokeImage.Image = data.Image
-		else
-			pokeImage.Image = "rbxassetid://0"
-		end
+		pokeImage.Image = (data.Image and data.Image ~= "") and data.Image or "rbxassetid://0"
+
+		-- Rarity with color
+		local rarity = data.Rarity or "?"
+		rarityLbl.Text = "★ " .. rarity
+		rarityLbl.TextColor3 = RARITY_COLORS[rarity] or Color3.fromRGB(150, 150, 150)
+
+		-- Stats
+		statsLbl.Text = "HP: " .. (data.HP or "?") .. " | ATK: " .. (data.Attack or "?")
+		statsLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+
+		-- Catch Requirement
+		local catchTarget = data.CatchDifficulty or "?"
+		catchInfoLbl.Text = "🎯 Roll " .. tostring(catchTarget) .. "+ to Catch"
 	end
-	
-	-- Show & Animate Up
+
 	screenGui.Enabled = true
 	catchBtn.Visible = true
 	runBtn.Visible = true
-	statsLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
-	
-	container.Position = UDim2.new(0.5, 0, 1, 160) -- Reset low
+
+	-- Reset button visual
+	catchBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+	local lbl = catchBtn:FindFirstChild("TextLabel")
+	if lbl then lbl.Text = "CATCH" end
+
+	container.Position = UDim2.new(0.5, 0, 1, 160)
 	TweenService:Create(container, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 		Position = UDim2.new(0.5, 0, 1, -20)
 	}):Play()
 end)
 
--- 2. CATCH RESULT
 CatchEvent.OnClientEvent:Connect(function(catcher, success, roll, target, isFinished)
-	-- [[ DICE ANIMATION START ]] --
-	local dice
 	local diceTemplate = ReplicatedStorage:FindFirstChild("DiceModel")
 	local camera = workspace.CurrentCamera
+	local dice
 
-	if diceTemplate then 
-		dice = diceTemplate:Clone() 
-	else 
-		dice = Instance.new("Part"); dice.Size = Vector3.new(3,3,3) 
-	end
+	if diceTemplate then dice = diceTemplate:Clone() else dice = Instance.new("Part"); dice.Size = Vector3.new(3,3,3) end
 	dice.Parent = workspace; dice.Anchored = true; dice.CanCollide = false
-    
-    -- Check if valid roll for animation
-    local safeRoll = roll
-    if type(safeRoll) ~= "number" then safeRoll = 1 end
 
-	-- Sound
+	local safeRoll = (type(roll) == "number") and roll or 1
+
 	local LAND_SOUND_ID = "rbxassetid://90144356226455"
 	local function playSound(id) 
 		local s = Instance.new("Sound", workspace)
@@ -233,7 +276,6 @@ CatchEvent.OnClientEvent:Connect(function(catcher, success, roll, target, isFini
 		s:Destroy()
 	end
 
-	-- Spin Animation
 	local connection
 	connection = RunService.RenderStepped:Connect(function()
 		if not dice.Parent then connection:Disconnect() return end
@@ -245,7 +287,6 @@ CatchEvent.OnClientEvent:Connect(function(catcher, success, roll, target, isFini
 	task.wait(0.25)
 	connection:Disconnect()
 
-	-- Show Final Face
 	local ROTATION_OFFSETS = {
 		[1] = CFrame.Angles(0, 0, 0),
 		[2] = CFrame.Angles(math.rad(-90), 0, 0),
@@ -259,74 +300,62 @@ CatchEvent.OnClientEvent:Connect(function(catcher, success, roll, target, isFini
 	local dicePos = (finalCF + finalCF.LookVector * 8).Position
 	if not ROTATION_OFFSETS[safeRoll] then safeRoll = 1 end
 
-	local tw = TweenService:Create(dice, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+	TweenService:Create(dice, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 		CFrame = CFrame.lookAt(dicePos, finalCF.Position) * ROTATION_OFFSETS[safeRoll]
-	})
-	tw:Play()
-    playSound(LAND_SOUND_ID)
+	}):Play()
+	playSound(LAND_SOUND_ID)
 
-	task.wait(0.5) -- Spam fix: Reduced from 1.5 to 0.5
+	task.wait(0.5)
 	dice:Destroy()
-	-- [[ DICE ANIMATION END ]] --
 
-    -- Only update UI text if we are the catcher
-    if catcher ~= player then return end
+	if catcher ~= player then return end
 
-	-- Show dice roll result or just success/fail messsage
 	if success then
 		statsLbl.Text = "GOTCHA! (Rolled " .. tostring(roll) .. " >= " .. tostring(target) .. ")"
 		statsLbl.TextColor3 = Color3.fromRGB(100, 255, 100)
-		
-		-- Notify Server that animation is done so we can get our Pokemon!
 		local animDoneEvent = ReplicatedStorage:FindFirstChild("CatchAnimationDoneEvent")
-		if animDoneEvent then
-			animDoneEvent:FireServer()
-		end
+		if animDoneEvent then animDoneEvent:FireServer() end
 	else
 		statsLbl.Text = "ESCAPED... (Rolled " .. tostring(roll) .. " < " .. tostring(target) .. ")"
 		statsLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
 	end
-	
+
 	if isFinished then
 		task.wait(1.5)
-		-- Animate Down
+		isThrowing = false
 		TweenService:Create(container, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 			Position = UDim2.new(0.5, 0, 1, 160)
 		}):Play()
 		task.wait(0.5)
 		screenGui.Enabled = false
 	else
-		-- Retry allowed? (Yes, until user runs or catches)
-		task.wait(0.1) -- Spam fix: Reduced from 1 to 0.1
+		task.wait(1.0) -- [COOLDOWN] เพิ่มเวลาหน่วงห้ามกดรัว
+		isThrowing = false -- ปลดล็อกปุ่ม
+
 		if screenGui.Enabled then
 			local ballsLeft = player.leaderstats.Pokeballs.Value
-			
+			local lbl = catchBtn:FindFirstChild("TextLabel")
+
 			if ballsLeft > 0 then
 				statsLbl.Text = "Try again?"
 				statsLbl.TextColor3 = Color3.fromRGB(255, 200, 50)
-				
-				-- Re-enable button visual if we disabled it (optional optimization)
-				catchBtn.Visible = true 
-				catchBtn.Text = "CATCH"
 				catchBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+				if lbl then lbl.Text = "CATCH" end
 			else
 				statsLbl.Text = "Out of Pokeballs!"
 				statsLbl.TextColor3 = Color3.fromRGB(255, 50, 50)
-				
-				catchBtn.Visible = true
-				catchBtn.Text = "NO BALLS"
 				catchBtn.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+				if lbl then lbl.Text = "NO BALLS" end
 			end
 		end
 	end
 end)
 
--- 3. RUN / HIDE
 RunEvent.OnClientEvent:Connect(function()
-	-- Animate Down
 	TweenService:Create(container, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 		Position = UDim2.new(0.5, 0, 1, 160)
 	}):Play()
 	task.wait(0.5)
 	screenGui.Enabled = false
+	isThrowing = false
 end)

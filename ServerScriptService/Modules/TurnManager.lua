@@ -49,30 +49,30 @@ end
 -- End Game Logic
 function TurnManager.endGame()
 	print("🏆 GAME OVER! All players finished.")
-	
+
 	-- Determine Winner (Richest Player)
 	local winner = nil
 	local maxMoney = -1
-	
+
 	for _, p in ipairs(PlayerManager.playersInGame) do
 		local moneyVal = 0
 		if p:FindFirstChild("leaderstats") then
 			moneyVal = p.leaderstats.Money.Value
 		end
-		
+
 		print(p.Name .. " finished with $" .. moneyVal)
-		
+
 		if moneyVal > maxMoney then
 			maxMoney = moneyVal
 			winner = p
 		end
 	end
-	
+
 	local msg = "🏆 GAME OVER! Winner: " .. (winner and winner.Name or "None")
 	if Events.BattleEnd then
 		Events.BattleEnd:FireAllClients(msg) -- Reuse existing announcer
 	end
-	
+
 	if Events.Notify and winner then
 		Events.Notify:FireAllClients("🏆 " .. winner.Name .. " WINS THE GAME with $" .. maxMoney .. "!")
 	end
@@ -87,7 +87,7 @@ function TurnManager.nextTurn()
 		print("⚠️ [Server] No players in game!")
 		return
 	end
-	
+
 	-- Check if everyone finished
 	local allFinished = true
 	for _, p in ipairs(PlayerManager.playersInGame) do
@@ -96,7 +96,7 @@ function TurnManager.nextTurn()
 			break
 		end
 	end
-	
+
 	if allFinished then
 		TurnManager.endGame()
 		return
@@ -112,13 +112,13 @@ function TurnManager.nextTurn()
 		end
 
 		local p = PlayerManager.playersInGame[TurnManager.currentTurnIndex]
-		
+
 		-- Skip if player finished
 		if PlayerManager.playerFinished[p.UserId] then
 			print("⏩ Skipping finished player: " .. p.Name)
 			continue
 		end
-		
+
 		-- Process Active Player
 		local status = p:FindFirstChild("Status")
 		local sleep = status and status:FindFirstChild("SleepTurns")
@@ -136,7 +136,7 @@ function TurnManager.nextTurn()
 			return
 		end
 	end
-	
+
 	print("⚠️ No valid players found to take turn?")
 end
 
@@ -145,10 +145,10 @@ function TurnManager.enterDrawPhase(player)
 	TurnManager.turnPhase = "Draw"
 	TurnManager.isTurnActive = true
 	print("Phase: Draw Phase for:", player.Name)
-	
+
 	-- Force Draw 1 Card
 	local drawnCard = CardSystem.drawOneCard(player)
-	
+
 	if drawnCard then
 		if Events.Notify then
 			-- Notify handled in CardSystem usually, but ensuring feedback
@@ -204,7 +204,7 @@ function TurnManager.connectEvents()
 	Events.ResetCharacter.OnServerEvent:Connect(function(player)
 		PlayerManager.teleportToLastTile(player, tilesFolder)
 	end)
-	
+
 	-- New: Handle Starter Selection
 	if Events.SelectStarter then
 		Events.SelectStarter.OnServerEvent:Connect(function(player, starterName)
@@ -222,7 +222,7 @@ TurnManager.gameStarted = false
 
 function TurnManager.checkPreGameStart()
 	if TurnManager.gameStarted then return end
-	
+
 	print("🔍 Checking Pre-Game Status...")
 	for _, p in ipairs(PlayerManager.playersInGame) do
 		if not TurnManager.readyPlayers[p.UserId] then
@@ -236,16 +236,16 @@ end
 
 function TurnManager.handleStarterSelection(player, starterName)
 	if TurnManager.readyPlayers[player.UserId] then return end -- Already picked
-	
+
 	-- Validate Name
 	local data = PokemonDB.GetPokemon(starterName)
 	if not data then 
 		warn("Invalid starter: " .. tostring(starterName))
 		return 
 	end
-	
+
 	print("✅ " .. player.Name .. " selected " .. starterName)
-	
+
 	-- Give Pokemon
 	local inventory = player:FindFirstChild("PokemonInventory")
 	if inventory then
@@ -260,28 +260,28 @@ function TurnManager.handleStarterSelection(player, starterName)
 		starterPoke:SetAttribute("Status", "Alive")
 		starterPoke.Parent = inventory
 	end
-	
+
 	-- Draw 1 Starter Card
 	CardSystem.drawOneCard(player)
 
 	-- Mark Ready
 	TurnManager.readyPlayers[player.UserId] = true
-	
+
 	if Events.Notify then Events.Notify:FireClient(player, "You selected " .. starterName .. "! Waiting for players...") end
-	
+
 	-- Check if ALL players are ready
 	local allReady = true
 	local playerCount = #PlayerManager.playersInGame
-	
+
 	if playerCount == 0 then return end
-	
+
 	for _, p in ipairs(PlayerManager.playersInGame) do
 		if not TurnManager.readyPlayers[p.UserId] then
 			allReady = false
 			break
 		end
 	end
-	
+
 	if allReady then
 		TurnManager.startGame()
 	end
@@ -290,12 +290,12 @@ end
 function TurnManager.startGame()
 	if TurnManager.gameStarted then return end
 	TurnManager.gameStarted = true
-	
+
 	print("🚀 ALL PLAYERS READY! STARTING GAME!")
 	if Events.Notify then Events.Notify:FireAllClients("🚀 All players ready! Game Starting!") end
-	
+
 	task.wait(2)
-	
+
 	-- Unfreeze Everyone
 	for _, p in ipairs(PlayerManager.playersInGame) do
 		if p.Character and p.Character:FindFirstChild("Humanoid") then
@@ -303,7 +303,7 @@ function TurnManager.startGame()
 			p.Character.Humanoid.JumpPower = 50
 		end
 	end
-	
+
 	-- Start First Turn
 	TurnManager.currentTurnIndex = 0
 	TurnManager.nextTurn()
@@ -319,6 +319,7 @@ function TurnManager.processPlayerRoll(player)
 	TurnManager.isTurnActive = false
 	if EncounterSystem then EncounterSystem.clearCenterStage() end
 
+	--local roll = 10
 	local roll = math.random(1, 6)
 	print("🎲 [Server] Roll result:", roll)
 	Events.RollDice:FireAllClients(player, roll)
@@ -332,24 +333,24 @@ function TurnManager.processPlayerRoll(player)
 	for i = 1, roll do
 		currentPos = currentPos + 1
 		local nextTile = tilesFolder:FindFirstChild(tostring(currentPos))
-		
+
 		-- Logic: Board Wrapping (If tile 40 doesn't exist, wrap to 0)
 		if not nextTile then
 			print("🔄 Wrapping board! " .. currentPos .. " -> 0")
 			currentPos = 0
 			nextTile = tilesFolder:FindFirstChild(tostring(currentPos))
-			
+
 			-- Increment Lap
 			local currentLap = PlayerManager.playerLaps[player.UserId] or 1
 			PlayerManager.playerLaps[player.UserId] = currentLap + 1
 			print("🏁 " .. player.Name .. " finished Lap " .. currentLap .. "!")
-			
+
 			-- Reward: 5 Pokeballs
 			local balls = player.leaderstats:FindFirstChild("Pokeballs")
 			if balls then
 				balls.Value += 5
 			end
-			
+
 			if Events.Notify then
 				Events.Notify:FireClient(player, "🏁 Lap Completed! +5 🔴 Pokeballs! Stopping at Sell Center.")
 			end
@@ -359,15 +360,15 @@ function TurnManager.processPlayerRoll(player)
 				humanoid:MoveTo(PlayerManager.getPlayerTilePosition(player, nextTile))
 				humanoid.MoveToFinished:Wait()
 			end
-			
+
 			PlayerManager.playerPositions[player.UserId] = 0
-			
+
 			-- Trigger Sell UI Immediately and End Move
 			print("💰 Landed on Start (Forced Stop)! Opening Sell UI...")
 			local SellSystem = require(game.ServerScriptService.Modules.SellSystem)
 			if SellSystem then
 				SellSystem.openSellUI(player)
-				
+
 				TimerSystem.startPhaseTimer(60, "Sell", function()
 					if player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
 						TurnManager.nextTurn()
@@ -409,7 +410,7 @@ function TurnManager.processPlayerRoll(player)
 	-- ==========================================
 	PlayerManager.playerPositions[player.UserId] = currentPos
 	local landingTile = tilesFolder:FindFirstChild(tostring(currentPos))
-	
+
 	if landingTile then
 		-- 🛑 SPECIAL: START TILE (Priority over PVP)
 		local isStartTile = (landingTile.Name == "0" or landingTile.Name == "Start")
@@ -444,7 +445,7 @@ function TurnManager.resumeTurn(player)
 	print("🔄 Resuming turn for " .. player.Name)
 	local currentPos = PlayerManager.playerPositions[player.UserId] or 0
 	local tile = tilesFolder:FindFirstChild(tostring(currentPos))
-	
+
 	if tile then
 		TurnManager.processTileEvent(player, currentPos, tile)
 	else
@@ -463,7 +464,7 @@ function TurnManager.processTileEvent(player, currentPos, nextTile)
 	local isStartTile = (nextTile.Name == "0" or nextTile.Name == "Start")
 	if isStartTile then
 		print("💰 Landed on Start! Opening Sell UI...")
-		
+
 		local SellSystem = require(game.ServerScriptService.Modules.SellSystem)
 		if SellSystem then
 			SellSystem.openSellUI(player)
@@ -545,9 +546,9 @@ function TurnManager.processTileEvent(player, currentPos, nextTile)
 		local rarity = "Common"
 		if string.find(tileColorLower, "crimson") then rarity = "Uncommon" end
 		if string.find(tileColorLower, "maroon") then rarity = "Rare" end
-		
+
 		print("⚔️ Landed on Red Tile (" .. tileColorName .. ") -> PvE: " .. rarity)
-		
+
 		if Events.BattleTrigger then
 			TurnManager.turnPhase = "BattleSelection"
 			-- Pass Rarity info to Client (for local display if needed) and back to Server in response

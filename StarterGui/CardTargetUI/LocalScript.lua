@@ -83,7 +83,7 @@ local function createPlayerButton(p)
 	btn.TextSize = 18
 	btn.Parent = scroll
 	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-	
+
 	btn.MouseButton1Click:Connect(function()
 		if currentCardName then
 			print("🎯 Target Selected: " .. p.Name .. " for " .. currentCardName)
@@ -102,16 +102,16 @@ local function connectBindable()
 		bindable.Name = "Client_OpenCardTarget"
 		bindable.Parent = ReplicatedStorage
 	end
-	
+
 	bindable.Event:Connect(function(cardName)
 		print("🎯 Opening Target UI for: " .. cardName)
 		currentCardName = cardName
-		
+
 		-- Refresh List
 		for _, child in pairs(scroll:GetChildren()) do
 			if child:IsA("GuiObject") then child:Destroy() end
 		end
-		
+
 		local found = false
 		for _, p in ipairs(Players:GetPlayers()) do
 			if p ~= player then
@@ -119,7 +119,7 @@ local function connectBindable()
 				found = true
 			end
 		end
-		
+
 		if not found then
 			-- No players? Auto-cancel or show empty
 			local lbl = Instance.new("TextLabel")
@@ -129,7 +129,7 @@ local function connectBindable()
 			lbl.TextColor3 = Color3.fromRGB(200, 200, 200)
 			lbl.Parent = scroll
 		end
-		
+
 		screenGui.Enabled = true
 	end)
 end

@@ -191,7 +191,8 @@ function EncounterSystem.spawnPokemonEncounter(player)
 		HP = pokeData.HP,
 		Attack = pokeData.Attack,
 		Icon = pokeData.Icon,
-		Image = pokeData.Image
+		Image = pokeData.Image,
+		CatchDifficulty = PokemonDB.GetCatchDifficulty(pokeName)
 	}
 	activeEncounterData = encounterData -- Update server state
 	Events.Encounter:FireAllClients(player, encounterData)
@@ -381,7 +382,8 @@ function EncounterSystem.spawnPokemonEncounter(player, tileColorName)
 		HP = pokeData.HP,
 		Attack = pokeData.Attack,
 		Icon = pokeData.Icon,
-		Image = pokeData.Image
+		Image = pokeData.Image,
+		CatchDifficulty = PokemonDB.GetCatchDifficulty(pokeName)
 	}
 	activeEncounterData = encounterData -- Update server state
 	Events.Encounter:FireAllClients(player, encounterData)

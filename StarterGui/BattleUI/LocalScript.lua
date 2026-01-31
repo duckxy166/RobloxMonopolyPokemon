@@ -16,9 +16,9 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local StarterGui = game:GetService("StarterGui")
 local PokemonDB = require(ReplicatedStorage:WaitForChild("PokemonDB"))
+local Debris = game:GetService("Debris")
 
 local player = Players.LocalPlayer
--- local EventManager = require(game.ReplicatedStorage:WaitForChild("EventManager")) -- REMOVED: Server module not available to client
 
 -- Events
 print("🔵 [Client] BattleUI Script Started...")
@@ -171,11 +171,11 @@ local camera = workspace.CurrentCamera
 -- Spawn and Animate a single 3D Die
 local function spawn3NDice(sideOffset)
 	local dice
-	if diceTemplate then 
-		dice = diceTemplate:Clone() 
-	else 
+	if diceTemplate then
+		dice = diceTemplate:Clone()
+	else
 		dice = Instance.new("Part")
-		dice.Size = Vector3.new(3,3,3) 
+		dice.Size = Vector3.new(3,3,3)
 		dice.Color = Color3.fromRGB(240, 240, 240)
 		-- Add text faces if generic part
 		for _, face in pairs(Enum.NormalId:GetEnumItems()) do
@@ -184,7 +184,7 @@ local function spawn3NDice(sideOffset)
 			local t = Instance.new("TextLabel", s)
 			t.Size = UDim2.new(1,0,1,0)
 			t.BackgroundTransparency = 1
-			t.Text = math.random(1,6) 
+			t.Text = math.random(1,6)
 			t.TextScaled = true
 		end
 	end
@@ -197,12 +197,6 @@ local function spawn3NDice(sideOffset)
 	-- sideOffset: -1 for left (Player), 1 for right (Enemy)
 	local startCF = camera.CFrame * CFrame.new(sideOffset * 4, -2, -8) -- 4 studs left/right, 2 down, 8 forward
 	dice.CFrame = startCF
-	
-	-- SOUNDS
-	-- local ROLL_SOUND_ID = "rbxassetid://111044334523010" 
-	local LAND_SOUND_ID = "rbxassetid://90144356226455"
-
-	-- (Cards Removed: Roll sound removed as requested)
 
 	-- Spin Animation
 	local connection
@@ -217,14 +211,7 @@ local function spawn3NDice(sideOffset)
 		Object = dice,
 		Stop = function(finalVal)
 			if connection then connection:Disconnect() end
-			-- Roll sound cleanup removed
 
-			-- Play Land Sound
-			local landSound = Instance.new("Sound", workspace)
-			landSound.SoundId = LAND_SOUND_ID
-			landSound.PlayOnRemove = true
-			landSound:Destroy()
-			
 			-- Tween to result
 			local finalCF = camera.CFrame * CFrame.new(sideOffset * 4, -2, -8) -- End at same spot roughly
 			-- Look at camera
@@ -238,45 +225,24 @@ local function spawn3NDice(sideOffset)
 
 			-- Cleanup after show
 			task.delay(3, function()
-				dice:Destroy()
+				if dice then dice:Destroy() end
 			end)
 		end
 	}
 end
 
--- Replaces createDiceUI (No setup needed for 3D)
-local function createDiceUI() 
-	-- No-op or cleanup 2D
-	if leftDice then leftDice:Destroy() leftDice = nil end
-	if rightDice then rightDice:Destroy() rightDice = nil end
-end
-
--- Helper: Animate Dice (Now triggers 3D)
--- We don't need persistent loop, we launch per attack.
-local function startRollingAnim()
-	-- Does nothing now, animation starts on result or we simulate here?
-	-- Current flow: 1. Click Roll -> 2. startRollingAnim -> 3. FireServer -> 4. Receive Result -> 5. stopRollingAnim
-	-- For 3D:
-	-- 1. Click Roll -> show spinning 3D dice indefinitely?
-	-- 2. Receive Result -> Tween and stop.
-
-	-- Actually, let's start the 3D spin on click, and just hold the reference.
-	-- We need module-level refs to stop them.
-end
-
 local activeDice = {} -- {Player=?, Enemy=?}
 
 local function cleanupDice()
-	if activeDice.Player then 
+	if activeDice.Player then
 		if activeDice.Player.Object then activeDice.Player.Object:Destroy() end
 		activeDice.Player = nil
 	end
-	if activeDice.Enemy then 
+	if activeDice.Enemy then
 		if activeDice.Enemy.Object then activeDice.Enemy.Object:Destroy() end
 		activeDice.Enemy = nil
 	end
 end
-
 
 -- Helper: Send System Message
 local function sendMsg(text, color)
@@ -317,50 +283,45 @@ rollBtn.MouseButton1Click:Connect(function()
 	if not isBattleActive or isRolling then return end
 	isRolling = true
 	rollBtn.Visible = false -- Hide button while rolling (like HUD)
-	-- rollBtn.Text = "Rolling..."
-	-- rollBtn.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
 
 	sendMsg("Rolling dice... 🎲", Color3.fromRGB(255, 255, 100))
 
 	-- Start 3D Spin
 	cleanupDice() -- Clear old
 	activeDice.Player = spawn3NDice(-1) -- -1 Left
-	-- activeDice.Enemy = spawn3NDice(1)   -- 1 Right (Moved to Event for Sequential)
 
 	Events.BattleAttack:FireServer()
 end)
 
--- Battle Start
 -- Battle Update (Damage)
 Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 	isRolling = false
 
-	if details then
+	local myName, enemyName, myRoll, enemyRoll
+
+	if currentBattleData then
 		if currentBattleData.Type == "PvP" then
-			-- Fix: Correctly identifying players in PvP to avoid crash and swap
 			-- Attacker is always Player 1 (Left), Defender is always Player 2 (Right)
 			myName = currentBattleData.Attacker.Name
 			enemyName = currentBattleData.Defender.Name
-			
+
 			if player == currentBattleData.Attacker then
 				myRoll = details.AttackerRoll
 				enemyRoll = details.DefenderRoll
-				-- For P1: MyDice is Left (-1), EnemyDice is Right (1)
-				-- This is already handled by the spawn logic below if we keep roles consistent
 			else
 				myRoll = details.DefenderRoll
 				enemyRoll = details.AttackerRoll
-				-- For P2: MyDice is actually Right (1), EnemyDice is Left (-1)
-				-- Wait, to keep it simple: Attacker always on Left, Defender always on Right.
 			end
 		else
+			myName = "You"
+			enemyName = currentBattleData.EnemyStats.Name
 			myRoll = details.PlayerRoll
 			enemyRoll = details.EnemyRoll
-			enemyName = currentBattleData.EnemyStats.Name
 		end
 	end
 
-	cleanupDice()
+	-- Cleanup previous spinning dice if any
+	-- (Wait, we want to KEEP the player dice spinning and just stop it)
 
 	-- Step A: Position determination
 	local myDiceOffset = -1 -- Default left
@@ -374,18 +335,23 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 		end
 	end
 
-	-- Step B: Rolling sequence (Visuals only)
-	sendMsg("🎲 " .. myName .. " is rolling...", Color3.fromRGB(100, 255, 255))
-	activeDice.Player = spawn3NDice(myDiceOffset)
-	task.wait(0.25) -- Restored for visibility
-	if activeDice.Player then activeDice.Player.Stop(myRoll) end
+	-- Step B: Rolling sequence (Visuals)
+
+	-- Stop My Dice (it was already spinning from button click)
+	if activeDice.Player then
+		activeDice.Player.Stop(myRoll or 1)
+	else
+		-- If triggered by spacebar or lag, spawn it now
+		activeDice.Player = spawn3NDice(myDiceOffset)
+		activeDice.Player.Stop(myRoll or 1)
+	end
 
 	task.wait(1.0)
 
-	sendMsg("🎲 " .. enemyName .. " is rolling...", Color3.fromRGB(255, 100, 100))
+	sendMsg("🎲 " .. (enemyName or "Enemy") .. " is rolling...", Color3.fromRGB(255, 100, 100))
 	activeDice.Enemy = spawn3NDice(enemyDiceOffset)
-	task.wait(0.25) -- Restored for visibility
-	if activeDice.Enemy then activeDice.Enemy.Stop(enemyRoll) end
+	task.wait(1.2)
+	if activeDice.Enemy then activeDice.Enemy.Stop(enemyRoll or 1) end
 
 	task.wait(1.5)
 
@@ -395,11 +361,10 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 		rollBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
 	end
 
-	-- === [แก้ไขจุดที่ 1: การแสดงผล] ===
 	if winner == "Draw" then
 		sendMsg("It's a Draw! Roll again!", Color3.fromRGB(200, 200, 200))
 	else
-		-- แสดง Damage
+		-- Show Damage
 		local iWon = false
 		if currentBattleData.Type == "PvE" then iWon = (winner == "Player")
 		elseif currentBattleData.Type == "PvP" then
@@ -413,7 +378,7 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 			sendMsg("You took " .. damage .. " damage! 🛡️", Color3.fromRGB(255, 100, 100))
 		end
 
-		-- Update HP Bar (Smooth Update, Don't show DEAD yet)
+		-- Update HP Bar
 		if vsFrame and details and currentBattleData then
 			local function updateSide(sideName, currentHP, maxHP)
 				local container = vsFrame:FindFirstChild(sideName)
@@ -424,10 +389,9 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 
 					if hpFill and hpText then
 						local pct = math.clamp(currentHP / maxHP, 0, 1)
-						-- อนิเมชั่นลดเลือด
+						-- Animate
 						hpFill:TweenSize(UDim2.new(pct, 0, 1, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.5, true)
 
-						-- แสดงตัวเลข 0/100 ได้ แต่ห้ามขึ้น Text ว่า "DEAD"
 						if currentHP <= 0 then currentHP = 0 end
 						hpText.Text = currentHP .. "/" .. maxHP
 
@@ -438,7 +402,6 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 				end
 			end
 
-			-- Logic ดึงค่า HP จาก details มาอัปเดต (เหมือนเดิมแต่ตัดส่วนแจ้งตายออก)
 			local myNewHP, enemyNewHP
 			if currentBattleData.Type == "PvE" then
 				myNewHP = details.PlayerHP; enemyNewHP = details.EnemyHP
@@ -463,21 +426,17 @@ Events.BattleEnd.OnClientEvent:Connect(function(result)
 	if vsFrame then vsFrame:Destroy() vsFrame = nil end
 	rollBtn.Visible = false
 
-	-- === [แก้ไขจุดที่ 2: แสดงผลแพ้ชนะง่ายๆ] ===
-	local msgText = result -- Server now sends the full message string
+	local msgText = result
 	local msgColor = Color3.fromRGB(255, 255, 255)
-	
-	-- Determine color simply (optional check, or just default white/gold)
+
 	if string.find(result, "Win") or string.find(result, "defeated") then
 		msgColor = Color3.fromRGB(255, 215, 0) -- Gold
 	elseif string.find(result, "knocked out") then
 		msgColor = Color3.fromRGB(255, 100, 100) -- Red
 	end
 
-	-- ส่งข้อความใหญ่กลางจอ หรือ Chat
 	sendMsg(msgText, msgColor)
-	
-	-- (Optional) สร้าง TextLabel กลางจอชั่วคราว
+
 	local resultLabel = Instance.new("TextLabel")
 	resultLabel.Size = UDim2.new(1, 0, 0.2, 0)
 	resultLabel.Position = UDim2.new(0, 0, 0.4, 0)
@@ -485,24 +444,22 @@ Events.BattleEnd.OnClientEvent:Connect(function(result)
 	resultLabel.Text = msgText
 	resultLabel.Font = Enum.Font.FredokaOne
 	resultLabel.TextSize = 48
-	resultLabel.TextScaled = true -- Allow long names to fit
+	resultLabel.TextScaled = true
 	resultLabel.TextColor3 = msgColor
 	resultLabel.TextStrokeTransparency = 0
 	resultLabel.Parent = screenGui
-	
-	game:GetService("Debris"):AddItem(resultLabel, 5) -- Show longer (5s) for reading
+
+	Debris:AddItem(resultLabel, 5)
 end)
 
--- Battle Start (Single Source of Truth)
+-- Battle Start
 Events.BattleStart.OnClientEvent:Connect(function(type, data)
 	print("⚔️ [Client] Battle Started!", type)
 	isBattleActive = true
 	isRolling = false
 	currentBattleData = data
 
-	-- Create VS UI
 	createVSFrame()
-	createDiceUI() -- Create Dice Containers
 
 	-- Populate Data
 	if vsFrame and data then
@@ -537,15 +494,14 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 		end
 	end
 
-
-
 	rollBtn.Visible = true
 	sendMsg("Battle Start! Roll needed: " .. (data.Target or "?"), Color3.fromRGB(255, 255, 100))
 end)
+
+-- Battle Trigger (Selection UI)
 Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 	print("⚔️ [Client] BattleTrigger Received! Type:", type)
 
-	-- Create a temporary Choice UI
 	local choiceFrame = Instance.new("Frame")
 	choiceFrame.Size = UDim2.new(0, 300, 0, 150)
 	choiceFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -589,18 +545,13 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 	runBtn.Parent = choiceFrame
 	Instance.new("UICorner", runBtn).CornerRadius = UDim.new(0, 8)
 
-
-	-- Logic
-	-- Logic
 	fightBtn.MouseButton1Click:Connect(function()
-		-- Close Choice Frame
-		choiceFrame.Visible = false 
+		choiceFrame.Visible = false
 
 		-- OPEN SELECTION UI
 		local inventory = player:FindFirstChild("PokemonInventory")
 		local pokemons = inventory and inventory:GetChildren() or {}
 
-		-- Filter Alive Pokemon
 		local alivePokemons = {}
 		for _, poke in ipairs(pokemons) do
 			if poke:GetAttribute("Status") == "Alive" then
@@ -608,7 +559,6 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 			end
 		end
 
-		-- Handle No Alive Pokemon
 		if #alivePokemons == 0 then
 			local warnFrame = Instance.new("Frame")
 			warnFrame.Size = UDim2.new(0, 320, 0, 180)
@@ -620,7 +570,7 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 			Instance.new("UICorner", warnFrame).CornerRadius = UDim.new(0, 12)
 			Instance.new("UIStroke", warnFrame).Color = Color3.fromRGB(255, 50, 50)
 			Instance.new("UIStroke", warnFrame).Thickness = 2
-			
+
 			local warnText = Instance.new("TextLabel")
 			warnText.Text = "🚫 NO POKEMON AVAILABLE!\n\nAll your Pokemon are fainted.\nYou cannot fight right now!"
 			warnText.Size = UDim2.new(0.9, 0, 0.6, 0)
@@ -631,7 +581,7 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 			warnText.TextSize = 20
 			warnText.TextWrapped = true
 			warnText.Parent = warnFrame
-			
+
 			local forceRunBtn = Instance.new("TextButton")
 			forceRunBtn.Size = UDim2.new(0, 140, 0, 45)
 			forceRunBtn.Position = UDim2.new(0.5, -70, 0.75, 0)
@@ -642,15 +592,14 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 			forceRunBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 			forceRunBtn.Parent = warnFrame
 			Instance.new("UICorner", forceRunBtn).CornerRadius = UDim.new(0, 8)
-			
+
 			forceRunBtn.MouseButton1Click:Connect(function()
 				warnFrame:Destroy()
 				Events.BattleTriggerResponse:FireServer("Run", nil)
 			end)
 			return
 		end
-		
-		-- Create Selection Frame
+
 		local selFrame = Instance.new("Frame")
 		selFrame.Size = UDim2.new(0, 400, 0, 300)
 		selFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -659,7 +608,7 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 		selFrame.BorderSizePixel = 0
 		selFrame.Parent = screenGui
 		Instance.new("UICorner", selFrame).CornerRadius = UDim.new(0, 12)
-		
+
 		local selTitle = Instance.new("TextLabel")
 		selTitle.Size = UDim2.new(1, 0, 0, 50)
 		selTitle.BackgroundTransparency = 1
@@ -668,19 +617,18 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 		selTitle.Font = Enum.Font.FredokaOne
 		selTitle.TextSize = 24
 		selTitle.Parent = selFrame
-		
+
 		local scroll = Instance.new("ScrollingFrame")
 		scroll.Size = UDim2.new(0.9, 0, 0.7, 0)
 		scroll.Position = UDim2.new(0.05, 0, 0.2, 0)
 		scroll.BackgroundTransparency = 1
 		scroll.Parent = selFrame
-		
+
 		local layout = Instance.new("UIListLayout")
 		layout.Parent = scroll
 		layout.Padding = UDim.new(0, 10)
 		layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		
-		-- Generate Buttons
+
 		for _, poke in ipairs(alivePokemons) do
 			local btn = Instance.new("TextButton")
 			btn.Size = UDim2.new(0.9, 0, 0, 50)
@@ -692,19 +640,19 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 			btn.TextXAlignment = Enum.TextXAlignment.Left
 			btn.Parent = scroll
 			Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-			
+
 			btn.MouseButton1Click:Connect(function()
 				selFrame:Destroy()
 				choiceFrame:Destroy()
-				
+
 				local responseData = { Type = type, SelectedPokemonName = poke.Name }
 				if type == "PvP" and data and data.Opponents then
-					responseData.Target = data.Opponents[1] 
+					responseData.Target = data.Opponents[1]
 				end
 				Events.BattleTriggerResponse:FireServer("Fight", responseData)
 			end)
 		end
-		
+
 		scroll.CanvasSize = UDim2.new(0, 0, 0, #alivePokemons * 60)
 	end)
 
