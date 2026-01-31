@@ -10,6 +10,7 @@
         - Rewards (Evolution)
 ================================================================================
 --]]
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
@@ -25,6 +26,61 @@ local EvolutionSystem = require(script.Parent:WaitForChild("EvolutionSystem"))
 
 -- State
 BattleSystem.activeBattles = {} -- Key: PlayerId, Value: BattleData
+
+-- ============================================================================
+-- ✅ STAGE / TELEPORT HELPERS (FIX)
+-- ============================================================================
+
+local function getAnchorCFrame(stageObj)
+	if not stageObj then return nil end
+
+	if stageObj:IsA("BasePart") then
+		return stageObj.CFrame
+	end
+
+	if stageObj:IsA("Model") then
+		if stageObj.PrimaryPart then
+			return stageObj.PrimaryPart.CFrame
+		end
+
+		local anyPart = stageObj:FindFirstChildWhichIsA("BasePart", true)
+		if anyPart then
+			return anyPart.CFrame
+		end
+	end
+
+	return nil
+end
+
+local function teleportCharacterTo(player, stageObj)
+	if not (player and player.Character) then return end
+	local cf = getAnchorCFrame(stageObj)
+	if not cf then
+		warn("⚠️ teleportCharacterTo: no anchor CFrame for", stageObj)
+		return
+	end
+	player.Character:PivotTo(cf * CFrame.new(0, 3, 0))
+end
+
+local function getOrCreateSpawnFolder(stageObj)
+	if not stageObj then return nil end
+
+	local folder = stageObj:FindFirstChild("SpawnedModels")
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = "SpawnedModels"
+		folder.Parent = stageObj
+	end
+	return folder
+end
+
+local function clearSpawnFolder(stageObj)
+	local folder = stageObj and stageObj:FindFirstChild("SpawnedModels")
+	if not folder then return end
+	for _, child in ipairs(folder:GetChildren()) do
+		child:Destroy()
+	end
+end
 
 -- Initialize
 function BattleSystem.init(events, timerSystem, turnManager, playerManager)
@@ -65,15 +121,102 @@ function BattleSystem.getPokeStats(pokeStrValue)
 		MaxHP = pokeStrValue:GetAttribute("MaxHP") or 10,
 		Attack = pokeStrValue:GetAttribute("Attack") or 5,
 		Status = pokeStrValue:GetAttribute("Status") or "Alive",
-		Model = pokeStrValue.Name -- Simplification, ideally lookup DB
+		Model = pokeStrValue:GetAttribute("ModelName") or pokeStrValue.Name
 	}
 end
+
+-- ============================================================================
+-- 🧩 SPAWN POKEMON MODEL (FIXED)
+-- ============================================================================
+
+local function findAnchorPart(obj)
+	if not obj then return nil end
+	if obj:IsA("BasePart") then return obj end
+	if obj:IsA("Model") then
+		return obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart", true)
+	end
+	if obj:IsA("Folder") then
+		return obj:FindFirstChildWhichIsA("BasePart", true)
+	end
+	return nil
+end
+
+local function getSpawnFolder(stageRoot, keyName)
+	local root = stageRoot:FindFirstChild("SpawnedPokemon")
+	if not root then
+		root = Instance.new("Folder")
+		root.Name = "SpawnedPokemon"
+		root.Parent = stageRoot
+	end
+
+	local f = root:FindFirstChild(keyName)
+	if not f then
+		f = Instance.new("Folder")
+		f.Name = keyName
+		f.Parent = root
+	end
+
+	f:ClearAllChildren()
+	return f
+end
+
+local function resolveModelName(pokemonName)
+	-- If your PokemonDB has GetPokemon(name) returning { Model = "155 - Cyndaquil", ... }
+	if PokemonDB and PokemonDB.GetPokemon then
+		local data = PokemonDB.GetPokemon(pokemonName)
+		if data and data.Model then
+			return data.Model
+		end
+	end
+	return pokemonName
+end
+
+function BattleSystem.spawnPokemonModel(modelName, stageObj)
+	local stageRoot = workspace:FindFirstChild("Stage")
+	if not stageRoot then
+		warn("⚠️ spawnPokemonModel: Workspace.Stage not found")
+		return
+	end
+
+	local anchor = findAnchorPart(stageObj)
+	if not anchor then
+		warn("⚠️ spawnPokemonModel: no anchor BasePart for", stageObj and stageObj:GetFullName() or "nil")
+		return
+	end
+
+	local modelsFolder = ServerStorage:FindFirstChild("PokemonModels")
+	if not modelsFolder then
+		warn("⚠️ spawnPokemonModel: ServerStorage.PokemonModels not found")
+		return
+	end
+	local template = modelsFolder:FindFirstChild(modelName) or ServerStorage:FindFirstChild(modelName, true)
+	if not template or not template:IsA("Model") then
+		warn("⚠️ spawnPokemonModel: model not found or not a Model:", modelName)
+		return
+	end
+
+	local key = (stageObj and stageObj.Name) or "UnknownStage"
+	local spawnFolder = getSpawnFolder(stageRoot, key)
+
+	local clone = template:Clone()
+	clone.Parent = spawnFolder
+
+	for _, d in ipairs(clone:GetDescendants()) do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+		end
+	end
+
+	clone:PivotTo(anchor.CFrame * CFrame.new(0, 3, 0))
+	print(("✅ Spawned '%s' on %s"):format(modelName, key))
+end
+
 
 -- ============================================================================
 -- ⚔️ BATTLE START LOGIC
 -- ============================================================================
 
--- Start PvE (Wild Pokemon)
 -- Start PvE (Wild Pokemon / Gym)
 function BattleSystem.startPvE(player, chosenPoke, desiredRarity)
 	print("⚔️ PvE Started for " .. player.Name .. " (Rarity: " .. tostring(desiredRarity) .. ")")
@@ -92,14 +235,20 @@ function BattleSystem.startPvE(player, chosenPoke, desiredRarity)
 	if desiredRarity then
 		encounter = PokemonDB.GetRandomByRarity(desiredRarity)
 	end
-	
 	if not encounter then
-		-- Fallback
-		encounter = PokemonDB.GetRandomEncounter() 
+		encounter = PokemonDB.GetRandomEncounter()
 	end
 
+	-- ✅ Support optional encounter.ModelName (if you have it in your DB)
+	local enemyModelName =
+		(encounter and encounter.ModelName)
+		or (encounter and encounter.Name)
+		or (encounter and encounter.Data and encounter.Data.Name)
+		or "Unknown"
+
 	local enemyStats = {
-		Name = encounter.Name or encounter.Data.Name or "Unknown",
+		Name = encounter.Name or (encounter.Data and encounter.Data.Name) or "Unknown",
+		ModelName = enemyModelName,
 		Level = 1,
 		CurrentHP = encounter.Data and encounter.Data.HP or 10,
 		MaxHP = encounter.Data and encounter.Data.HP or 10,
@@ -111,48 +260,48 @@ function BattleSystem.startPvE(player, chosenPoke, desiredRarity)
 	BattleSystem.activeBattles[player.UserId] = {
 		Type = "PvE",
 		Player = player,
-		MyPokeObj = myPoke, -- StringValue reference
+		MyPokeObj = myPoke,
 		MyStats = BattleSystem.getPokeStats(myPoke),
 		EnemyStats = enemyStats,
 		TurnState = "WaitRoll"
 	}
 
-	-- TELEPORT TO BATTLE STAGE
-	local battleStage = game.Workspace:FindFirstChild("Stage")
-	if battleStage then
-		local p1Stage = battleStage:FindFirstChild("PlayerStage1")
-		local pokeStage1 = battleStage:FindFirstChild("PokemonStage1")
-		local pokeStage2 = battleStage:FindFirstChild("PokemonStage2")
-
-		if p1Stage and player.Character then
-			player.Character:SetPrimaryPartCFrame(p1Stage.CFrame + Vector3.new(0, 3, 0))
-		end
-
-		-- SPAWN POKEMON MODEL
-		if myPoke then
-			if pokeStage1 then
-				BattleSystem.spawnPokemonModel(myPoke.Name, pokeStage1)
-			else
-				warn("⚠️ PokemonStage1 NOT found in Stage folder!")
-			end
-		end
-		if enemyStats then
-			if pokeStage2 then
-				BattleSystem.spawnPokemonModel(enemyStats.Name, pokeStage2)
-			else
-				warn("⚠️ PokemonStage2 NOT found in Stage folder!")
-			end
-		end
-	else
-		warn("⚠️ No Stage folder found in Workspace!")
+	-- TELEPORT TO BATTLE STAGE (RECURSIVE + RELIABLE)
+	local battleStage = workspace:FindFirstChild("Stage")
+	if not battleStage then
+		warn("⚠️ No Stage folder found in Workspace! Aborting battle.")
+		return
 	end
 
-	-- 4. Notify Player of their Pokemon
-	if Events.Notify then 
-		Events.Notify:FireClient(player, "Go! " .. myPoke.Name .. "!") 
+	local p1Stage = battleStage:FindFirstChild("PlayerStage1", true)
+	local pokeStage1 = battleStage:FindFirstChild("PokemonStage1", true)
+	local pokeStage2 = battleStage:FindFirstChild("PokemonStage2", true)
+
+	-- Safe teleport (no PrimaryPart needed)
+	do
+		local anchor = (p1Stage and (p1Stage:IsA("BasePart") and p1Stage or p1Stage:FindFirstChildWhichIsA("BasePart", true))) or nil
+		if anchor and player.Character then
+			player.Character:PivotTo(anchor.CFrame * CFrame.new(0, 3, 0))
+		else
+			warn("⚠️ PlayerStage1 missing/bad. Aborting battle.")
+			return
+		end
 	end
 
-	-- 5. Send Client Event (Minimal/No UI Mode)
+	local myModelName = myPoke:GetAttribute("ModelName") or resolveModelName(myPoke.Name)
+	BattleSystem.spawnPokemonModel(myModelName, pokeStage1)
+
+	-- prefer DB model name if it exists, fallback to resolving by name
+	local enemyModel = (encounter and encounter.Data and encounter.Data.Model) or resolveModelName(enemyStats.Name)
+	BattleSystem.spawnPokemonModel(enemyModel, pokeStage2)
+
+
+	-- 4. Notify Player
+	if Events.Notify then
+		Events.Notify:FireClient(player, "Go! " .. myPoke.Name .. "!")
+	end
+
+	-- 5. Send Client Event
 	Events.BattleStart:FireClient(player, "PvE", BattleSystem.activeBattles[player.UserId])
 end
 
@@ -169,7 +318,6 @@ function BattleSystem.startPvP(player1, player2)
 		return
 	end
 
-	-- Setup Battle State
 	local battleData = {
 		Type = "PvP",
 		Attacker = player1,
@@ -184,29 +332,38 @@ function BattleSystem.startPvP(player1, player2)
 	BattleSystem.activeBattles[player1.UserId] = battleData
 	BattleSystem.activeBattles[player2.UserId] = battleData
 
-	-- TELEPORT TO BATTLE STAGE
-	local battleStage = game.Workspace:FindFirstChild("Stage")
-	if battleStage then
-		local p1Stage = battleStage:FindFirstChild("PlayerStage1")
-		local p2Stage = battleStage:FindFirstChild("PlayerStage2")
-
-		if p1Stage and player1.Character then
-			player1.Character:SetPrimaryPartCFrame(p1Stage.CFrame + Vector3.new(0, 3, 0))
-		end
-		if p2Stage and player2.Character then
-			player2.Character:SetPrimaryPartCFrame(p2Stage.CFrame + Vector3.new(0, 3, 0))
-		end
-
-		-- SPAWN POKEMON MODELS
-		if p1Poke then
-			BattleSystem.spawnPokemonModel(p1Poke.Name, battleStage:FindFirstChild("PokemonStage1"))
-		end
-		if p2Poke then
-			BattleSystem.spawnPokemonModel(p2Poke.Name, battleStage:FindFirstChild("PokemonStage2"))
-		end
+	-- TELEPORT TO BATTLE STAGE (RECURSIVE + RELIABLE)
+	local battleStage = workspace:FindFirstChild("Stage")
+	if not battleStage then
+		warn("⚠️ No Stage folder found in Workspace! Aborting battle.")
+		return
 	end
 
-	-- Notify Both with Relative Data
+	local p1Stage = battleStage:FindFirstChild("PlayerStage1", true)
+	local p2Stage = battleStage:FindFirstChild("PlayerStage2", true)
+	local pokeStage1 = battleStage:FindFirstChild("PokemonStage1", true)
+	local pokeStage2 = battleStage:FindFirstChild("PokemonStage2", true)
+
+	local function safeTeleport(plr, stageObj, label)
+		local anchor = (stageObj and (stageObj:IsA("BasePart") and stageObj or stageObj:FindFirstChildWhichIsA("BasePart", true))) or nil
+		if anchor and plr.Character then
+			plr.Character:PivotTo(anchor.CFrame * CFrame.new(0, 3, 0))
+			return true
+		end
+		warn("⚠️ " .. label .. " missing/bad. Aborting battle.")
+		return false
+	end
+
+	if not safeTeleport(player1, p1Stage, "PlayerStage1") then return end
+	if not safeTeleport(player2, p2Stage, "PlayerStage2") then return end
+
+	local aModel = p1Poke:GetAttribute("ModelName") or resolveModelName(p1Poke.Name)
+	local dModel = p2Poke:GetAttribute("ModelName") or resolveModelName(p2Poke.Name)
+	BattleSystem.spawnPokemonModel(aModel, pokeStage1)
+	BattleSystem.spawnPokemonModel(dModel, pokeStage2)
+
+
+	-- Notify Both
 	local attackerBasicData = {
 		Type = "PvP",
 		Attacker = player1,
@@ -216,7 +373,7 @@ function BattleSystem.startPvP(player1, player2)
 		Target = "Roll",
 		TurnState = "WaitRoll"
 	}
-	
+
 	local defenderBasicData = {
 		Type = "PvP",
 		Attacker = player1,
@@ -235,45 +392,35 @@ end
 -- 🎲 BATTLE LOGIC (ROLL)
 -- ============================================================================
 
--- Process Attack Roll
 function BattleSystem.processRoll(player, roll)
 	local battle = BattleSystem.activeBattles[player.UserId]
 	if not battle then return end
 
-	-- Store roll
 	if battle.Type == "PvE" then
-		-- Player roll vs AI roll
 		local aiRoll = math.random(1, 6)
 		BattleSystem.resolveTurn(battle, roll, aiRoll)
 
 	elseif battle.Type == "PvP" then
-		-- Wait for both players to roll
 		if player == battle.Attacker then
 			battle.AttackerRoll = roll
 		elseif player == battle.Defender then
 			battle.DefenderRoll = roll
 		end
 
-		-- If both rolled, resolve
 		if battle.AttackerRoll and battle.DefenderRoll then
 			BattleSystem.resolveTurn(battle, battle.AttackerRoll, battle.DefenderRoll)
 		end
 	end
 end
 
--- Resolve Turn (Damage Calculation)
 function BattleSystem.resolveTurn(battle, roll1, roll2)
-	-- Determine Winner
-	local winner = nil -- "Attacker" or "Defender" (or "Player"/"Enemy" for PvE)
+	local winner = nil
 	local damage = 0
 
 	if roll1 == roll2 then
-		-- DRAW - NO DAMAGE / REROLL
 		if battle.Type == "PvP" then
-			-- Reset rolls
 			battle.AttackerRoll = nil
 			battle.DefenderRoll = nil
-
 			Events.BattleAttack:FireClient(battle.Attacker, "Draw", 0, {AttackerRoll = roll1, DefenderRoll = roll2})
 			Events.BattleAttack:FireClient(battle.Defender, "Draw", 0, {AttackerRoll = roll1, DefenderRoll = roll2})
 		elseif battle.Type == "PvE" then
@@ -283,60 +430,50 @@ function BattleSystem.resolveTurn(battle, roll1, roll2)
 	end
 
 	if battle.Type == "PvE" then
-		-- roll1 = Player, roll2 = AI
 		if roll1 > roll2 then
 			winner = "Player"
 			damage = battle.MyStats.Attack
-			-- Damage Enemy
-			battle.EnemyStats.CurrentHP = battle.EnemyStats.CurrentHP - damage
-		elseif roll2 > roll1 then
+			battle.EnemyStats.CurrentHP -= damage
+		else
 			winner = "Enemy"
 			damage = battle.EnemyStats.Attack
-			-- Damage Player
-			battle.MyStats.CurrentHP = battle.MyStats.CurrentHP - damage
+			battle.MyStats.CurrentHP -= damage
 			battle.MyPokeObj:SetAttribute("CurrentHP", battle.MyStats.CurrentHP)
 		end
 
-		-- Fire Update
 		Events.BattleAttack:FireClient(battle.Player, winner, damage, {
 			PlayerRoll = roll1, EnemyRoll = roll2,
 			PlayerHP = battle.MyStats.CurrentHP, EnemyHP = battle.EnemyStats.CurrentHP
 		})
 
-		-- Check Death
 		if battle.EnemyStats.CurrentHP <= 0 then
 			task.spawn(function()
-				task.wait(6) -- Wait for client animation
+				task.wait(6)
 				BattleSystem.endBattle(battle, "Win")
 			end)
 		elseif battle.MyStats.CurrentHP <= 0 then
-			-- Do NOT set "Dead" status yet effectively to avoid UI spoiler
 			task.spawn(function()
-				task.wait(6) -- Wait for client animation
+				task.wait(6)
 				BattleSystem.endBattle(battle, "Lose")
 			end)
 		end
 
 	elseif battle.Type == "PvP" then
-		-- roll1 = Attacker, roll2 = Defender
 		local attacker = battle.Attacker
 		local defender = battle.Defender
 
 		if roll1 > roll2 then
 			winner = "Attacker"
 			damage = battle.AttackerStats.Attack
-			-- Damage Defender
-			battle.DefenderStats.CurrentHP = battle.DefenderStats.CurrentHP - damage
+			battle.DefenderStats.CurrentHP -= damage
 			battle.DefenderPokeObj:SetAttribute("CurrentHP", battle.DefenderStats.CurrentHP)
-		elseif roll2 > roll1 then
+		else
 			winner = "Defender"
 			damage = battle.DefenderStats.Attack
-			-- Damage Attacker
-			battle.AttackerStats.CurrentHP = battle.AttackerStats.CurrentHP - damage
+			battle.AttackerStats.CurrentHP -= damage
 			battle.AttackerPokeObj:SetAttribute("CurrentHP", battle.AttackerStats.CurrentHP)
 		end
 
-		-- Notify Both
 		local updateData = {
 			Winner = winner, Damage = damage,
 			AttackerRoll = roll1, DefenderRoll = roll2,
@@ -346,32 +483,31 @@ function BattleSystem.resolveTurn(battle, roll1, roll2)
 		Events.BattleAttack:FireClient(attacker, winner, damage, updateData)
 		Events.BattleAttack:FireClient(defender, winner, damage, updateData)
 
-		-- Check Death
 		if battle.DefenderStats.CurrentHP <= 0 then
-			-- battle.DefenderPokeObj:SetAttribute("Status", "Dead") -- Delayed to endBattle
 			task.spawn(function()
 				task.wait(6)
 				BattleSystem.endBattle(battle, "AttackerWin")
 			end)
 		elseif battle.AttackerStats.CurrentHP <= 0 then
-			-- battle.AttackerPokeObj:SetAttribute("Status", "Dead") -- Delayed to endBattle
 			task.spawn(function()
 				task.wait(6)
 				BattleSystem.endBattle(battle, "DefenderWin")
 			end)
 		else
-			-- Reset rolls for next round
 			battle.AttackerRoll = nil
 			battle.DefenderRoll = nil
 		end
 	end
 end
 
--- End Battle
+-- ============================================================================
+-- 🏁 END BATTLE + CLEANUP (UPDATED)
+-- ============================================================================
+
 function BattleSystem.endBattle(battle, result)
 	print("🏁 Battle Ended: " .. result)
 
-	-- === 0. Update Dead Status (Delayed from resolveTurn) ===
+	-- Delayed Dead Status set
 	if battle.Type == "PvE" then
 		if battle.MyStats.CurrentHP <= 0 then
 			battle.MyPokeObj:SetAttribute("Status", "Dead")
@@ -385,31 +521,26 @@ function BattleSystem.endBattle(battle, result)
 		end
 	end
 
-	local tilesFolder = game.Workspace:FindFirstChild("Tiles")
+	local tilesFolder = workspace:FindFirstChild("Tiles")
 
-	-- === 1. Prepare Global Announcement Message ===
 	local winnerName = "Someone"
 	local loserName = "Someone"
 	local finalMsg = ""
-	
+
 	if battle.Type == "PvE" then
 		winnerName = (result == "Win") and battle.Player.Name or battle.EnemyStats.Name
 		loserName = (result == "Win") and battle.EnemyStats.Name or battle.Player.Name
-		
+
 		if result == "Win" then
 			finalMsg = "🏆 " .. winnerName .. " defeated wild " .. loserName .. "!"
 		else
 			finalMsg = "💀 " .. winnerName .. " knocked out " .. loserName .. "!"
 		end
-		
-		-- Notify Result Global
-		Events.BattleEnd:FireAllClients(finalMsg) -- Send String Message directly
-		
-		-- Clear reference
+
+		Events.BattleEnd:FireAllClients(finalMsg)
 		BattleSystem.activeBattles[battle.Player.UserId] = nil
 
 		if result == "Win" then
-			-- Reward: Evolution or Money
 			local success = EvolutionSystem.tryEvolve(battle.Player)
 			if not success then
 				battle.Player.leaderstats.Money.Value += 3
@@ -417,7 +548,6 @@ function BattleSystem.endBattle(battle, result)
 			end
 		end
 
-		-- Return to Board
 		if tilesFolder then
 			PlayerManager.teleportToLastTile(battle.Player, tilesFolder)
 		end
@@ -434,23 +564,20 @@ function BattleSystem.endBattle(battle, result)
 			winnerName = battle.Defender.Name
 			loserName = battle.Attacker.Name
 		end
-		
+
 		finalMsg = "⚔️ PvP Result: " .. winnerName .. " defeated " .. loserName .. "!"
-		
-		-- Reward Winner
+
 		local success = EvolutionSystem.tryEvolve(winner)
 		if not success then
 			winner.leaderstats.Money.Value += 3
 			if Events.Notify then Events.Notify:FireClient(winner, "⭐ No evolution available. +3 Coins!") end
 		end
-		
-		-- Notify Result Global
+
 		Events.BattleEnd:FireAllClients(finalMsg)
 
 		BattleSystem.activeBattles[battle.Attacker.UserId] = nil
 		BattleSystem.activeBattles[battle.Defender.UserId] = nil
 
-		-- Return both to Board
 		if tilesFolder then
 			PlayerManager.teleportToLastTile(battle.Attacker, tilesFolder)
 			PlayerManager.teleportToLastTile(battle.Defender, tilesFolder)
@@ -458,34 +585,24 @@ function BattleSystem.endBattle(battle, result)
 
 		TurnManager.nextTurn()
 	end
-	
-	-- === 2. CLEANUP MODELS (Fix for Stuck Models) ===
+
 	print("🧹 Cleaning up Battle Stage Models...")
-	local battleStage = game.Workspace:FindFirstChild("Stage")
+	local battleStage = workspace:FindFirstChild("Stage")
 	if battleStage then
-		local stages = {
-			battleStage:FindFirstChild("PokemonStage1"),
-			battleStage:FindFirstChild("PokemonStage2")
-		}
-		for _, stage in ipairs(stages) do
-			if stage then
-				for _, child in ipairs(stage:GetChildren()) do
-					if child:IsA("Model") then
-						child:Destroy()
-					end
-				end
-			end
+		local spawned = battleStage:FindFirstChild("SpawnedPokemon")
+		if spawned then
+			spawned:ClearAllChildren()
 		end
 	end
 end
 
+-- ============================================================================
+-- 🔌 EVENT CONNECTIONS
+-- ============================================================================
+
 function BattleSystem.connectEvents()
-	-- Listen for Battle Roll input from client
 	if Events.BattleAttack then
 		Events.BattleAttack.OnServerEvent:Connect(function(player)
-			-- Client creates this event to signal "Roll Dice"
-			-- We reuse it as input signal
-
 			local roll = math.random(1, 6)
 			BattleSystem.processRoll(player, roll)
 		end)
@@ -499,92 +616,30 @@ function BattleSystem.connectEvents()
 	end
 end
 
--- Spawn Pokemon Model Helper
-function BattleSystem.spawnPokemonModel(pokeName, stagePart)
-	if not stagePart then return end
-
-	-- Clear existing
-	for _, child in ipairs(stagePart:GetChildren()) do
-		if child:IsA("Model") then child:Destroy() end
-	end
-
-	-- Clone new
-	-- Search Logic
-	local modelTemplate = ServerStorage:FindFirstChild(pokeName, true)
-	if not modelTemplate then
-		local folder = ServerStorage:FindFirstChild("PokemonModels")
-		if folder then 
-			modelTemplate = folder:FindFirstChild(pokeName) 
-			if not modelTemplate then
-				-- Try loose match
-				for _, child in ipairs(folder:GetChildren()) do
-					if child.Name:match("^%s*" .. pokeName .. "%s*$") then
-						modelTemplate = child
-						break
-					end
-				end
-			end
-		end
-	end
-
-	if modelTemplate then
-		local cloned = modelTemplate:Clone()
-		cloned.Parent = stagePart -- Parent to stage so cleanup works!
-
-		-- Ensure PrimaryPart exists
-		if not cloned.PrimaryPart then
-			local root = cloned:FindFirstChild("HumanoidRootPart") or cloned:FindFirstChildWhichIsA("BasePart", true)
-			if root then
-				cloned.PrimaryPart = root
-			else
-				warn("⚠️ Model '" .. pokeName .. "' has no BasePart to position!")
-			end
-		end
-
-		if cloned.PrimaryPart then
-			local targetCFrame = stagePart.CFrame + Vector3.new(0, 3, 0) -- Higher up to avoid clipping
-			cloned:SetPrimaryPartCFrame(targetCFrame)
-			print("   ✅ Spawned " .. pokeName .. " at " .. tostring(targetCFrame.Position))
-		end
-
-		-- Anchor EVERYTHING so it doesn't fall
-		for _, desc in ipairs(cloned:GetDescendants()) do
-			if desc:IsA("BasePart") then
-				desc.Anchored = true
-				desc.CanCollide = false
-			end
-		end
-	else
-		print("⚠️ Model not found for: " .. pokeName)
-	end
-end
-
 -- Handle Trigger Response
 function BattleSystem.handleTriggerResponse(player, action, data)
 	print("Battle Trigger Response:", player.Name, action)
 
 	if action == "Fight" then
 		if data and data.Type == "PvE" then
-			-- Find chosen pokemon if name provided
 			local chosenPoke = nil
+
 			if data.SelectedPokemonName then
 				local inventory = player:FindFirstChild("PokemonInventory")
 				if inventory then
 					chosenPoke = inventory:FindFirstChild(data.SelectedPokemonName)
 				end
 			end
-			-- Pass Rarity if available in data
+
 			BattleSystem.startPvE(player, chosenPoke, data.Rarity)
+
 		elseif data and data.Type == "PvP" then
-			-- PvP requires opponent selection if multiple, or just first one
-			-- Simplify: If target provided, fight them
 			local target = data.Target
 			if target then
 				BattleSystem.startPvP(player, target)
 			end
 		end
 	else
-		-- Run / Decline
 		if data and data.Type == "PvP" then
 			print("🏃 Declined PvP. Resuming Tile Event.")
 			TurnManager.resumeTurn(player)
@@ -593,5 +648,6 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 		end
 	end
 end
+
 
 return BattleSystem

@@ -401,6 +401,16 @@ task.spawn(function()
 
 	resetCamEvent = ReplicatedStorage:FindFirstChild("ResetCameraEvent") or Instance.new("BindableEvent")
 	lockEvent = ReplicatedStorage:FindFirstChild("CameraLockEvent") or Instance.new("BindableEvent")
+	
+	-- Listen for Battle Start to hide HUD Roll Button
+	local battleStartEvent = ReplicatedStorage:WaitForChild("BattleStartEvent", 5)
+	if battleStartEvent then
+		battleStartEvent.OnClientEvent:Connect(function()
+			print("⚔️ [HUD] Battle Started -> Hiding Roll Button")
+			rollButton.Visible = false
+			timerLabel.Text = "Battle in progress..."
+		end)
+	end
 
 	-- CATCH SOUND
 	local catchEvent = ReplicatedStorage:WaitForChild("CatchPokemonEvent", 5)

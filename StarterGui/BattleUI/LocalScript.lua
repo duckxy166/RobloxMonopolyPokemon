@@ -80,27 +80,23 @@ local function createVSFrame()
 
 	Instance.new("UICorner", vsFrame).CornerRadius = UDim.new(0, 10)
 
-	-- VS Text
-	local vsLabel = Instance.new("TextLabel")
-	vsLabel.Text = "VS"
-	vsLabel.Size = UDim2.new(0.1, 0, 1, 0)
-	vsLabel.Position = UDim2.new(0.45, 0, 0, 0)
-	vsLabel.BackgroundTransparency = 1
-	vsLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
-	vsLabel.Font = Enum.Font.FredokaOne
-	vsLabel.TextSize = 32
-	vsLabel.Parent = vsFrame
+	-- Reparent/Position Roll Button into CENTER of VS Frame (Replacing "VS")
+	rollBtn.Parent = vsFrame
+	rollBtn.Size = UDim2.new(0.25, 0, 0.8, 0)
+	rollBtn.Position = UDim2.new(0.5, 0, 0.5, 0)
+	rollBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+	rollBtn.Visible = false -- Hidden until turn
 
 	-- Helper to create side
 	local function createSide(parent, side, color)
 		local container = Instance.new("Frame")
 		container.Name = side
-		container.Size = UDim2.new(0.45, 0, 1, 0)
-		container.Position = side == "Left" and UDim2.new(0, 0, 0, 0) or UDim2.new(0.55, 0, 0, 0)
+		container.Size = UDim2.new(0.35, 0, 1, 0) -- Reduced width to leave room for center button
+		container.Position = side == "Left" and UDim2.new(0, 0, 0, 0) or UDim2.new(0.65, 0, 0, 0)
 		container.BackgroundTransparency = 1
 		container.Parent = parent
 
-		-- Pokemon Image (Placeholder rect)
+		-- Pokemon Image
 		local img = Instance.new("ImageLabel")
 		img.Name = "PokeImage"
 		img.Size = UDim2.new(0.3, 0, 0.9, 0)
@@ -123,11 +119,25 @@ local function createVSFrame()
 		if side == "Right" then nameLbl.TextXAlignment = Enum.TextXAlignment.Right end
 		if side == "Left" then nameLbl.TextXAlignment = Enum.TextXAlignment.Left end
 
+		-- Attack Power Label
+		local atkLbl = Instance.new("TextLabel")
+		atkLbl.Name = "AttackLabel"
+		atkLbl.Text = "⚔️ 0"
+		atkLbl.Size = UDim2.new(0.6, 0, 0.2, 0)
+		atkLbl.Position = side == "Left" and UDim2.new(0.35, 0, 0.35, 0) or UDim2.new(0.05, 0, 0.35, 0)
+		atkLbl.Font = Enum.Font.GothamBold
+		atkLbl.TextSize = 14
+		atkLbl.TextColor3 = Color3.fromRGB(255, 200, 50) -- Gold/Orange
+		atkLbl.BackgroundTransparency = 1
+		atkLbl.Parent = container
+		if side == "Right" then atkLbl.TextXAlignment = Enum.TextXAlignment.Right end
+		if side == "Left" then atkLbl.TextXAlignment = Enum.TextXAlignment.Left end
+
 		-- HP Bar
 		local hpBg = Instance.new("Frame")
 		hpBg.Name = "HP_BG"
 		hpBg.Size = UDim2.new(0.6, 0, 0.2, 0)
-		hpBg.Position = side == "Left" and UDim2.new(0.35, 0, 0.5, 0) or UDim2.new(0.05, 0, 0.5, 0)
+		hpBg.Position = side == "Left" and UDim2.new(0.35, 0, 0.6, 0) or UDim2.new(0.05, 0, 0.6, 0)
 		hpBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 		hpBg.Parent = container
 		Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0, 4)
@@ -532,9 +542,11 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 		local mySide = vsFrame:FindFirstChild("Left")
 		if mySide and data.MyStats then
 			local nameLbl = mySide:FindFirstChild("NameLabel")
+			local atkLbl = mySide:FindFirstChild("AttackLabel")
 			local hpText = mySide:FindFirstChild("HP_BG"):FindFirstChild("HP_Text")
 			local img = mySide:FindFirstChild("PokeImage")
 			if nameLbl then nameLbl.Text = data.MyStats.Name end
+			if atkLbl then atkLbl.Text = "⚔️ " .. (data.MyStats.Attack or 0) end
 			if hpText then hpText.Text = data.MyStats.CurrentHP .. "/" .. data.MyStats.MaxHP end
 
 			if img then
@@ -547,9 +559,11 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 		local enemySide = vsFrame:FindFirstChild("Right")
 		if enemySide and data.EnemyStats then
 			local nameLbl = enemySide:FindFirstChild("NameLabel")
+			local atkLbl = enemySide:FindFirstChild("AttackLabel")
 			local hpText = enemySide:FindFirstChild("HP_BG"):FindFirstChild("HP_Text")
 			local img = enemySide:FindFirstChild("PokeImage")
 			if nameLbl then nameLbl.Text = data.EnemyStats.Name end
+			if atkLbl then atkLbl.Text = "⚔️ " .. (data.EnemyStats.Attack or 0) end
 			if hpText then hpText.Text = data.EnemyStats.CurrentHP .. "/" .. data.EnemyStats.MaxHP end
 
 			if img then
