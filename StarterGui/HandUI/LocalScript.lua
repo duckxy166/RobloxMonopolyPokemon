@@ -9,6 +9,7 @@ local CardDB -- Lazy load
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local playCardEvent = ReplicatedStorage:WaitForChild("PlayCardEvent")
+local discardCardEvent = ReplicatedStorage:WaitForChild("DiscardCardEvent")
 
 -- [[ 🎨 CARD TEXTURE CONFIGURATION ]] --
 -- Replace the IDs below with your uploaded asset IDs (rbxassetid://...)
@@ -21,7 +22,7 @@ local CARD_ASSETS = {
 	["Push Back"] = "rbxassetid://123456789",
 	["Sleep Powder"] = "rbxassetid://123456789",
 	["Safety Shield"] = "rbxassetid://123456789",
-	["Full Heal"] = "rbxassetid://123456789",
+	["Revive"] = "rbxassetid://123456789",
 }
 local DEFAULT_CARD_IMAGE = "rbxassetid://0" -- Placeholder if missing
 
@@ -135,6 +136,25 @@ local function renderHand()
 				local labelCorner = Instance.new("UICorner")
 				labelCorner.CornerRadius = UDim.new(0, 8)
 				labelCorner.Parent = nameLabel
+
+				-- Drop Button
+				local dropBtn = Instance.new("TextButton")
+				dropBtn.Name = "DropBtn"
+				dropBtn.Size = UDim2.new(0, 20, 0, 20)
+				dropBtn.Position = UDim2.new(1, -5, 0, 5)
+				dropBtn.AnchorPoint = Vector2.new(1, 0)
+				dropBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+				dropBtn.Text = "X"
+				dropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				dropBtn.Font = Enum.Font.GothamBold
+				dropBtn.TextSize = 12
+				dropBtn.ZIndex = 5
+				dropBtn.Parent = cardBtn
+				Instance.new("UICorner", dropBtn).CornerRadius = UDim.new(0, 4)
+
+				dropBtn.MouseButton1Click:Connect(function()
+					discardCardEvent:FireServer(cardVal.Name)
+				end)
 
 				-- Click Animation & Logic
 				cardBtn.MouseButton1Click:Connect(function()

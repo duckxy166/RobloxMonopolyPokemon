@@ -80,6 +80,9 @@ function EventManager.init()
 		-- Evolution Events
 		EvolutionRequest = EventManager.getOrCreate("EvolutionRequestEvent"),
 		EvolutionSelect = EventManager.getOrCreate("EvolutionSelectEvent"),
+		
+		-- Card Management
+		DiscardCard = EventManager.getOrCreate("DiscardCardEvent"),
 	}
 
 	print("✅ EventManager initialized with " .. #events .. " events")

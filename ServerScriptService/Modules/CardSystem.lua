@@ -207,12 +207,25 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 					if events.Notify then events.Notify:FireClient(player, "🃏 Drew " .. cardDef.Draw .. " cards!") end
 				end
 				
-				-- [C] Heal / Cleanse (Full Heal)
-				if cardDef.Cleanse then
-					local status = player:FindFirstChild("Status")
-					local sleep = status and status:FindFirstChild("SleepTurns")
-					if sleep then sleep.Value = 0 end
-					if events.Notify then events.Notify:FireClient(player, "✨ Status Cleared!") end
+				-- [C] Revive (Restore all fainted Pokemon)
+				if cardDef.Revive then
+					local inventory = player:FindFirstChild("PokemonInventory")
+					local revivedCount = 0
+					if inventory then
+						for _, poke in ipairs(inventory:GetChildren()) do
+							local status = poke:GetAttribute("Status")
+							if status == "Dead" or status == "Fainted" then
+								poke:SetAttribute("Status", "Alive")
+								poke:SetAttribute("CurrentHP", poke:GetAttribute("MaxHP"))
+								revivedCount = revivedCount + 1
+							end
+						end
+					end
+					if revivedCount > 0 then
+						if events.Notify then events.Notify:FireClient(player, "💖 Revived " .. revivedCount .. " Pokemon!") end
+					else
+						if events.Notify then events.Notify:FireClient(player, "No fainted Pokemon to revive.") end
+					end
 				end
 			end
 			
@@ -271,7 +284,7 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
                 
                 if blocked then return end
 
-				-- 1. TWISTED SPOON (Teleport to Target) - Unblockable
+				-- 1. TWISTED SPOON (Teleport to Target + PvP Trigger) - Unblockable
 				if cardName == "Twisted Spoon" then
 					local targetPos = playerManager.playerPositions[targetPlayer.UserId]
 					playerManager.playerPositions[player.UserId] = targetPos
@@ -283,6 +296,11 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 					if events.Notify then
 						events.Notify:FireClient(player, "🔮 Warped to " .. targetPlayer.Name .. "!")
 						events.Notify:FireClient(targetPlayer, "🔮 " .. player.Name .. " warped to you!")
+					end
+					
+					-- Trigger PvP Battle Challenge
+					if events.BattleTrigger then
+						events.BattleTrigger:FireClient(player, "PvP", { Opponents = {targetPlayer} })
 					end
 				end
 				
@@ -299,10 +317,10 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 					end
 				end
 				
-				-- 3. ROBBERY (Steal 50% Coins)
+				-- 3. ROBBERY (Steal 5 Coins)
 				if cardName == "Robbery" then
 					local targetMoney = targetPlayer.leaderstats.Money
-					local stealAmount = math.floor(targetMoney.Value * 0.5)
+					local stealAmount = math.min(5, targetMoney.Value)
 					
 					if stealAmount > 0 then
 						targetMoney.Value -= stealAmount
@@ -342,6 +360,18 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 			end
 			
 			-- 5. Special logic if card affects movement or stats could go here
+		end)
+	end
+
+	-- Discard Card Event Handler
+	if events.DiscardCard then
+		events.DiscardCard.OnServerEvent:Connect(function(player, cardName)
+			if CardSystem.removeCardFromHand(player, cardName, 1) then
+				CardSystem.discardCard(cardName)
+				if events.Notify then
+					events.Notify:FireClient(player, "🗑️ Discarded: " .. cardName)
+				end
+			end
 		end)
 	end
 end

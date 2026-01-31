@@ -175,6 +175,22 @@ function TurnManager.enterRollPhase(player)
 	TurnManager.isTurnActive = true  -- IMPORTANT: Allow player to roll
 	print("Phase: Enter Roll Phase for:", player.Name)
 
+	-- Check if on same tile as another player (e.g., pushed back here)
+	local currentPos = PlayerManager.playerPositions[player.UserId] or 0
+	local opponents = {}
+	for _, otherPlayer in ipairs(PlayerManager.playersInGame) do
+		if otherPlayer ~= player and PlayerManager.playerPositions[otherPlayer.UserId] == currentPos then
+			table.insert(opponents, otherPlayer)
+		end
+	end
+
+	if #opponents > 0 and Events.BattleTrigger then
+		print("⚔️ PvP Opportunity at turn start for " .. player.Name)
+		Events.BattleTrigger:FireClient(player, "PvP", { Opponents = opponents })
+		-- The BattleTriggerResponse handler will call resumeTurn or start battle
+		return
+	end
+
 	Events.UpdateTurn:FireAllClients(player.Name)
 
 	TimerSystem.startPhaseTimer(TimerSystem.ROLL_TIMEOUT, "Roll", function()

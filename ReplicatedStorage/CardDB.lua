@@ -77,6 +77,11 @@ CardDB.Cards = {
 		Shield = true,
 	},
 
+	["Revive"] = {
+		Name = "Revive",
+		Description = "Revive all fainted Pokemon",
+		Revive = true,
+	},
 }
 
 -- Deck Builder
@@ -92,7 +97,7 @@ function CardDB:BuildDeck()
 		["Sleep Powder"] = 2,
 		["Twisted Spoon"] = 3,
 		["Safety Goggles"] = 5,
-		["Full Heal"] = 4,
+		["Revive"] = 4,
 	}
 
 	for cardId, count in pairs(cardCounts) do
