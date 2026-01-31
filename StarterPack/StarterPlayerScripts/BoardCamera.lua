@@ -172,16 +172,9 @@ if EncounterEvent then
 	EncounterEvent.OnClientEvent:Connect(function(targetPlayer, data)
 		print("📷 [Camera] EncounterEvent received! targetPlayer:", targetPlayer, "localPlayer:", player)
 		
-		-- Compare by UserId for safety (works across server/client boundary)
-		local targetUserId = (typeof(targetPlayer) == "Instance" and targetPlayer:IsA("Player")) and targetPlayer.UserId or nil
-		local isMe = (targetPlayer == player) or (targetUserId and targetUserId == player.UserId)
-		
-		if isMe then
-			print("📷 [Camera] ✓ Switching to Encounter Mode")
-			currentMode = "Encounter"
-		else
-			print("📷 [Camera] ✗ Not my encounter, ignoring")
-		end
+		-- Switch to Encounter camera for ALL players (spectators too)
+		print("📷 [Camera] ✓ Switching to Encounter Mode")
+		currentMode = "Encounter"
 	end)
 else
 	warn("📷 [Camera] EncounterEvent NOT FOUND!")
