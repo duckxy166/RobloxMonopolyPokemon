@@ -38,27 +38,8 @@ screenGui.Name = "BattleGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
-local rollBtn = Instance.new("TextButton")
-rollBtn.Name = "RollButton"
-rollBtn.Size = UDim2.new(0.3, 0, 0.1, 0)
-rollBtn.Position = UDim2.new(0.35, 0, 0.65, 0) -- Moved UP (above VS Bar)
-rollBtn.Text = "🎲 ROLL ATTACK"
-rollBtn.Font = Enum.Font.FredokaOne
-rollBtn.TextSize = 24
-rollBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
-rollBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-rollBtn.Visible = false
-rollBtn.ZIndex = 10 -- Ensure it's on top
-rollBtn.Parent = screenGui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
-corner.Parent = rollBtn
-
-local stroke = Instance.new("UIStroke")
-stroke.Thickness = 3
-stroke.Color = Color3.fromRGB(255, 100, 50)
-stroke.Parent = rollBtn
+-- rollBtn will be created inside createVSFrame()
+local rollBtn = nil
 
 -- State
 local isBattleActive = false
@@ -80,12 +61,39 @@ local function createVSFrame()
 
 	Instance.new("UICorner", vsFrame).CornerRadius = UDim.new(0, 10)
 
-	-- Reparent/Position Roll Button into CENTER of VS Frame (Replacing "VS")
-	rollBtn.Parent = vsFrame
+	-- Create Roll Button INSIDE vsFrame (recreated each time)
+	rollBtn = Instance.new("TextButton")
+	rollBtn.Name = "RollButton"
 	rollBtn.Size = UDim2.new(0.25, 0, 0.8, 0)
 	rollBtn.Position = UDim2.new(0.5, 0, 0.5, 0)
 	rollBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+	rollBtn.Text = "🎲 ROLL ATTACK"
+	rollBtn.Font = Enum.Font.FredokaOne
+	rollBtn.TextSize = 24
+	rollBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
+	rollBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	rollBtn.Visible = false -- Hidden until turn
+	rollBtn.ZIndex = 10 -- Ensure it's on top
+	rollBtn.Parent = vsFrame
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = rollBtn
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 3
+	stroke.Color = Color3.fromRGB(255, 100, 50)
+	stroke.Parent = rollBtn
+	
+	-- Connect rollBtn click handler
+	rollBtn.MouseButton1Click:Connect(function()
+		if not isBattleActive or isRolling then return end
+		isRolling = true
+		rollBtn.Visible = false -- Hide button while rolling
+		
+		-- Fire server to roll
+		Events.BattleAttack:FireServer()
+	end)
 
 	-- Helper to create side
 	local function createSide(parent, side, color)
@@ -348,25 +356,7 @@ UserInputService.InputBegan:Connect(function(input, gamProcessed)
 	end
 end)
 
--- Button Handler	
-rollBtn.MouseButton1Click:Connect(function()
-	if not isBattleActive or isRolling then return end
-	isRolling = true
-	rollBtn.Visible = false -- Hide button while rolling (like HUD)
-
-	sendMsg("Rolling dice... 🎲", Color3.fromRGB(255, 255, 100))
-
-	-- Start 3D Spin
-	cleanupDice() -- Clear old
-
-	local myOffset = -1
-	if currentBattleData and currentBattleData.Type == "PvP" and player == currentBattleData.Defender then
-		myOffset = 1
-	end
-
-	activeDice.Player = spawn3NDice(myOffset) -- ✅ start spinning immediately
-	Events.BattleAttack:FireServer()
-end)
+-- Button Handler is now inside createVSFrame() function
 
 -- Battle Update (Damage)
 Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)

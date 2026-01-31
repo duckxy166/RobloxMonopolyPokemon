@@ -89,6 +89,9 @@ function EventManager.init()
 		
 		-- Card Usage Notification (for UI display to all players)
 		CardNotification = EventManager.getOrCreate("CardNotificationEvent"),
+		
+		-- Game End (for final results UI)
+		GameEnd = EventManager.getOrCreate("GameEndEvent"),
 	}
 
 	print("✅ EventManager initialized with " .. #events .. " events")

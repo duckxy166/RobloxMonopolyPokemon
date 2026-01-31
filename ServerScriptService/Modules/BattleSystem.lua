@@ -216,12 +216,12 @@ function BattleSystem.spawnPokemonModel(modelName, stageObj, pokemonName, rarity
 	local _, modelSize = clone:GetBoundingBox()
 	local modelHalfHeight = modelSize.Y / 2
 	
-	-- Rotation: 180 degrees for -Z, 0 degrees for +Z
-	local yRotation = faceNegativeZ and math.rad(180) or 0
+	-- Rotation: 0 degrees for -Z face (faceNegativeZ=true), 180 degrees for +Z face (faceNegativeZ=false)
+	local yRotation = faceNegativeZ and 0 or math.rad(180)
 	local spawnCF = CFrame.new(anchorPos.X, anchorTopY + modelHalfHeight, anchorPos.Z) * CFrame.Angles(0, yRotation, 0)
 	
 	clone:PivotTo(spawnCF)
-	print(("✅ Spawned '%s' on %s (facing %s)"):format(modelName, key, faceNegativeZ and "-Z" or "+Z"))
+	print(("✅ Spawned '%s' on %s (facing %s)"):format(modelName, key, faceNegativeZ and "+Z" or "-Z"))
 
 	-- Add Name Label with Rarity Color
 	if pokemonName and rarity then
@@ -303,7 +303,7 @@ function BattleSystem.startPvE(player, chosenPoke, desiredRarity)
 		if anchor and player.Character then
 			local anchorPos = anchor.CFrame.Position
 			local anchorTopY = anchorPos.Y + (anchor.Size.Y / 2) + 3
-			player.Character:PivotTo(CFrame.new(anchorPos.X, anchorTopY, anchorPos.Z) * CFrame.Angles(0, math.rad(180), 0))
+			player.Character:PivotTo(CFrame.new(anchorPos.X, anchorTopY, anchorPos.Z)) -- Face +Z (no rotation)
 		else
 			warn("⚠️ PlayerStage1 missing/bad. Aborting battle.")
 			return
@@ -389,7 +389,7 @@ function BattleSystem.startPvP(player1, player2)
 		if anchor and plr.Character then
 			local anchorPos = anchor.CFrame.Position
 			local anchorTopY = anchorPos.Y + (anchor.Size.Y / 2) + 3
-			local yRotation = faceNegativeZ and math.rad(180) or 0
+			local yRotation = faceNegativeZ and 0 or math.rad(180)  -- Inverted
 			plr.Character:PivotTo(CFrame.new(anchorPos.X, anchorTopY, anchorPos.Z) * CFrame.Angles(0, yRotation, 0))
 			return true
 		end

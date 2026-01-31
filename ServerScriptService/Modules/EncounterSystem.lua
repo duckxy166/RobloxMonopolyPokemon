@@ -148,8 +148,8 @@ function EncounterSystem.spawnPokemonEncounter(player, tileColorName)
 			end
 	
 			local stageTopY = centerPos.Y + (centerSizeY / 2)
-			-- Create CFrame at stage top, facing -Z direction
-			local spawnCF = CFrame.new(centerPos.X, stageTopY, centerPos.Z) * CFrame.Angles(0, math.rad(180), 0)
+			-- Create CFrame at stage top, facing +Z direction (no rotation)
+			local spawnCF = CFrame.new(centerPos.X, stageTopY, centerPos.Z)
 	
 			clonedModel:PivotTo(spawnCF)
 			clonedModel.Parent = Workspace
@@ -158,7 +158,7 @@ function EncounterSystem.spawnPokemonEncounter(player, tileColorName)
 			-- Adjust height based on model's bounding box to prevent floating
 			local _, modelSize = clonedModel:GetBoundingBox()
 			local modelHalfHeight = modelSize.Y / 2
-			clonedModel:PivotTo(CFrame.new(centerPos.X, stageTopY + modelHalfHeight, centerPos.Z) * CFrame.Angles(0, math.rad(180), 0))
+			clonedModel:PivotTo(CFrame.new(centerPos.X, stageTopY + modelHalfHeight, centerPos.Z))
 	
 			local mainPart = clonedModel.PrimaryPart or clonedModel:FindFirstChild("HumanoidRootPart") or clonedModel:FindFirstChildWhichIsA("BasePart", true)
 	

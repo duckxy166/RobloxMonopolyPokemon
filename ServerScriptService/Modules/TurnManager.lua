@@ -50,31 +50,53 @@ end
 function TurnManager.endGame()
 	print("🏆 GAME OVER! All players finished.")
 
-	-- Determine Winner (Richest Player)
-	local winner = nil
-	local maxMoney = -1
-
+	-- Collect all player stats
+	local results = {}
 	for _, p in ipairs(PlayerManager.playersInGame) do
 		local moneyVal = 0
+		local pokemonCount = 0
+		local laps = PlayerManager.playerLaps[p.UserId] or 1
+		
 		if p:FindFirstChild("leaderstats") then
 			moneyVal = p.leaderstats.Money.Value
 		end
-
-		print(p.Name .. " finished with $" .. moneyVal)
-
-		if moneyVal > maxMoney then
-			maxMoney = moneyVal
-			winner = p
+		
+		local inventory = p:FindFirstChild("PokemonInventory")
+		if inventory then
+			pokemonCount = #inventory:GetChildren()
 		end
+
+		table.insert(results, {
+			Name = p.Name,
+			UserId = p.UserId,
+			Money = moneyVal,
+			PokemonCount = pokemonCount,
+			Laps = laps
+		})
+		
+		print(p.Name .. " finished with $" .. moneyVal .. ", " .. pokemonCount .. " Pokemon")
 	end
 
-	local msg = "🏆 GAME OVER! Winner: " .. (winner and winner.Name or "None")
-	if Events.BattleEnd then
-		Events.BattleEnd:FireAllClients(msg) -- Reuse existing announcer
+	-- Sort by money (highest first)
+	table.sort(results, function(a, b)
+		return a.Money > b.Money
+	end)
+
+	-- Add rank
+	for i, r in ipairs(results) do
+		r.Rank = i
+	end
+
+	local winner = results[1]
+	local msg = "🏆 GAME OVER! Winner: " .. (winner and winner.Name or "None") .. " with $" .. (winner and winner.Money or 0)
+	
+	-- Fire GameEnd event with full results
+	if Events.GameEnd then
+		Events.GameEnd:FireAllClients(results)
 	end
 
 	if Events.Notify and winner then
-		Events.Notify:FireAllClients("🏆 " .. winner.Name .. " WINS THE GAME with $" .. maxMoney .. "!")
+		Events.Notify:FireAllClients("🏆 " .. winner.Name .. " WINS THE GAME with $" .. winner.Money .. "!")
 	end
 end
 
