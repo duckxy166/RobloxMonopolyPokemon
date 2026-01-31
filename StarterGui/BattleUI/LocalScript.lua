@@ -91,6 +91,18 @@ local function createVSFrame()
 		isRolling = true
 		rollBtn.Visible = false -- Hide button while rolling
 		
+		-- Cleanup previous dice before spawning new ones (for round 2+)
+		cleanupDice()
+		
+		-- Spawn player dice spinning immediately
+		local myDiceOffset = -1 -- Default left
+		if currentBattleData and currentBattleData.Type == "PvP" then
+			if player == currentBattleData.Defender then
+				myDiceOffset = 1 -- I am P2, dice on right
+			end
+		end
+		activeDice.Player = spawn3NDice(myDiceOffset)
+		
 		-- Fire server to roll
 		Events.BattleAttack:FireServer()
 	end)
@@ -402,13 +414,16 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 
 	-- Step B: Rolling sequence (Visuals)
 
-	-- Stop My Dice (it was already spinning from button click)
+	-- Stop My Dice (it was already spinning from button click or spacebar)
 	if activeDice.Player then
 		activeDice.Player.Stop(myRoll or 1)
 	else
+		-- Cleanup any leftover dice first
+		cleanupDice()
 		-- If triggered by spacebar or lag, spawn it now
 		activeDice.Player = spawn3NDice(myDiceOffset)
-		activeDice.Player.Stop(myRoll or 1)
+		task.wait(0.5) -- Short spin time
+		if activeDice.Player then activeDice.Player.Stop(myRoll or 1) end
 	end
 
 	task.wait(1.0)

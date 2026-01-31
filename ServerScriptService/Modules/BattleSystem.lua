@@ -208,17 +208,25 @@ function BattleSystem.spawnPokemonModel(modelName, stageObj, pokemonName, rarity
 		end
 	end
 
+
 	-- Calculate spawn position and rotation
 	local anchorPos = anchor.CFrame.Position
 	local anchorTopY = anchorPos.Y + (anchor.Size.Y / 2)
 	
-	-- Get model bounding box for height adjustment
-	local _, modelSize = clone:GetBoundingBox()
-	local modelHalfHeight = modelSize.Y / 2
+	-- Get model bounding box to find the actual bottom
+	local modelCF, modelSize = clone:GetBoundingBox()
+	local currentPivot = clone:GetPivot()
+	
+	-- Calculate the distance from the current pivot to the bottom of the model
+	local modelCenterY = modelCF.Position.Y
+	local modelBottomY = modelCenterY - (modelSize.Y / 2)
+	local pivotToBottomOffset = currentPivot.Position.Y - modelBottomY
 	
 	-- Rotation: 0 degrees for -Z face (faceNegativeZ=true), 180 degrees for +Z face (faceNegativeZ=false)
 	local yRotation = faceNegativeZ and 0 or math.rad(180)
-	local spawnCF = CFrame.new(anchorPos.X, anchorTopY + modelHalfHeight, anchorPos.Z) * CFrame.Angles(0, yRotation, 0)
+	
+	-- Position model so its bottom sits exactly on top of the stage
+	local spawnCF = CFrame.new(anchorPos.X, anchorTopY + pivotToBottomOffset, anchorPos.Z) * CFrame.Angles(0, yRotation, 0)
 	
 	clone:PivotTo(spawnCF)
 	print(("✅ Spawned '%s' on %s (facing %s)"):format(modelName, key, faceNegativeZ and "+Z" or "-Z"))
