@@ -73,7 +73,7 @@ CardDB.Cards = {
 	-- === DEFENSE CARDS ===
 	["Safety Goggles"] = {
 		Name = "Safety Goggles",
-		Description = "Block negative card",
+		Description = "PASSIVE: Auto-blocks one negative card (Robbery, Sleep Powder, Push Back)",
 		Shield = true,
 	},
 

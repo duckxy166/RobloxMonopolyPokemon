@@ -86,6 +86,9 @@ function EventManager.init()
 		
 		-- Game State
 		GameStarted = EventManager.getOrCreate("GameStartedEvent"),
+		
+		-- Card Usage Notification (for UI display to all players)
+		CardNotification = EventManager.getOrCreate("CardNotificationEvent"),
 	}
 
 	print("✅ EventManager initialized with " .. #events .. " events")

@@ -194,15 +194,21 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 				return
 			end
 			
-			-- Turn validation: Block cards during other players' turns (except Safety Goggles)
+			-- Turn validation: Block cards during other players' turns
 			local currentPlayer = playerManager.playersInGame[turnManager.currentTurnIndex]
 			if currentPlayer and player ~= currentPlayer then
-				if cardName ~= "Safety Goggles" then
-					if events.Notify then 
-						events.Notify:FireClient(player, "❌ Cannot use cards during another player's turn!") 
-					end
-					return
+				if events.Notify then 
+					events.Notify:FireClient(player, "❌ Cannot use cards during another player's turn!") 
 				end
+				return
+			end
+			
+			-- Safety Goggles is passive only (auto-activates when attacked)
+			if cardName == "Safety Goggles" then
+				if events.Notify then
+					events.Notify:FireClient(player, "🛡️ Safety Goggles activates automatically when you're attacked!")
+				end
+				return
 			end
 			
 			-- Consume the card from hand first
@@ -317,6 +323,16 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
                                 events.Notify:FireClient(player, "🛡️ Attack BLOCKED by Safety Goggles!")
                                 events.Notify:FireClient(targetPlayer, "🛡️ You blocked the attack!")
                             end
+                            -- UI Notification to all players
+                            if events.CardNotification then
+                                events.CardNotification:FireAllClients({
+                                    CardName = "Safety Goggles",
+                                    UserName = targetPlayer.Name,
+                                    TargetName = player.Name,
+                                    CardType = "Defense",
+                                    Message = "Blocked " .. cardName .. " from " .. player.Name .. "!"
+                                })
+                            end
                         end
                     end
                 end
@@ -335,8 +351,16 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 					if events.Notify then
 						events.Notify:FireClient(player, "🔮 Warped to " .. targetPlayer.Name .. "!")
 						events.Notify:FireClient(targetPlayer, "🔮 " .. player.Name .. " warped to you!")
-						-- Broadcast to all
-						events.Notify:FireAllClients("🔮 " .. player.Name .. " used Twisted Spoon on " .. targetPlayer.Name .. "!")
+					end
+					-- UI Notification to all players
+					if events.CardNotification then
+						events.CardNotification:FireAllClients({
+							CardName = "Twisted Spoon",
+							UserName = player.Name,
+							TargetName = targetPlayer.Name,
+							CardType = "Warp",
+							Message = "Teleported to " .. targetPlayer.Name .. "!"
+						})
 					end
 					
 					-- Trigger tile event at new position (skips dice roll)
@@ -363,8 +387,16 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 						if events.Notify then 
 							events.Notify:FireClient(player, "💤 Put " .. targetPlayer.Name .. " to sleep!")
 							events.Notify:FireClient(targetPlayer, "💤 You fell asleep! Skip next turn.")
-							-- Broadcast to all
-							events.Notify:FireAllClients("💤 " .. player.Name .. " used Sleep Powder on " .. targetPlayer.Name .. "!")
+						end
+						-- UI Notification to all players
+						if events.CardNotification then
+							events.CardNotification:FireAllClients({
+								CardName = "Sleep Powder",
+								UserName = player.Name,
+								TargetName = targetPlayer.Name,
+								CardType = "Attack",
+								Message = targetPlayer.Name .. " will skip next turn!"
+							})
 						end
 					end
 				end
@@ -381,8 +413,16 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 						if events.Notify then
 							events.Notify:FireClient(player, "💰 Stole " .. stealAmount .. " from " .. targetPlayer.Name .. "!")
 							events.Notify:FireClient(targetPlayer, "💸 " .. player.Name .. " stole " .. stealAmount .. " coins from you!")
-							-- Broadcast to all
-							events.Notify:FireAllClients("💰 " .. player.Name .. " robbed " .. stealAmount .. " coins from " .. targetPlayer.Name .. "!")
+						end
+						-- UI Notification to all players
+						if events.CardNotification then
+							events.CardNotification:FireAllClients({
+								CardName = "Robbery",
+								UserName = player.Name,
+								TargetName = targetPlayer.Name,
+								CardType = "Attack",
+								Message = "Stole $" .. stealAmount .. "!"
+							})
 						end
 					else
 						if events.Notify then events.Notify:FireClient(player, "Target has no money!") end
@@ -403,6 +443,16 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 						events.Notify:FireClient(targetPlayer, "💨 You were pushed back 3 spaces!")
 						-- Broadcast to all
 						events.Notify:FireAllClients("💨 " .. player.Name .. " pushed " .. targetPlayer.Name .. " back 3 spaces!")
+					end
+					-- UI Notification to all players
+					if events.CardNotification then
+						events.CardNotification:FireAllClients({
+							CardName = "Push Back",
+							UserName = player.Name,
+							TargetName = targetPlayer.Name,
+							CardType = "Attack",
+							Message = targetPlayer.Name .. " pushed back 3 tiles!"
+						})
 					end
 				end
 			end

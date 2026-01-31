@@ -82,6 +82,15 @@ CardSystem.connectEvents(Events, TurnManager, PlayerManager)
 
 -- STEP 5: Handle Item Usage
 Events.UseItem.OnServerEvent:Connect(function(player, itemName)
+	-- Turn validation: Block items during other players' turns
+	local currentPlayer = PlayerManager.playersInGame[TurnManager.currentTurnIndex]
+	if currentPlayer and player ~= currentPlayer then
+		if Events.Notify then
+			Events.Notify:FireClient(player, "❌ Cannot use items during another player's turn!")
+		end
+		return
+	end
+	
 	local itemsFolder = player:FindFirstChild("Items")
 	local item = itemsFolder and itemsFolder:FindFirstChild(itemName)
 
