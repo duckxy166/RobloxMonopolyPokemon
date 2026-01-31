@@ -209,7 +209,8 @@ function EncounterSystem.spawnPokemonEncounter(player, tileColorName)
 		Attack = pokeData.Attack,
 		Icon = pokeData.Icon,
 		Image = pokeData.Image,
-		CatchDifficulty = PokemonDB.GetCatchDifficulty(pokeName) or 3 -- Safety fallback
+		CatchDifficulty = PokemonDB.GetCatchDifficulty(pokeName) or 3, -- Safety fallback
+		ActivePlayer = player -- Add active player for spectator detection
 	}
 	activeEncounterData = encounterData -- Update server state
 	Events.Encounter:FireAllClients(player, encounterData)

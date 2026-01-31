@@ -309,10 +309,26 @@ function BattleSystem.startPvE(player, chosenPoke, desiredRarity)
 	-- 4. Notify Player
 	if Events.Notify then
 		Events.Notify:FireClient(player, "Go! " .. myPoke.Name .. "!")
+		-- Broadcast to all players
+		Events.Notify:FireAllClients("⚔️ " .. player.Name .. " entered a PvE battle!")
 	end
 
-	-- 5. Send Client Event
+	-- 5. Send Client Event to Active Player
 	Events.BattleStart:FireClient(player, "PvE", BattleSystem.activeBattles[player.UserId])
+	
+	-- 6. Send to Spectators (all other players)
+	for _, spectator in ipairs(game.Players:GetPlayers()) do
+		if spectator ~= player then
+			local spectatorData = {
+				Type = "PvE",
+				Player = player,
+				MyStats = BattleSystem.activeBattles[player.UserId].MyStats,
+				EnemyStats = BattleSystem.activeBattles[player.UserId].EnemyStats,
+				IsSpectator = true
+			}
+			Events.BattleStart:FireClient(spectator, "PvE", spectatorData)
+		end
+	end
 end
 
 -- Start PvP (Player vs Player)
@@ -398,6 +414,26 @@ function BattleSystem.startPvP(player1, player2)
 
 	Events.BattleStart:FireClient(player1, "PvP", attackerBasicData)
 	Events.BattleStart:FireClient(player2, "PvP", defenderBasicData)
+	
+	-- Broadcast to all players
+	if Events.Notify then
+		Events.Notify:FireAllClients("⚔️ " .. player1.Name .. " vs " .. player2.Name .. " - PvP Battle!")
+	end
+	
+	-- Send to Spectators (all other players)
+	for _, spectator in ipairs(game.Players:GetPlayers()) do
+		if spectator ~= player1 and spectator ~= player2 then
+			local spectatorData = {
+				Type = "PvP",
+				Attacker = player1,
+				Defender = player2,
+				AttackerStats = battleData.AttackerStats,
+				DefenderStats = battleData.DefenderStats,
+				IsSpectator = true
+			}
+			Events.BattleStart:FireClient(spectator, "PvP", spectatorData)
+		end
+	end
 end
 
 -- ============================================================================

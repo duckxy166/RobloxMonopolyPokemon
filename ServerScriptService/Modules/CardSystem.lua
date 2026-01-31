@@ -214,7 +214,10 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 								poke:SetAttribute("Status", "Alive")
 								poke:SetAttribute("CurrentHP", poke:GetAttribute("MaxHP"))
 								found = true
-								if events.Notify then events.Notify:FireClient(player, "💖 Revived " .. pokeName .. "!") end
+								if events.Notify then 
+							events.Notify:FireClient(player, "💖 Revived " .. pokeName .. "!")
+							events.Notify:FireAllClients("💖 " .. player.Name .. " revived " .. pokeName .. "!")
+						end
 								break -- Only revive one
 							end
 						end
@@ -232,7 +235,10 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 			if cardDef.MoneyGain then
 				local amount = cardDef.MoneyGain
 				player.leaderstats.Money.Value += amount
-				if events.Notify then events.Notify:FireClient(player, "💰 +" .. amount .. " coins!") end
+				if events.Notify then 
+					events.Notify:FireClient(player, "💰 +" .. amount .. " coins!")
+					events.Notify:FireAllClients("💰 " .. player.Name .. " used " .. cardName .. " and gained " .. amount .. " coins!")
+				end
 			end
 			
 			-- [B] Draw Cards (Lucky Draw, etc.)
@@ -241,15 +247,23 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 				for i = 1, drawCount do
 					CardSystem.drawOneCard(player)
 				end
+				if events.Notify then
+					events.Notify:FireAllClients("🃏 " .. player.Name .. " used " .. cardName .. " and drew " .. drawCount .. " cards!")
+				end
 			end
 			
 			-- [C] Special Cards
 			if cardName == "Rare Candy" then
 				local EvolutionSystem = require(script.Parent:WaitForChild("EvolutionSystem"))
 				local success = EvolutionSystem.tryEvolve(player)
-				if not success then
-					player.leaderstats.Money.Value += 3
-					if events.Notify then events.Notify:FireClient(player, "🍬 No evolution possible. +3 Coins instead.") end
+				if events.Notify then
+					if success then
+						events.Notify:FireAllClients("🍬 " .. player.Name .. " used Rare Candy and evolved a Pokemon!")
+					else
+						player.leaderstats.Money.Value += 3
+						events.Notify:FireClient(player, "🍬 No evolution possible. +3 Coins instead.")
+						events.Notify:FireAllClients("🍬 " .. player.Name .. " used Rare Candy (+3 coins)")
+					end
 				end
 			end
 			

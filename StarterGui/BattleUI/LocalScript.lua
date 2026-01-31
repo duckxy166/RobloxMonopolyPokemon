@@ -573,8 +573,32 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 		end
 	end
 
-	rollBtn.Visible = true
-	sendMsg("Battle Start! Roll needed: " .. (data.Target or "?"), Color3.fromRGB(255, 255, 100))
+	-- Check if spectator mode
+	local isSpectator = data.IsSpectator or false
+	
+	if isSpectator then
+		-- Add spectator label
+		local spectatorLabel = Instance.new("TextLabel")
+		spectatorLabel.Name = "SpectatorLabel"
+		spectatorLabel.Text = "👁️ Spectating Battle"
+		spectatorLabel.Size = UDim2.new(0, 300, 0, 40)
+		spectatorLabel.Position = UDim2.new(0.5, -150, 0, 10)
+		spectatorLabel.AnchorPoint = Vector2.new(0.5, 0)
+		spectatorLabel.BackgroundTransparency = 0.3
+		spectatorLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+		spectatorLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+		spectatorLabel.Font = Enum.Font.GothamBold
+		spectatorLabel.TextScaled = true
+		spectatorLabel.Parent = screenGui
+		
+		-- Hide roll button for spectators
+		rollBtn.Visible = false
+		sendMsg("Spectating battle...", Color3.fromRGB(200, 200, 200))
+	else
+		-- Active player
+		rollBtn.Visible = true
+		sendMsg("Battle Start! Roll needed: " .. (data.Target or "?"), Color3.fromRGB(255, 255, 100))
+	end
 end)
 
 -- Battle Trigger (Selection UI)

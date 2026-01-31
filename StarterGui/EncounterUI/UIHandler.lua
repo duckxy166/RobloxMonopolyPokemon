@@ -221,8 +221,14 @@ local RARITY_COLORS = {
 	["Legend"] = Color3.fromRGB(255, 215, 0)
 }
 
+
 EncounterEvent.OnClientEvent:Connect(function(otherPlayer, data)
-	if otherPlayer ~= player then return end
+	-- Check if spectator mode
+	local isSpectator = (data.ActivePlayer and data.ActivePlayer ~= player)
+	
+	-- Only show UI if it's our encounter OR we're spectating
+	if not isSpectator and otherPlayer ~= player then return end
+	
 	isThrowing = false -- Reset state on new encounter
 
 	if data then
@@ -244,8 +250,37 @@ EncounterEvent.OnClientEvent:Connect(function(otherPlayer, data)
 	end
 
 	screenGui.Enabled = true
-	catchBtn.Visible = true
-	runBtn.Visible = true
+	
+	if isSpectator then
+		-- Spectator mode: hide buttons, show spectator label
+		catchBtn.Visible = false
+		runBtn.Visible = false
+		
+		-- Add spectator label if not exists
+		local spectatorLabel = screenGui:FindFirstChild("SpectatorLabel")
+		if not spectatorLabel then
+			spectatorLabel = Instance.new("TextLabel")
+			spectatorLabel.Name = "SpectatorLabel"
+			spectatorLabel.Text = "👁️ Spectating " .. (data.ActivePlayer and data.ActivePlayer.Name or "Encounter")
+			spectatorLabel.Size = UDim2.new(0, 300, 0, 40)
+			spectatorLabel.Position = UDim2.new(0.5, -150, 0, 10)
+			spectatorLabel.AnchorPoint = Vector2.new(0.5, 0)
+			spectatorLabel.BackgroundTransparency = 0.3
+			spectatorLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+			spectatorLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+			spectatorLabel.Font = Enum.Font.GothamBold
+			spectatorLabel.TextScaled = true
+			spectatorLabel.Parent = screenGui
+		end
+	else
+		-- Active player mode
+		catchBtn.Visible = true
+		runBtn.Visible = true
+		
+		-- Remove spectator label if exists
+		local spectatorLabel = screenGui:FindFirstChild("SpectatorLabel")
+		if spectatorLabel then spectatorLabel:Destroy() end
+	end
 
 	-- Reset button visual
 	catchBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
@@ -257,6 +292,7 @@ EncounterEvent.OnClientEvent:Connect(function(otherPlayer, data)
 		Position = UDim2.new(0.5, 0, 1, -20)
 	}):Play()
 end)
+
 
 CatchEvent.OnClientEvent:Connect(function(catcher, success, roll, target, isFinished)
 	local diceTemplate = ReplicatedStorage:FindFirstChild("DiceModel")
