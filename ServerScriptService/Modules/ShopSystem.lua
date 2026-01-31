@@ -63,6 +63,11 @@ function ShopSystem.handleShopAction(player, action)
 				money.Value -= ShopSystem.BALL_PRICE
 				balls.Value += 1
 
+				-- 🔊 tell ONLY this player to play purchase sound
+				if Events.Shop then
+					Events.Shop:FireClient(player, "Purchased")
+				end
+
 				if Events.Notify then
 					Events.Notify:FireClient(player, ("Bought Pokeball +1 (Money left: %d)"):format(money.Value))
 				end

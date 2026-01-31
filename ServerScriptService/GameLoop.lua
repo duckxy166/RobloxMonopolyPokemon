@@ -27,8 +27,6 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 -- MODULE REFERENCES
 local Modules = ServerScriptService:WaitForChild("Modules")
--- MODULE REFERENCES
-local Modules = ServerScriptService:WaitForChild("Modules")
 local EventManager = require(Modules:WaitForChild("EventManager"))
 
 -- STEP 1: Initialize Events (CRITICAL: Do this first so Clients don't timeout)
@@ -53,13 +51,21 @@ print("=====================================")
 
 -- STEP 2: Initialize Systems
 TimerSystem.init(Events)
+print("✅ TimerSystem Initialized")
 CardSystem.init(Events)
+print("✅ CardSystem Initialized")
 TurnManager.init(Events, TimerSystem, CardSystem, PlayerManager)
+print("✅ TurnManager Initialized")
 ShopSystem.init(Events, TimerSystem, TurnManager, PlayerManager)
+print("✅ ShopSystem Initialized")
 EncounterSystem.init(Events, TimerSystem, TurnManager, PlayerManager)
+print("✅ EncounterSystem Initialized")
 BattleSystem.init(Events, TimerSystem, TurnManager, PlayerManager)
+print("✅ BattleSystem Initialized")
 SellSystem.init(Events, TimerSystem, TurnManager, PlayerManager)
+print("✅ SellSystem Initialized")
 EvolutionSystem.init(Events)
+print("✅ EvolutionSystem Initialized")
 
 -- STEP 3: Fix circular dependencies
 TurnManager.setSystems(EncounterSystem, BattleSystem)

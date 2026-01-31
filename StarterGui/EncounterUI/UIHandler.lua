@@ -223,11 +223,11 @@ local RARITY_COLORS = {
 
 
 EncounterEvent.OnClientEvent:Connect(function(otherPlayer, data)
-	-- Check if spectator mode
-	local isSpectator = (data.ActivePlayer and data.ActivePlayer ~= player)
+	-- Safety check
+	if not data then return end
 	
-	-- Only show UI if it's our encounter OR we're spectating
-	if not isSpectator and otherPlayer ~= player then return end
+	-- Check if spectator mode (otherPlayer is the encountering player)
+	local isSpectator = (otherPlayer ~= player)
 	
 	isThrowing = false -- Reset state on new encounter
 

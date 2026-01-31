@@ -427,8 +427,8 @@ function BattleSystem.startPvP(player1, player2)
 				Type = "PvP",
 				Attacker = player1,
 				Defender = player2,
-				AttackerStats = battleData.AttackerStats,
-				DefenderStats = battleData.DefenderStats,
+				MyStats = battleData.AttackerStats, -- Left side (attacker)
+				EnemyStats = battleData.DefenderStats, -- Right side (defender)
 				IsSpectator = true
 			}
 			Events.BattleStart:FireClient(spectator, "PvP", spectatorData)

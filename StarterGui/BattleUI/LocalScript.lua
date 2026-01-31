@@ -529,6 +529,12 @@ end)
 
 -- Battle Start
 Events.BattleStart.OnClientEvent:Connect(function(type, data)
+	-- Safety check
+	if not data then 
+		warn("⚠️ [BattleUI] Received nil battle data")
+		return 
+	end
+	
 	print("⚔️ [Client] Battle Started!", type)
 	isBattleActive = true
 	isRolling = false

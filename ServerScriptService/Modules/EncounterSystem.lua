@@ -17,7 +17,7 @@ local pendingCatch = {} -- Key: userId, Value: {Name, Rarity, Stats}
 local EncounterSystem = {}
 
 -- Load PokemonDB
-local PokemonDB = require(ReplicatedStorage:WaitForChild("PokemonDB"))
+local PokemonDB = require(game:GetService("ReplicatedStorage"):WaitForChild("PokemonDB"))
 
 -- State
 local currentSpawnedPokemon = nil
