@@ -213,6 +213,11 @@ function EncounterSystem.spawnPokemonEncounter(player, tileColorName)
 	}
 	activeEncounterData = encounterData -- Update server state
 	Events.Encounter:FireAllClients(player, encounterData)
+	
+	-- Broadcast to all players
+	if Events.Notify then
+		Events.Notify:FireAllClients("🐾 " .. player.Name .. " encountered a wild " .. pokeName .. " (" .. pokeData.Rarity .. ")!")
+	end
 
 	TurnManager.turnPhase = "Encounter"
 	TimerSystem.startPhaseTimer(TimerSystem.ENCOUNTER_TIMEOUT, "Encounter", function()
@@ -268,6 +273,15 @@ function EncounterSystem.handleCatch(player)
 
 	local isFinished = success
 	Events.CatchPokemon:FireAllClients(player, success, roll, target, isFinished)
+	
+	-- Broadcast catch result
+	if Events.Notify then
+		if success then
+			Events.Notify:FireAllClients("✨ " .. player.Name .. " caught " .. pokeData.Name .. "!")
+		else
+			Events.Notify:FireAllClients("❌ " .. player.Name .. " failed to catch " .. pokeData.Name .. "...")
+		end
+	end
 
 	if isFinished then
 		TurnManager.turnPhase = "CatchResult"

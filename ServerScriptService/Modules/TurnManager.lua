@@ -127,6 +127,8 @@ function TurnManager.nextTurn()
 			sleep.Value -= 1
 			if Events.Notify then 
 				Events.Notify:FireClient(p, "You are asleep! Turn skipped!") 
+				-- Broadcast to all
+				Events.Notify:FireAllClients("💤 " .. p.Name .. " is asleep! Turn skipped.")
 			end
 		else
 			TurnManager.isTurnActive = true
@@ -557,7 +559,11 @@ function TurnManager.processTileEvent(player, currentPos, nextTile)
 	-- 1. BLACK TILE (Skip Turn / Sleep)
 	if tileColorLower == "black" or tileColorName == "Black" then
 		print("🛑 Landed on Black Tile! Stunned for 1 turn.")
-		if Events.Notify then Events.Notify:FireClient(player, "🛑 Stuck in Black Tile! Skip 1 turn.") end
+		if Events.Notify then 
+			Events.Notify:FireClient(player, "🛑 Stuck in Black Tile! Skip 1 turn.") 
+			-- Broadcast to all
+			Events.Notify:FireAllClients("🛑 " .. player.Name .. " landed on a Black Tile! Skip 1 turn.")
+		end
 
 		local status = player:FindFirstChild("Status")
 		if status then
@@ -605,6 +611,9 @@ function TurnManager.processTileEvent(player, currentPos, nextTile)
 
 		PlayerManager.playerInShop[player.UserId] = true
 		Events.Shop:FireClient(player)
+		if Events.Notify then
+			Events.Notify:FireAllClients("🏪 " .. player.Name .. " entered the Shop!")
+		end
 
 		TurnManager.turnPhase = "Shop"
 		TimerSystem.startPhaseTimer(TimerSystem.SHOP_TIMEOUT, "Shop", function()

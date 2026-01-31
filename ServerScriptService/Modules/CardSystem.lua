@@ -310,6 +310,8 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 					if events.Notify then
 						events.Notify:FireClient(player, "🔮 Warped to " .. targetPlayer.Name .. "!")
 						events.Notify:FireClient(targetPlayer, "🔮 " .. player.Name .. " warped to you!")
+						-- Broadcast to all
+						events.Notify:FireAllClients("🔮 " .. player.Name .. " used Twisted Spoon on " .. targetPlayer.Name .. "!")
 					end
 					
 					-- Trigger PvP Battle Challenge
@@ -327,6 +329,8 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 						if events.Notify then 
 							events.Notify:FireClient(player, "💤 Put " .. targetPlayer.Name .. " to sleep!")
 							events.Notify:FireClient(targetPlayer, "💤 You fell asleep! Skip next turn.")
+							-- Broadcast to all
+							events.Notify:FireAllClients("💤 " .. player.Name .. " used Sleep Powder on " .. targetPlayer.Name .. "!")
 						end
 					end
 				end
@@ -343,6 +347,8 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 						if events.Notify then
 							events.Notify:FireClient(player, "💰 Stole " .. stealAmount .. " from " .. targetPlayer.Name .. "!")
 							events.Notify:FireClient(targetPlayer, "💸 " .. player.Name .. " stole " .. stealAmount .. " coins from you!")
+							-- Broadcast to all
+							events.Notify:FireAllClients("💰 " .. player.Name .. " robbed " .. stealAmount .. " coins from " .. targetPlayer.Name .. "!")
 						end
 					else
 						if events.Notify then events.Notify:FireClient(player, "Target has no money!") end
@@ -361,6 +367,8 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 					if events.Notify then
 						events.Notify:FireClient(player, "💨 Pushed " .. targetPlayer.Name .. " back 3 spaces!")
 						events.Notify:FireClient(targetPlayer, "💨 You were pushed back 3 spaces!")
+						-- Broadcast to all
+						events.Notify:FireAllClients("💨 " .. player.Name .. " pushed " .. targetPlayer.Name .. " back 3 spaces!")
 					end
 				end
 			end
