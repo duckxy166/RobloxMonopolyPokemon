@@ -170,12 +170,13 @@ local function renderHand()
 					local cardData = CardDB.Cards[cardVal.Name]
 					if cardData and cardData.NeedsTarget then
 						-- Open Target Selection
-						if not bindable then
-							bindable = Instance.new("BindableEvent")
-							bindable.Name = "Client_OpenCardTarget"
-							bindable.Parent = ReplicatedStorage
+						local targetBindable = ReplicatedStorage:FindFirstChild("Client_OpenCardTarget")
+						if not targetBindable then
+							targetBindable = Instance.new("BindableEvent")
+							targetBindable.Name = "Client_OpenCardTarget"
+							targetBindable.Parent = ReplicatedStorage
 						end
-						bindable:Fire(cardVal.Name)
+						targetBindable:Fire(cardVal.Name)
 					elseif cardData and cardData.NeedsSelfPokemon then
 						-- Open Pokemon Selection
 						local bindable = ReplicatedStorage:FindFirstChild("Client_OpenPokemonSelect")
