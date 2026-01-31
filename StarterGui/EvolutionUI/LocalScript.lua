@@ -10,6 +10,21 @@
 --]]
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local SoundService = game:GetService("SoundService")
+
+-- [[ 🔊 SOUND CONFIGURATION ]] --
+local EVOLUTION_SOUND_ID = "rbxassetid://71879312538894" -- Evolution sound
+
+local function playEvolutionSound()
+	local sound = Instance.new("Sound")
+	sound.SoundId = EVOLUTION_SOUND_ID
+	sound.Volume = 0.7
+	sound.Parent = SoundService
+	sound:Play()
+	sound.Ended:Connect(function()
+		sound:Destroy()
+	end)
+end
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -105,6 +120,7 @@ local function createSlot(pokeObj)
 	btn.MouseButton1Click:Connect(function()
 		-- Fire evolution selection
 		print("Selected to evolve: " .. pokeName)
+		playEvolutionSound() -- 🔊 Play evolution sound!
 		Events.EvolutionSelect:FireServer(pokeObj)
 		screenGui.Enabled = false
 	end)

@@ -15,9 +15,30 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local Debris = game:GetService("Debris")
+local SoundService = game:GetService("SoundService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+
+-- [[ 🔊 SOUND EFFECTS ]] --
+-- Encounter sounds (randomly picks one)
+local ENCOUNTER_SOUNDS = {
+	"rbxassetid://104218286633679",
+	"rbxassetid://84432027138398",
+	"rbxassetid://120343865338885",
+	"rbxassetid://122268747850163",
+}
+
+local function playEncounterSound()
+	local sound = Instance.new("Sound")
+	sound.SoundId = ENCOUNTER_SOUNDS[math.random(1, #ENCOUNTER_SOUNDS)]
+	sound.Volume = 0.5
+	sound.Parent = SoundService
+	sound:Play()
+	sound.Ended:Connect(function()
+		sound:Destroy()
+	end)
+end
 
 -- [NEW] ตัวแปร Debounce ป้องกันการกดรัว
 local isThrowing = false 
@@ -251,6 +272,11 @@ EncounterEvent.OnClientEvent:Connect(function(otherPlayer, data)
 
 	screenGui.Enabled = true
 	
+	-- 🔊 Play encounter sound for active player
+	if not isSpectator then
+		playEncounterSound()
+	end
+	
 	if isSpectator then
 		-- Spectator mode: hide buttons, show spectator label
 		catchBtn.Visible = false
@@ -305,9 +331,13 @@ CatchEvent.OnClientEvent:Connect(function(catcher, success, roll, target, isFini
 	local safeRoll = (type(roll) == "number") and roll or 1
 
 	local LAND_SOUND_ID = "rbxassetid://90144356226455"
+	local CATCH_SUCCESS_SOUND = "rbxassetid://3450794184"      -- Catch success!
+	local CATCH_FAIL_SOUND = "rbxassetid://70560213897976"     -- Battle/fail sound
+	
 	local function playSound(id) 
 		local s = Instance.new("Sound", workspace)
 		s.SoundId = id
+		s.Volume = 0.6
 		s.PlayOnRemove = true
 		s:Destroy()
 	end
@@ -349,11 +379,13 @@ CatchEvent.OnClientEvent:Connect(function(catcher, success, roll, target, isFini
 		if success then
 			statsLbl.Text = "GOTCHA! (Rolled " .. tostring(roll) .. " >= " .. tostring(target) .. ")"
 			statsLbl.TextColor3 = Color3.fromRGB(100, 255, 100)
+			playSound(CATCH_SUCCESS_SOUND) -- 🔊 Victory sound!
 			local animDoneEvent = ReplicatedStorage:FindFirstChild("CatchAnimationDoneEvent")
 			if animDoneEvent then animDoneEvent:FireServer() end
 		else
 			statsLbl.Text = "ESCAPED... (Rolled " .. tostring(roll) .. " < " .. tostring(target) .. ")"
 			statsLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
+			playSound(CATCH_FAIL_SOUND) -- 🔊 Fail sound
 		end
 	else
 		-- Spectator Message

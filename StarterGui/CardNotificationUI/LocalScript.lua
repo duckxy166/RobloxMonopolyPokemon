@@ -21,12 +21,13 @@ local playerGui = player:WaitForChild("PlayerGui")
 -- Events
 local cardNotificationEvent = ReplicatedStorage:WaitForChild("CardNotificationEvent", 10)
 
--- Sound IDs
+-- Sound IDs (Distinct sounds for each card type)
 local SOUNDS = {
-	Attack = "rbxassetid://9125718422", -- Whoosh attack sound
-	Defense = "rbxassetid://9125402735", -- Shield block sound
-	Buff = "rbxassetid://9125402735", -- Positive effect
-	Warp = "rbxassetid://9125402735", -- Teleport sound
+	Attack = "rbxassetid://70560213897976",    -- Battle/Attack sound
+	Defense = "rbxassetid://9125402735",       -- Shield block sound
+	Buff = "rbxassetid://71879312538894",      -- Power up / evolve sound
+	Warp = "rbxassetid://91585745295429",      -- Teleport swoosh
+	Evolution = "rbxassetid://71879312538894", -- Evolution sound
 }
 
 -- Create ScreenGui
@@ -108,14 +109,14 @@ actionLabel.TextXAlignment = Enum.TextXAlignment.Left
 actionLabel.TextWrapped = true
 actionLabel.Parent = textContainer
 
--- Card Type Icons
+-- Card Type Icons (Updated to match CardDB names)
 local CARD_ICONS = {
-	["Robbery"] = "💰",
-	["Push Back"] = "👊",
+	["Grabber"] = "💰",
+	["Air Balloon"] = "🎈",
 	["Sleep Powder"] = "💤",
 	["Twisted Spoon"] = "🔮",
-	["Safety Goggles"] = "🛡️",
-	["Lucky Draw"] = "🎲",
+	["Protective Goggles"] = "🛡️",
+	["Lucky Energy"] = "⚡",
 	["Rare Candy"] = "🍬",
 	["Nugget"] = "💎",
 	["Revive"] = "💖",
