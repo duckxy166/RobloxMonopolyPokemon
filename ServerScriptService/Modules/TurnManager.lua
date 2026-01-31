@@ -201,6 +201,19 @@ function TurnManager.enterRollPhase(player)
 
 	-- Check if on same tile as another player (e.g., pushed back here)
 	local currentPos = PlayerManager.playerPositions[player.UserId] or 0
+	
+	-- Skip battle check on start tile (tile 0) to prevent game-start battles
+	if currentPos == 0 then
+		Events.UpdateTurn:FireAllClients(player.Name)
+		TimerSystem.startPhaseTimer(TimerSystem.ROLL_TIMEOUT, "Roll", function()
+			if TurnManager.turnPhase == "Roll" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
+				print("Timer: Auto-Roll triggered for " .. player.Name)
+				TurnManager.processPlayerRoll(player)
+			end
+		end)
+		return
+	end
+	
 	local opponents = {}
 	for _, otherPlayer in ipairs(PlayerManager.playersInGame) do
 		if otherPlayer ~= player and PlayerManager.playerPositions[otherPlayer.UserId] == currentPos then

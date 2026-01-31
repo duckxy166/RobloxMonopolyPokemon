@@ -202,19 +202,12 @@ else
 	warn("📷 [Camera] BattleEndEvent NOT FOUND!")
 end
 
--- Ran from Encounter -> Return to Main Camera
+-- Run Event -> Return to Main Camera (for ALL clients including spectators)
 if RunEvent then
 	RunEvent.OnClientEvent:Connect(function(runPlayer)
 		print("📷 [Camera] RunEvent received!")
-		
-		-- Only switch back if it's our encounter that ended
-		local runUserId = (typeof(runPlayer) == "Instance" and runPlayer:IsA("Player")) and runPlayer.UserId or nil
-		local isMe = (runPlayer == player) or (runUserId and runUserId == player.UserId)
-		
-		if isMe then
-			print("📷 [Camera] ✓ Run Event (me), returning to Main Mode")
-			currentMode = "Main"
-		end
+		print("📷 [Camera] ✓ Run Event, returning to Main Mode")
+		currentMode = "Main"
 	end)
 else
 	warn("📷 [Camera] RunEvent NOT FOUND!")
@@ -225,11 +218,9 @@ if CatchPokemonEvent then
 	CatchPokemonEvent.OnClientEvent:Connect(function(catcher, success, roll, target, isFinished)
 		print("📷 [Camera] CatchPokemonEvent received! catcher:", catcher, "finished:", isFinished)
 		
-		local catcherUserId = (typeof(catcher) == "Instance" and catcher:IsA("Player")) and catcher.UserId or nil
-		local isMe = (catcher == player) or (catcherUserId and catcherUserId == player.UserId)
-		
-		if isMe and isFinished then
-			print("📷 [Camera] ✓ Catch finished (me), returning to Main Mode")
+		-- Reset camera for ALL clients (including spectators)
+		if isFinished then
+			print("📷 [Camera] ✓ Catch finished, returning to Main Mode")
 			task.delay(1.5, function()
 				currentMode = "Main"
 			end)

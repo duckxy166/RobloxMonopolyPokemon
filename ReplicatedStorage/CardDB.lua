@@ -65,7 +65,7 @@ CardDB.Cards = {
 
 	["Twisted Spoon"] = {
 		Name = "Twisted Spoon",
-		Description = "Teleport to a selected player",
+		Description = "Teleport to a selected player. Triggers tile event. Skips your dice roll.",
 		Warp = true,
 		NeedsTarget = true,
 	},

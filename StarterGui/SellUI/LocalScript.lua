@@ -192,8 +192,8 @@ local function createPokemonSlot(pokeData)
 	
 	-- Price Label
 	local priceLabel = Instance.new("TextLabel")
-	priceLabel.Size = UDim2.new(0, 100, 0, 40)
-	priceLabel.Position = UDim2.new(1, -110, 0.5, 0)
+	priceLabel.Size = UDim2.new(0, 80, 0, 40)
+	priceLabel.Position = UDim2.new(1, -120, 0.5, 0) -- Shifted left
 	priceLabel.AnchorPoint = Vector2.new(0, 0.5)
 	priceLabel.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
 	priceLabel.Text = "💰 " .. pokeData.Price
@@ -206,11 +206,11 @@ local function createPokemonSlot(pokeData)
 	-- Sell Button
 	local sellBtn = Instance.new("TextButton")
 	sellBtn.Name = "SellButton"
-	sellBtn.Size = UDim2.new(0, 80, 0, 40)
+	sellBtn.Size = UDim2.new(0, 100, 0, 40) -- Made wider
 	sellBtn.Position = UDim2.new(1, -10, 0.5, 0)
 	sellBtn.AnchorPoint = Vector2.new(1, 0.5)
 	sellBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
-	sellBtn.Text = "SELL"
+	sellBtn.Text = "SELL ($" .. tostring(pokeData.Price) .. ")"
 	sellBtn.Font = Enum.Font.FredokaOne
 	sellBtn.TextSize = 16
 	sellBtn.TextColor3 = Color3.fromRGB(255, 255, 255)

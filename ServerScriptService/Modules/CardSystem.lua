@@ -194,6 +194,17 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 				return
 			end
 			
+			-- Turn validation: Block cards during other players' turns (except Safety Goggles)
+			local currentPlayer = playerManager.playersInGame[turnManager.currentTurnIndex]
+			if currentPlayer and player ~= currentPlayer then
+				if cardName ~= "Safety Goggles" then
+					if events.Notify then 
+						events.Notify:FireClient(player, "❌ Cannot use cards during another player's turn!") 
+					end
+					return
+				end
+			end
+			
 			-- Consume the card from hand first
 			if not CardSystem.removeCardFromHand(player, cardName, 1) then
 				if events.Notify then events.Notify:FireClient(player, "❌ You don't have that card!") end
@@ -312,7 +323,7 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
                 
                 if blocked then return end
 
-				-- 1. TWISTED SPOON (Teleport to Target + PvP Trigger) - Unblockable
+				-- 1. TWISTED SPOON (Teleport to Target + Trigger Tile Event) - Unblockable  
 				if cardName == "Twisted Spoon" then
 					local targetPos = playerManager.playerPositions[targetPlayer.UserId]
 					playerManager.playerPositions[player.UserId] = targetPos
@@ -328,10 +339,19 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 						events.Notify:FireAllClients("🔮 " .. player.Name .. " used Twisted Spoon on " .. targetPlayer.Name .. "!")
 					end
 					
-					-- Trigger PvP Battle Challenge
-					if events.BattleTrigger then
-						events.BattleTrigger:FireClient(player, "PvP", { Opponents = {targetPlayer} })
-					end
+					-- Trigger tile event at new position (skips dice roll)
+					task.spawn(function()
+						task.wait(0.5)
+						local tilesFolder = game.Workspace:FindFirstChild("Tiles")
+						local tile = tilesFolder and tilesFolder:FindFirstChild(tostring(targetPos))
+						if tile and turnManager.processTileEvent then
+							turnManager.processTileEvent(player, targetPos, tile)
+						else
+							-- Fallback to next turn if tile not found
+							turnManager.nextTurn()
+						end
+					end)
+					return -- Early return to skip "Used card" message since this card handles its own flow
 				end
 				
 				-- 2. SLEEP POWDER (Sleep 1 Turn)

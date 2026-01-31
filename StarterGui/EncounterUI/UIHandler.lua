@@ -359,6 +359,11 @@ CatchEvent.OnClientEvent:Connect(function(catcher, success, roll, target, isFini
 	if isFinished then
 		task.wait(1.5)
 		isThrowing = false
+		
+		-- Cleanup spectator label
+		local spectatorLabel = screenGui:FindFirstChild("SpectatorLabel")
+		if spectatorLabel then spectatorLabel:Destroy() end
+		
 		TweenService:Create(container, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 			Position = UDim2.new(0.5, 0, 1, 160)
 		}):Play()
@@ -388,6 +393,10 @@ CatchEvent.OnClientEvent:Connect(function(catcher, success, roll, target, isFini
 end)
 
 RunEvent.OnClientEvent:Connect(function()
+	-- Cleanup spectator label
+	local spectatorLabel = screenGui:FindFirstChild("SpectatorLabel")
+	if spectatorLabel then spectatorLabel:Destroy() end
+	
 	TweenService:Create(container, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 		Position = UDim2.new(0.5, 0, 1, 160)
 	}):Play()
