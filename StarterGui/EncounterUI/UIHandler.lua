@@ -344,16 +344,26 @@ CatchEvent.OnClientEvent:Connect(function(catcher, success, roll, target, isFini
 	task.wait(0.5)
 	dice:Destroy()
 
-	if catcher ~= player then return end
-
-	if success then
-		statsLbl.Text = "GOTCHA! (Rolled " .. tostring(roll) .. " >= " .. tostring(target) .. ")"
-		statsLbl.TextColor3 = Color3.fromRGB(100, 255, 100)
-		local animDoneEvent = ReplicatedStorage:FindFirstChild("CatchAnimationDoneEvent")
-		if animDoneEvent then animDoneEvent:FireServer() end
+	-- Update UI Status
+	if catcher == player then
+		if success then
+			statsLbl.Text = "GOTCHA! (Rolled " .. tostring(roll) .. " >= " .. tostring(target) .. ")"
+			statsLbl.TextColor3 = Color3.fromRGB(100, 255, 100)
+			local animDoneEvent = ReplicatedStorage:FindFirstChild("CatchAnimationDoneEvent")
+			if animDoneEvent then animDoneEvent:FireServer() end
+		else
+			statsLbl.Text = "ESCAPED... (Rolled " .. tostring(roll) .. " < " .. tostring(target) .. ")"
+			statsLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
+		end
 	else
-		statsLbl.Text = "ESCAPED... (Rolled " .. tostring(roll) .. " < " .. tostring(target) .. ")"
-		statsLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
+		-- Spectator Message
+		if success then
+			statsLbl.Text = catcher.Name .. " caught it!"
+			statsLbl.TextColor3 = Color3.fromRGB(100, 255, 100)
+		else
+			statsLbl.Text = catcher.Name .. " failed..."
+			statsLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
+		end
 	end
 
 	if isFinished then
