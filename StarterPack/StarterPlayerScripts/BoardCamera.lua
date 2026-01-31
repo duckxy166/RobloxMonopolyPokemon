@@ -97,23 +97,38 @@ local function getModeCameraCFrame()
 end
 
 -- ================================================================================
---                           🔄 RENDER STEP (CAMERA LOCK)
+--                           🔄 RENDER STEP (CAMERA LOCK + ZOOM)
 -- ================================================================================
+
+-- Zoom State
+local UserInputService = game:GetService("UserInputService")
+local currentZoom = 0
+local MIN_ZOOM = -5 -- Zoom in (forward)
+local MAX_ZOOM = 20 -- Zoom out (backward)
+local ZOOM_SPEED = 2
+
+-- Handle Scroll Input
+UserInputService.InputChanged:Connect(function(input, gameProcessed)
+	if input.UserInputType == Enum.UserInputType.MouseWheel then
+		-- WheelUp (1) -> Zoom In (Decrease offset), WheelDown (-1) -> Zoom Out (Increase)
+		currentZoom = math.clamp(currentZoom - (input.Position.Z * ZOOM_SPEED), MIN_ZOOM, MAX_ZOOM)
+	end
+end)
 
 RunService.RenderStepped:Connect(function()
 	if not camera then camera = Workspace.CurrentCamera end
 	camera.CameraType = Enum.CameraType.Scriptable
 
 	-- Dynamic Part Retrieval
-	if not cameraFolder then cameraFolder = Workspace:FindFirstChild("Camera") end
-	if not mainCameraPart and cameraFolder then mainCameraPart = cameraFolder:FindFirstChild("MainCamera") end
-	if not encounterCameraPart and cameraFolder then encounterCameraPart = cameraFolder:FindFirstChild("EncounterCamera") end
-	if not battleCameraPart and cameraFolder then battleCameraPart = cameraFolder:FindFirstChild("BattleCamera") end
+	if not mainCameraPart then mainCameraPart = Workspace:FindFirstChild("MainCamera") end
+	if not encounterCameraPart then encounterCameraPart = Workspace:FindFirstChild("EncounterCamera") end
+	if not battleCameraPart then battleCameraPart = Workspace:FindFirstChild("BattleCamera") end
 
-	-- Lock camera to current mode's part
+	-- Lock camera to current mode's part + Zoom Offset
 	local targetCFrame = getModeCameraCFrame()
 	if targetCFrame then
-		camera.CFrame = targetCFrame
+		-- Apply zoom by moving camera backward along its look vector
+		camera.CFrame = targetCFrame * CFrame.new(0, 0, currentZoom)
 	end
 end)
 
