@@ -171,7 +171,7 @@ local function resolveModelName(pokemonName)
 	return pokemonName
 end
 
-function BattleSystem.spawnPokemonModel(modelName, stageObj, pokemonName, rarity)
+function BattleSystem.spawnPokemonModel(modelName, stageObj, pokemonName, rarity, faceNegativeZ)
 	local stageRoot = workspace:FindFirstChild("Stage")
 	if not stageRoot then
 		warn("⚠️ spawnPokemonModel: Workspace.Stage not found")
@@ -208,8 +208,20 @@ function BattleSystem.spawnPokemonModel(modelName, stageObj, pokemonName, rarity
 		end
 	end
 
-	clone:PivotTo(anchor.CFrame * CFrame.new(0, 3, 0))
-	print(("✅ Spawned '%s' on %s"):format(modelName, key))
+	-- Calculate spawn position and rotation
+	local anchorPos = anchor.CFrame.Position
+	local anchorTopY = anchorPos.Y + (anchor.Size.Y / 2)
+	
+	-- Get model bounding box for height adjustment
+	local _, modelSize = clone:GetBoundingBox()
+	local modelHalfHeight = modelSize.Y / 2
+	
+	-- Rotation: 180 degrees for -Z, 0 degrees for +Z
+	local yRotation = faceNegativeZ and math.rad(180) or 0
+	local spawnCF = CFrame.new(anchorPos.X, anchorTopY + modelHalfHeight, anchorPos.Z) * CFrame.Angles(0, yRotation, 0)
+	
+	clone:PivotTo(spawnCF)
+	print(("✅ Spawned '%s' on %s (facing %s)"):format(modelName, key, faceNegativeZ and "-Z" or "+Z"))
 
 	-- Add Name Label with Rarity Color
 	if pokemonName and rarity then
@@ -285,11 +297,13 @@ function BattleSystem.startPvE(player, chosenPoke, desiredRarity)
 	local pokeStage1 = battleStage:FindFirstChild("PokemonStage1", true)
 	local pokeStage2 = battleStage:FindFirstChild("PokemonStage2", true)
 
-	-- Safe teleport (no PrimaryPart needed)
+	-- Safe teleport (no PrimaryPart needed) - Player faces -Z
 	do
 		local anchor = (p1Stage and (p1Stage:IsA("BasePart") and p1Stage or p1Stage:FindFirstChildWhichIsA("BasePart", true))) or nil
 		if anchor and player.Character then
-			player.Character:PivotTo(anchor.CFrame * CFrame.new(0, 3, 0))
+			local anchorPos = anchor.CFrame.Position
+			local anchorTopY = anchorPos.Y + (anchor.Size.Y / 2) + 3
+			player.Character:PivotTo(CFrame.new(anchorPos.X, anchorTopY, anchorPos.Z) * CFrame.Angles(0, math.rad(180), 0))
 		else
 			warn("⚠️ PlayerStage1 missing/bad. Aborting battle.")
 			return
@@ -298,12 +312,12 @@ function BattleSystem.startPvE(player, chosenPoke, desiredRarity)
 
 	local myModelName = myPoke:GetAttribute("ModelName") or resolveModelName(myPoke.Name)
 	local myRarity = myPoke.Value or "Common"
-	BattleSystem.spawnPokemonModel(myModelName, pokeStage1, myPoke.Name, myRarity)
+	BattleSystem.spawnPokemonModel(myModelName, pokeStage1, myPoke.Name, myRarity, true) -- Face -Z
 
 	-- prefer DB model name if it exists, fallback to resolving by name
 	local enemyModel = (encounter and encounter.Data and encounter.Data.Model) or resolveModelName(enemyStats.Name)
 	local enemyRarity = (encounter and encounter.Data and encounter.Data.Rarity) or "Common"
-	BattleSystem.spawnPokemonModel(enemyModel, pokeStage2, enemyStats.Name, enemyRarity)
+	BattleSystem.spawnPokemonModel(enemyModel, pokeStage2, enemyStats.Name, enemyRarity, false) -- Face +Z
 
 
 	-- 4. Notify Player
@@ -370,25 +384,28 @@ function BattleSystem.startPvP(player1, player2)
 	local pokeStage1 = battleStage:FindFirstChild("PokemonStage1", true)
 	local pokeStage2 = battleStage:FindFirstChild("PokemonStage2", true)
 
-	local function safeTeleport(plr, stageObj, label)
+	local function safeTeleport(plr, stageObj, label, faceNegativeZ)
 		local anchor = (stageObj and (stageObj:IsA("BasePart") and stageObj or stageObj:FindFirstChildWhichIsA("BasePart", true))) or nil
 		if anchor and plr.Character then
-			plr.Character:PivotTo(anchor.CFrame * CFrame.new(0, 3, 0))
+			local anchorPos = anchor.CFrame.Position
+			local anchorTopY = anchorPos.Y + (anchor.Size.Y / 2) + 3
+			local yRotation = faceNegativeZ and math.rad(180) or 0
+			plr.Character:PivotTo(CFrame.new(anchorPos.X, anchorTopY, anchorPos.Z) * CFrame.Angles(0, yRotation, 0))
 			return true
 		end
 		warn("⚠️ " .. label .. " missing/bad. Aborting battle.")
 		return false
 	end
 
-	if not safeTeleport(player1, p1Stage, "PlayerStage1") then return end
-	if not safeTeleport(player2, p2Stage, "PlayerStage2") then return end
+	if not safeTeleport(player1, p1Stage, "PlayerStage1", true) then return end  -- Face -Z
+	if not safeTeleport(player2, p2Stage, "PlayerStage2", false) then return end -- Face +Z
 
 	local aModel = p1Poke:GetAttribute("ModelName") or resolveModelName(p1Poke.Name)
 	local dModel = p2Poke:GetAttribute("ModelName") or resolveModelName(p2Poke.Name)
 	local aRarity = p1Poke.Value or "Common"
 	local dRarity = p2Poke.Value or "Common"
-	BattleSystem.spawnPokemonModel(aModel, pokeStage1, p1Poke.Name, aRarity)
-	BattleSystem.spawnPokemonModel(dModel, pokeStage2, p2Poke.Name, dRarity)
+	BattleSystem.spawnPokemonModel(aModel, pokeStage1, p1Poke.Name, aRarity, true) -- Face -Z
+	BattleSystem.spawnPokemonModel(dModel, pokeStage2, p2Poke.Name, dRarity, false) -- Face +Z
 
 
 	-- Notify Both

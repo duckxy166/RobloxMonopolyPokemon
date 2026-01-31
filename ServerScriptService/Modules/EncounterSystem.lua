@@ -136,7 +136,7 @@ function EncounterSystem.spawnPokemonEncounter(player, tileColorName)
 			print("   ✅ Model found: '" .. modelTemplate.Name .. "'")
 			local clonedModel = modelTemplate:Clone()
 	
-			-- Calculate nice spawn position on TOP of the stage
+		-- Calculate spawn position on TOP of the stage (no floating)
 			-- Handle if CenterStage is a Model or Part
 			local centerPos = centerStage.Position
 			local centerSizeY = centerStage.Size.Y
@@ -148,24 +148,17 @@ function EncounterSystem.spawnPokemonEncounter(player, tileColorName)
 			end
 	
 			local stageTopY = centerPos.Y + (centerSizeY / 2)
-			local spawnPos = CFrame.new(centerPos.X, stageTopY, centerPos.Z)
+			-- Create CFrame at stage top, facing -Z direction
+			local spawnCF = CFrame.new(centerPos.X, stageTopY, centerPos.Z) * CFrame.Angles(0, math.rad(180), 0)
 	
-			clonedModel:PivotTo(spawnPos)
+			clonedModel:PivotTo(spawnCF)
 			clonedModel.Parent = Workspace
 			currentSpawnedPokemon = clonedModel
 	
-			-- Adjust height based on HipHeight if Humanoid exists
-			local pokeHumanoid = clonedModel:FindFirstChild("Humanoid")
-			if pokeHumanoid and pokeHumanoid:IsA("Humanoid") then
-				clonedModel:PivotTo(spawnPos + Vector3.new(0, pokeHumanoid.HipHeight + 1, 0))
-				pokeHumanoid.AutomaticScalingEnabled = false
-				
-				-- Optional: Freeze animation or loaded animation?
-				-- For now, just let it be
-			else
-				-- Fallback: Just bump it up a bit
-				clonedModel:PivotTo(spawnPos + Vector3.new(0, 2, 0))
-			end
+			-- Adjust height based on model's bounding box to prevent floating
+			local _, modelSize = clonedModel:GetBoundingBox()
+			local modelHalfHeight = modelSize.Y / 2
+			clonedModel:PivotTo(CFrame.new(centerPos.X, stageTopY + modelHalfHeight, centerPos.Z) * CFrame.Angles(0, math.rad(180), 0))
 	
 			local mainPart = clonedModel.PrimaryPart or clonedModel:FindFirstChild("HumanoidRootPart") or clonedModel:FindFirstChildWhichIsA("BasePart", true)
 	
