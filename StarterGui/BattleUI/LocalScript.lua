@@ -47,6 +47,155 @@ local isRolling = false
 local currentBattleData = nil
 local vsFrame = nil
 
+-- Active dice storage (must be declared before createVSFrame)
+local activeDice = {} -- {Player=?, Enemy=?}
+
+local function cleanupDice()
+	if activeDice.Player then
+		if activeDice.Player.Object then activeDice.Player.Object:Destroy() end
+		activeDice.Player = nil
+	end
+	if activeDice.Enemy then
+		if activeDice.Enemy.Object then activeDice.Enemy.Object:Destroy() end
+		activeDice.Enemy = nil
+	end
+end
+
+-- [[ 3D DICE LOGIC ]] -- (Moved here so spawn3NDice is available to createVSFrame)
+local ROTATION_OFFSETS = {
+	[1] = CFrame.Angles(0, 0, 0),
+	[2] = CFrame.Angles(math.rad(-90), 0, 0),
+	[3] = CFrame.Angles(0, math.rad(90), 0),
+	[4] = CFrame.Angles(0, math.rad(-90), 0),
+	[5] = CFrame.Angles(math.rad(90), 0, 0),
+	[6] = CFrame.Angles(0, math.rad(180), 0)
+}
+local diceTemplate = ReplicatedStorage:FindFirstChild("DiceModel")
+local camera = workspace.CurrentCamera
+
+local DICE_SIDE = 9
+local DICE_DOWN = 2.2
+local DICE_FORWARD = 12
+
+local function getDiceCF(sideOffset)
+	local cam = workspace.CurrentCamera
+	if not cam then return CFrame.new() end
+
+	local camCF = cam.CFrame
+	local pos =
+		camCF.Position
+		+ camCF.LookVector * DICE_FORWARD
+		+ camCF.RightVector * (sideOffset * DICE_SIDE)
+	- camCF.UpVector * DICE_DOWN
+
+	return CFrame.lookAt(pos, camCF.Position)
+end
+
+-- Spawn and Animate a single 3D Die
+local function spawn3NDice(sideOffset)
+	local dice
+
+	-- Create / clone
+	if diceTemplate then
+		dice = diceTemplate:Clone()
+	else
+		dice = Instance.new("Part")
+		dice.Size = Vector3.new(3,3,3)
+		dice.Color = Color3.fromRGB(240, 240, 240)
+	end
+
+	dice.Parent = workspace
+
+	-- Anchor + no collide (Part or Model)
+	for _, d in ipairs(dice:GetDescendants()) do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+		end
+	end
+	if dice:IsA("BasePart") then
+		dice.Anchored = true
+		dice.CanCollide = false
+	end
+
+	-- Part/Model set CFrame
+	local function setCF(cf)
+		if dice:IsA("Model") then
+			dice:PivotTo(cf)
+		else
+			dice.CFrame = cf
+		end
+	end
+
+	-- Start at correct spot
+	setCF(getDiceCF(sideOffset))
+
+	-- Spin while staying in front of camera
+	local connection
+	local ax, ay, az = 0, 0, 0
+	local spinSpeed = Vector3.new(
+		math.rad(math.random(300,700)),
+		math.rad(math.random(300,700)),
+		math.rad(math.random(300,700))
+	)
+
+	connection = RunService.RenderStepped:Connect(function(dt)
+		if not dice.Parent then
+			if connection then connection:Disconnect() end
+			return
+		end
+
+		ax += spinSpeed.X * dt
+		ay += spinSpeed.Y * dt
+		az += spinSpeed.Z * dt
+
+		-- lock position to camera each frame
+		setCF(getDiceCF(sideOffset) * CFrame.Angles(ax, ay, az))
+	end)
+
+	return {
+		Object = dice,
+		Stop = function(finalVal)
+			if connection then connection:Disconnect() end
+
+			local targetCF = getDiceCF(sideOffset) * ROTATION_OFFSETS[finalVal]
+
+			-- Tween Part directly
+			if not dice:IsA("Model") then
+				TweenService:Create(dice, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+					CFrame = targetCF
+				}):Play()
+			else
+				-- Tween Model via CFrameValue
+				local cfVal = Instance.new("CFrameValue")
+				cfVal.Value = dice:GetPivot()
+
+				local conn2
+				conn2 = cfVal.Changed:Connect(function(v)
+					if dice.Parent then
+						dice:PivotTo(v)
+					else
+						if conn2 then conn2:Disconnect() end
+					end
+				end)
+
+				TweenService:Create(cfVal, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+					Value = targetCF
+				}):Play()
+
+				task.delay(1, function()
+					if conn2 then conn2:Disconnect() end
+					cfVal:Destroy()
+				end)
+			end
+
+			task.delay(3, function()
+				if dice then dice:Destroy() end
+			end)
+		end
+	}
+end
+
 -- Helper: Create VS UI
 local function createVSFrame()
 	if vsFrame then vsFrame:Destroy() end
@@ -184,154 +333,6 @@ local function createVSFrame()
 
 	createSide(vsFrame, "Left", Color3.fromRGB(100, 100, 255))
 	createSide(vsFrame, "Right", Color3.fromRGB(255, 100, 100))
-end
-
--- [[ 3D DICE LOGIC ]] --
-local ROTATION_OFFSETS = {
-	[1] = CFrame.Angles(0, 0, 0),
-	[2] = CFrame.Angles(math.rad(-90), 0, 0),
-	[3] = CFrame.Angles(0, math.rad(90), 0),
-	[4] = CFrame.Angles(0, math.rad(-90), 0),
-	[5] = CFrame.Angles(math.rad(90), 0, 0),
-	[6] = CFrame.Angles(0, math.rad(180), 0)
-}
-local diceTemplate = ReplicatedStorage:FindFirstChild("DiceModel")
-local camera = workspace.CurrentCamera
-
-local DICE_SIDE = 9
-local DICE_DOWN = 2.2
-local DICE_FORWARD = 12
-
-local function getDiceCF(sideOffset)
-	local cam = workspace.CurrentCamera
-	if not cam then return CFrame.new() end
-
-	local camCF = cam.CFrame
-	local pos =
-		camCF.Position
-		+ camCF.LookVector * DICE_FORWARD
-		+ camCF.RightVector * (sideOffset * DICE_SIDE)
-	- camCF.UpVector * DICE_DOWN
-
-	return CFrame.lookAt(pos, camCF.Position)
-end
--- Spawn and Animate a single 3D Die
-local function spawn3NDice(sideOffset)
-	local dice
-
-	-- Create / clone
-	if diceTemplate then
-		dice = diceTemplate:Clone()
-	else
-		dice = Instance.new("Part")
-		dice.Size = Vector3.new(3,3,3)
-		dice.Color = Color3.fromRGB(240, 240, 240)
-	end
-
-	dice.Parent = workspace
-
-	-- Anchor + no collide (Part or Model)
-	for _, d in ipairs(dice:GetDescendants()) do
-		if d:IsA("BasePart") then
-			d.Anchored = true
-			d.CanCollide = false
-		end
-	end
-	if dice:IsA("BasePart") then
-		dice.Anchored = true
-		dice.CanCollide = false
-	end
-
-	-- Part/Model set CFrame
-	local function setCF(cf)
-		if dice:IsA("Model") then
-			dice:PivotTo(cf)
-		else
-			dice.CFrame = cf
-		end
-	end
-
-	-- Start at correct spot
-	setCF(getDiceCF(sideOffset))
-
-	-- Spin while staying in front of camera
-	local connection
-	local ax, ay, az = 0, 0, 0
-	local spinSpeed = Vector3.new(
-		math.rad(math.random(300,700)),
-		math.rad(math.random(300,700)),
-		math.rad(math.random(300,700))
-	)
-
-	connection = RunService.RenderStepped:Connect(function(dt)
-		if not dice.Parent then
-			if connection then connection:Disconnect() end
-			return
-		end
-
-		ax += spinSpeed.X * dt
-		ay += spinSpeed.Y * dt
-		az += spinSpeed.Z * dt
-
-		-- lock position to camera each frame
-		setCF(getDiceCF(sideOffset) * CFrame.Angles(ax, ay, az))
-	end)
-
-	return {
-		Object = dice,
-		Stop = function(finalVal)
-			if connection then connection:Disconnect() end
-
-			local targetCF = getDiceCF(sideOffset) * ROTATION_OFFSETS[finalVal]
-
-			-- Tween Part directly
-			if not dice:IsA("Model") then
-				TweenService:Create(dice, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-					CFrame = targetCF
-				}):Play()
-			else
-				-- Tween Model via CFrameValue
-				local cfVal = Instance.new("CFrameValue")
-				cfVal.Value = dice:GetPivot()
-
-				local conn2
-				conn2 = cfVal.Changed:Connect(function(v)
-					if dice.Parent then
-						dice:PivotTo(v)
-					else
-						if conn2 then conn2:Disconnect() end
-					end
-				end)
-
-				TweenService:Create(cfVal, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-					Value = targetCF
-				}):Play()
-
-				task.delay(1, function()
-					if conn2 then conn2:Disconnect() end
-					cfVal:Destroy()
-				end)
-			end
-
-			task.delay(3, function()
-				if dice then dice:Destroy() end
-			end)
-		end
-	}
-end
-
-
-local activeDice = {} -- {Player=?, Enemy=?}
-
-local function cleanupDice()
-	if activeDice.Player then
-		if activeDice.Player.Object then activeDice.Player.Object:Destroy() end
-		activeDice.Player = nil
-	end
-	if activeDice.Enemy then
-		if activeDice.Enemy.Object then activeDice.Enemy.Object:Destroy() end
-		activeDice.Enemy = nil
-	end
 end
 
 -- Helper: Send System Message
