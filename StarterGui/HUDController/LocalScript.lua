@@ -339,46 +339,10 @@ resetButton.Visible = true
 resetButton.Parent = screenGui
 Instance.new("UICorner", resetButton).CornerRadius = UDim.new(0, 12)
 
--- 3. STATUS/LOG LABEL (Small top center)
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Name = "StatusLabel"
-statusLabel.Size = UDim2.new(0, 300, 0, 30)
-statusLabel.Position = UDim2.new(0.5, -60, 0, 10) -- Shift left to make room for timer
-statusLabel.AnchorPoint = Vector2.new(0.5, 0)
-statusLabel.BackgroundTransparency = 0.5
-statusLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-statusLabel.Text = "Waiting..."
-statusLabel.Font = Enum.Font.GothamMedium
-statusLabel.TextSize = 14
-statusLabel.Parent = screenGui
-Instance.new("UICorner", statusLabel).CornerRadius = UDim.new(0, 8)
-
--- 4. TIMER COUNTDOWN LABEL (Next to status)
-local timerCountdown = Instance.new("TextLabel")
-timerCountdown.Name = "TimerCountdown"
-timerCountdown.Size = UDim2.new(0, 80, 0, 30)
-timerCountdown.Position = UDim2.new(0.5, 95, 0, 10) -- Right of status
-timerCountdown.AnchorPoint = Vector2.new(0, 0)
-timerCountdown.BackgroundTransparency = 0.3
-timerCountdown.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-timerCountdown.TextColor3 = Color3.fromRGB(255, 200, 50)
-timerCountdown.Text = ""
-timerCountdown.Font = Enum.Font.FredokaOne
-timerCountdown.TextSize = 18
-timerCountdown.Visible = false
-timerCountdown.Parent = screenGui
-Instance.new("UICorner", timerCountdown).CornerRadius = UDim.new(0, 8)
-
--- Rename for compatibility with logic below
-local timerLabel = statusLabel
-
--- Timer countdown state
-local countdownConnection = nil
-local countdownRemaining = 0
+-- NOTE: Status/Timer labels removed - PhaseUIController handles phase display now
 
 -- [[ 🔌 CONNECTION ]] --
-local rollEvent, updateTurnEvent, resetCamEvent, lockEvent, endTurnEvent, phaseEvent, timerUpdateEvent
+local rollEvent, updateTurnEvent, resetCamEvent, lockEvent, endTurnEvent
 
 -- Rolling state (declared here so event handlers can access it)
 local isRolling = false
@@ -386,29 +350,23 @@ local isRolling = false
 task.spawn(function()
 	rollEvent = ReplicatedStorage:WaitForChild("RollDiceEvent")
 	updateTurnEvent = ReplicatedStorage:WaitForChild("UpdateTurnEvent")
-	timerUpdateEvent = ReplicatedStorage:WaitForChild("TimerUpdateEvent", 5)
 
 	-- New Events for Manual Turn
-	endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent", 5) 
-	-- If it doesn't exist yet, we will create it on server soon, but client code needs to be robust
+	endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent", 5)
 	if not endTurnEvent then
-		-- Fallback if server update lags behind client update
 		warn("EndTurnEvent missing, waiting...")
 		endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent")
 	end
 
-	phaseEvent = ReplicatedStorage:WaitForChild("PhaseChangeEvent", 5)
-
 	resetCamEvent = ReplicatedStorage:FindFirstChild("ResetCameraEvent") or Instance.new("BindableEvent")
 	lockEvent = ReplicatedStorage:FindFirstChild("CameraLockEvent") or Instance.new("BindableEvent")
-	
+
 	-- Listen for Battle Start to hide HUD Roll Button
 	local battleStartEvent = ReplicatedStorage:WaitForChild("BattleStartEvent", 5)
 	if battleStartEvent then
 		battleStartEvent.OnClientEvent:Connect(function()
 			print("⚔️ [HUD] Battle Started -> Hiding Roll Button")
 			rollButton.Visible = false
-			timerLabel.Text = "Battle in progress..."
 		end)
 	end
 
@@ -416,15 +374,6 @@ task.spawn(function()
 	local catchEvent = ReplicatedStorage:WaitForChild("CatchPokemonEvent", 5)
 	if catchEvent then
 		catchEvent.OnClientEvent:Connect(function()
-			-- Play Throw/Catch Sound
-			local CATCH_SOUND_ID = "rbxassetid://111044334523010" -- Using same rolling sound for now as placeholder or maybe a different one?
-			-- User asked for 'Encounter dice sound'. Capture mechanic uses a 'roll'.
-			-- If there is a visual dice roll for capture, I need to find it.
-			-- Looking at EncounterSystem.lua (server), it fires 'CatchPokemon'.
-			-- Looking at HUD logic, I don't see a capture dice visual. It might just be 'success/fail' prompt.
-			-- Use the LAND sound for capture result.
-
-			-- task.wait(0.1) -- Removed delay
 			local s = Instance.new("Sound", workspace)
 			s.SoundId = "rbxassetid://90144356226455" -- Land sound
 			s.PlayOnRemove = true
@@ -432,101 +381,30 @@ task.spawn(function()
 		end)
 	end
 
-	timerLabel.Text = "Waiting for game..."
-
-	-- Timer Update Event Handler (Countdown from server)
-	if timerUpdateEvent then
-		timerUpdateEvent.OnClientEvent:Connect(function(seconds, phaseName)
-			-- Stop existing countdown
-			if countdownConnection then
-				countdownConnection:Disconnect()
-				countdownConnection = nil
-			end
-
-			if seconds <= 0 or phaseName == "" then
-				-- Hide timer
-				timerCountdown.Visible = false
-				countdownRemaining = 0
-				return
-			end
-
-			-- Start countdown
-			countdownRemaining = seconds
-			timerCountdown.Visible = true
-			timerCountdown.Text = "⏱ " .. tostring(math.ceil(countdownRemaining)) .. "s"
-
-			-- Color based on phase
-			if phaseName == "Roll" then
-				timerCountdown.TextColor3 = Color3.fromRGB(100, 255, 100) -- Green
-			elseif phaseName == "Shop" then
-				timerCountdown.TextColor3 = Color3.fromRGB(255, 200, 50) -- Gold
-			elseif phaseName == "Encounter" then
-				timerCountdown.TextColor3 = Color3.fromRGB(255, 100, 100) -- Red
-			else
-				timerCountdown.TextColor3 = Color3.fromRGB(200, 200, 200) -- Gray
-			end
-
-			-- Countdown animation
-			countdownConnection = RunService.Heartbeat:Connect(function(dt)
-				countdownRemaining = countdownRemaining - dt
-				if countdownRemaining <= 0 then
-					timerCountdown.Visible = false
-					if countdownConnection then
-						countdownConnection:Disconnect()
-						countdownConnection = nil
-					end
-				else
-					timerCountdown.Text = "⏱ " .. tostring(math.ceil(countdownRemaining)) .. "s"
-					-- Flash red when low
-					if countdownRemaining <= 5 then
-						timerCountdown.TextColor3 = Color3.fromRGB(255, math.floor(50 + (countdownRemaining / 5) * 50), 50)
-					end
-				end
-			end)
-		end)
-	end
-
-	-- Event: Update Turn (Start of Turn)
+	-- Event: Update Turn (Start of Turn) - Only handle roll button visibility
 	updateTurnEvent.OnClientEvent:Connect(function(currentName)
 		print("🔄 [Client] UpdateTurn received. Current:", currentName, "Me:", player.Name)
 
 		if currentName == player.Name then
-			-- My turn: Phase (Roll)
-			rollButton.Text = "🎲 ROLL DICE!" 
-			rollButton.Visible = true
-			rollButton.Active = true  -- Ensure button is clickable
+			-- My turn - PhaseUIController handles phase display
+			-- Only show roll button when in Roll phase (PhaseUIController manages this too)
+			rollButton.Visible = false -- Hidden by default, PhaseUIController shows its own roll button
 			endTurnButton.Visible = false
-
-			timerLabel.Text = "YOUR TURN!" 
-			timerLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-
-			-- CRITICAL: Reset rolling state so player can click
 			isRolling = false
 			print("🎲 [Client] My turn! isRolling reset to false")
 		else
 			-- Enemy turn
 			rollButton.Visible = false
 			endTurnButton.Visible = false
-
-			timerLabel.Text = "Waiting for " .. currentName
-			timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 		end
 	end)
-
-	-- Event: Turn Phase Change (Removed - Timer handles auto-end now)
-	-- phaseEvent handler no longer needed since timer auto-ends turns
-
 
 	-- Event: Roll Result (Animation)
 	rollEvent.OnClientEvent:Connect(function(roller, rollResult)
 		-- If I am the roller, update my UI
 		if roller == player then
 			if lockEvent then lockEvent:Fire(true) end
-			rollButton.Visible = false 
-			timerLabel.Text = "Rolling..."
-		else
-			-- If someone else rolled, just update text
-			timerLabel.Text = roller.Name .. " is rolling..."
+			rollButton.Visible = false
 		end
 
 		local dice
@@ -536,19 +414,14 @@ task.spawn(function()
 		if diceTemplate then dice = diceTemplate:Clone() else dice = Instance.new("Part"); dice.Size = Vector3.new(3,3,3) end
 		dice.Parent = workspace; dice.Anchored = true; dice.CanCollide = false
 
-		-- SOUNDS
-		-- SOUNDS
-		-- local ROLL_SOUND_ID = "rbxassetid://111044334523010" -- Rolling Sound
 		local LAND_SOUND_ID = "rbxassetid://90144356226455" -- Landing Sound
 
-		local function playSound(id) 
+		local function playSound(id)
 			local s = Instance.new("Sound", workspace)
 			s.SoundId = id
-			s.PlayOnRemove = true -- Play when destroyed
+			s.PlayOnRemove = true
 			s:Destroy()
 		end
-
-		-- (Rolling sound removed)
 
 		-- Spin Animation
 		local connection
@@ -574,7 +447,6 @@ task.spawn(function()
 		local finalCF = camera.CFrame
 		local dicePos = (finalCF + finalCF.LookVector * 8).Position
 
-		-- Safety / Re-apply Fix
 		local safeRoll = rollResult
 		if not ROTATION_OFFSETS[safeRoll] then safeRoll = 1 end
 
@@ -588,12 +460,6 @@ task.spawn(function()
 
 		task.wait(1.5)
 		dice:Destroy()
-		-- ✅ reveal AFTER animation
-		if roller == player then
-			timerLabel.Text = "🎲 " .. rollResult .. "!"
-		else
-			timerLabel.Text = roller.Name .. " rolled " .. rollResult .. "!"
-		end
 		if roller == player and lockEvent then lockEvent:Fire(false) end
 	end)
 end)
@@ -603,15 +469,13 @@ local camera = workspace.CurrentCamera
 
 -- [[ 🧠 LOGIC ]] --
 
--- Logic: Roll Button
+-- Logic: Roll Button (backup - PhaseUIController has main roll button)
 rollButton.MouseButton1Click:Connect(function()
 	if isRolling then return end
-	-- Check button text/color to imply turn, or rely on server validation
 	if rollButton.Text == "WAIT..." or rollButton.Text == "Loading..." then return end
 
 	isRolling = true
-	rollButton.Visible = false 
-	timerLabel.Text = "Rolling..."
+	rollButton.Visible = false
 
 	if rollEvent then rollEvent:FireServer() end
 end)
@@ -620,7 +484,6 @@ end)
 endTurnButton.MouseButton1Click:Connect(function()
 	if endTurnButton.Visible and endTurnEvent then
 		endTurnButton.Visible = false
-		timerLabel.Text = "Ending Turn..."
 		endTurnEvent:FireServer()
 	end
 end)
@@ -649,13 +512,7 @@ task.spawn(function()
 					data.CardLbl.Text = tostring(#hand:GetChildren())
 				end
 
-				-- Highlight Active Player
-				if timerLabel.Text:find(pName) then -- Weak check, but simple
-					data.Stroke.Color = Color3.fromRGB(0, 255, 0)
-					data.Stroke.Transparency = 0
-				else
-					data.Stroke.Transparency = 1
-				end
+				-- NOTE: Player highlight now handled by UIHelpers in TurnManager
 			else
 				-- Player left? Remove box
 				if data.Box then data.Box:Destroy() end
