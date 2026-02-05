@@ -261,17 +261,18 @@ function TurnManager.enterAbilityPhase(player)
 	TurnManager.turnPhase = "Ability"
 	print("📍 Phase 3: ABILITY Phase for:", player.Name)
 
-	-- Fire PhaseUpdate to client
-	if Events.PhaseUpdate then
-		Events.PhaseUpdate:FireClient(player, "Ability", "⚡ ใช้ Ability ได้ หรือกด Next Phase")
-	end
+	-- Reset ability usage for this turn
+	player:SetAttribute("AbilityUsedThisTurn", false)
 
-	-- Check if player has a class/job with abilities
-	local playerClass = player:GetAttribute("Class") or player:GetAttribute("Job")
+	-- Check if player has a job with abilities
+	local playerJob = player:GetAttribute("Job")
 
-	if not playerClass then
-		-- No class - auto skip to Roll Phase after short delay
-		print("⏩ No class found, skipping Ability Phase")
+	if not playerJob then
+		-- No job - auto skip to Roll Phase after short delay
+		print("⏩ No job found, skipping Ability Phase")
+		if Events.PhaseUpdate then
+			Events.PhaseUpdate:FireClient(player, "Ability", "⏩ ไม่มี Ability - ข้ามไป Roll Phase")
+		end
 		if Events.Notify then
 			Events.Notify:FireClient(player, "⏩ ไม่มี Ability - ข้ามไป Roll Phase")
 		end
@@ -280,9 +281,15 @@ function TurnManager.enterAbilityPhase(player)
 		return
 	end
 
+	-- Fire PhaseUpdate to client with job info
+	local jobAbility = player:GetAttribute("JobAbility") or "Unknown"
+	if Events.PhaseUpdate then
+		Events.PhaseUpdate:FireClient(player, "Ability", "⚡ ใช้ " .. jobAbility .. " หรือกด Next Phase")
+	end
+
 	-- Notify all clients about phase change
 	if Events.Notify then
-		Events.Notify:FireAllClients("⚡ " .. player.Name .. " อยู่ใน Ability Phase (" .. playerClass .. ")")
+		Events.Notify:FireAllClients("⚡ " .. player.Name .. " อยู่ใน Ability Phase (" .. playerJob .. ")")
 	end
 
 	-- Start Ability Phase timer
@@ -445,31 +452,71 @@ function TurnManager.checkPreGameStart()
 	end)
 end
 
-function TurnManager.handleStarterSelection(player, starterName)
+-- ============================================================================
+-- JOB DATABASE (Server-side validation)
+-- ============================================================================
+local ValidJobs = {
+	Gambler = {
+		Name = "Gambler",
+		Ability = "LuckyRoll",
+		Description = "นักพนัน - เสี่ยงดวงเพื่อรางวัลใหญ่"
+	},
+	Esper = {
+		Name = "Esper",
+		Ability = "FutureSight",
+		Description = "จิตสัมผัส - มองเห็นอนาคต"
+	},
+	Shaman = {
+		Name = "Shaman",
+		Ability = "SpiritHeal",
+		Description = "หมอผี - รักษาและฟื้นฟู"
+	},
+	Biker = {
+		Name = "Biker",
+		Ability = "TurboBoost",
+		Description = "นักบิด - เคลื่อนที่เร็วและแรง"
+	}
+}
+
+function TurnManager.handleStarterSelection(player, jobName)
 	if TurnManager.readyPlayers[player.UserId] then return end -- Already picked
 
-	-- Validate Name
-	local data = PokemonDB.GetPokemon(starterName)
-	if not data then 
-		warn("Invalid starter: " .. tostring(starterName))
-		return 
+	-- Validate Job Name
+	local jobData = ValidJobs[jobName]
+	if not jobData then
+		warn("Invalid job: " .. tostring(jobName))
+		return
 	end
 
-	print("✅ " .. player.Name .. " selected " .. starterName)
+	print("✅ " .. player.Name .. " selected job: " .. jobName)
 
-	-- Give Pokemon
+	-- Set Player's Job/Class
+	player:SetAttribute("Job", jobName)
+	player:SetAttribute("JobAbility", jobData.Ability)
+	player:SetAttribute("AbilityUsedThisTurn", false)
+
+	-- Give random starter Pokemon based on job (optional flavor)
+	local starterPokemon = {
+		Gambler = "Meowth",    -- Money-related
+		Esper = "Abra",        -- Psychic
+		Shaman = "Gastly",     -- Ghost/Spirit
+		Biker = "Voltorb"      -- Fast/Electric
+	}
+
+	local starterName = starterPokemon[jobName] or "Pikachu"
 	local inventory = player:FindFirstChild("PokemonInventory")
 	if inventory then
-		local starterPoke = Instance.new("StringValue")
-		starterPoke.Name = starterName
-		starterPoke.Value = data.Rarity or "Common"
-
-		-- Set Stats
-		starterPoke:SetAttribute("CurrentHP", data.HP)
-		starterPoke:SetAttribute("MaxHP", data.HP)
-		starterPoke:SetAttribute("Attack", data.Attack)
-		starterPoke:SetAttribute("Status", "Alive")
-		starterPoke.Parent = inventory
+		local data = PokemonDB.GetPokemon(starterName)
+		if data then
+			local starterPoke = Instance.new("StringValue")
+			starterPoke.Name = starterName
+			starterPoke.Value = data.Rarity or "Common"
+			starterPoke:SetAttribute("CurrentHP", data.HP)
+			starterPoke:SetAttribute("MaxHP", data.HP)
+			starterPoke:SetAttribute("Attack", data.Attack)
+			starterPoke:SetAttribute("Status", "Alive")
+			starterPoke.Parent = inventory
+		end
 	end
 
 	-- Draw 1 Starter Card
@@ -478,7 +525,9 @@ function TurnManager.handleStarterSelection(player, starterName)
 	-- Mark Ready
 	TurnManager.readyPlayers[player.UserId] = true
 
-	if Events.Notify then Events.Notify:FireClient(player, "You selected " .. starterName .. "! Waiting for players...") end
+	if Events.Notify then
+		Events.Notify:FireClient(player, "🎭 คุณเลือกอาชีพ " .. jobName .. "! รอผู้เล่นคนอื่น...")
+	end
 
 	-- Check if ALL players are ready
 	local allReady = true
