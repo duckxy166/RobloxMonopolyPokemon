@@ -534,6 +534,97 @@ function TurnManager.connectEvents()
 				end
 				abilitySuccess = true
 
+			-- ============================================
+			-- TRAINER: Extra Hand - Passive (no active ability)
+			-- ============================================
+			elseif playerJob == "Trainer" and abilityName == "ExtraHand" then
+				if Events.Notify then
+					Events.Notify:FireClient(player, "🎒 เทรนเนอร์สามารถถือการ์ดได้ 6 ใบ (Passive)")
+				end
+				-- No active ability, just passive hand limit
+				abilitySuccess = false -- Don't count as used
+
+			-- ============================================
+			-- FISHERMAN: Steal Card - แย่งชิงการ์ดจากผู้เล่นอื่น
+			-- ============================================
+			elseif playerJob == "Fisherman" and abilityName == "StealCard" then
+				local targetUserId = abilityData and abilityData.targetUserId
+				local targetPlayer = nil
+
+				for _, p in ipairs(PlayerManager.playersInGame) do
+					if p.UserId == targetUserId and p ~= player then
+						targetPlayer = p
+						break
+					end
+				end
+
+				if not targetPlayer then
+					if Events.Notify then
+						Events.Notify:FireClient(player, "❌ กรุณาเลือกผู้เล่นที่จะแย่งการ์ด!")
+					end
+					return
+				end
+
+				local targetHand = targetPlayer:FindFirstChild("Hand")
+				local myHand = player:FindFirstChild("Hand")
+
+				if targetHand and myHand then
+					local cards = targetHand:GetChildren()
+					if #cards > 0 then
+						local stolenCard = cards[math.random(1, #cards)]
+						local cardName = stolenCard.Name
+						stolenCard.Parent = myHand
+						if Events.Notify then
+							Events.Notify:FireClient(player, "🎣 แย่งการ์ด " .. cardName .. " จาก " .. targetPlayer.Name .. " สำเร็จ!")
+							Events.Notify:FireClient(targetPlayer, "🎣 " .. player.Name .. " แย่งการ์ด " .. cardName .. " ไป!")
+							Events.Notify:FireAllClients("🎣 " .. player.Name .. " แย่งการ์ดจาก " .. targetPlayer.Name .. "!")
+						end
+						abilitySuccess = true
+					else
+						if Events.Notify then
+							Events.Notify:FireClient(player, "❌ " .. targetPlayer.Name .. " ไม่มีการ์ดให้แย่ง!")
+						end
+						return
+					end
+				end
+
+			-- ============================================
+			-- ROCKET: Steal Pokemon - Passive (triggers on PvP win)
+			-- ============================================
+			elseif playerJob == "Rocket" and abilityName == "StealPokemon" then
+				if Events.Notify then
+					Events.Notify:FireClient(player, "💀 แก็งร็อกเก็ตจะขโมย Pokemon เมื่อชนะ PvP (Passive)")
+				end
+				abilitySuccess = false -- Passive, no active use
+
+			-- ============================================
+			-- NURSE JOY: Revive - ฟื้นฟู Pokemon ที่ตาย
+			-- ============================================
+			elseif playerJob == "NurseJoy" and abilityName == "Revive" then
+				local inventory = player:FindFirstChild("PokemonInventory")
+				if inventory then
+					local revived = false
+					for _, poke in ipairs(inventory:GetChildren()) do
+						if poke:GetAttribute("Status") == "Dead" then
+							poke:SetAttribute("Status", "Alive")
+							poke:SetAttribute("CurrentHP", poke:GetAttribute("MaxHP"))
+							if Events.Notify then
+								Events.Notify:FireClient(player, "💖 ฟื้นฟู " .. poke.Name .. " สำเร็จ!")
+								Events.Notify:FireAllClients("💖 " .. player.Name .. " ฟื้นฟู " .. poke.Name .. "!")
+							end
+							revived = true
+							break -- Revive only 1 per turn
+						end
+					end
+					if not revived then
+						if Events.Notify then
+							Events.Notify:FireClient(player, "❌ ไม่มี Pokemon ที่ต้องฟื้นฟู!")
+						end
+						return
+					end
+				end
+				abilitySuccess = true
+
 			else
 				if Events.Notify then
 					Events.Notify:FireClient(player, "❌ Ability ไม่ถูกต้องสำหรับอาชีพของคุณ!")
@@ -607,6 +698,27 @@ local ValidJobs = {
 		Name = "Biker",
 		Ability = "TurboBoost",
 		Description = "นักบิด - เดินเพิ่ม +2 ช่อง"
+	},
+	Trainer = {
+		Name = "Trainer",
+		Ability = "ExtraHand",
+		Description = "เทรนเนอร์ - ถือการ์ดได้ 6 ใบ (Passive)",
+		HandLimit = 6
+	},
+	Fisherman = {
+		Name = "Fisherman",
+		Ability = "StealCard",
+		Description = "นักตกปลา - แย่งชิงการ์ดจากผู้เล่นอื่น"
+	},
+	Rocket = {
+		Name = "Rocket",
+		Ability = "StealPokemon",
+		Description = "แก็งร็อกเก็ต - ขโมย Pokemon เมื่อชนะ PvP (Passive)"
+	},
+	NurseJoy = {
+		Name = "NurseJoy",
+		Ability = "Revive",
+		Description = "คุณจอย - ฟื้นฟู Pokemon ที่ตายได้ทุกเทิร์น"
 	}
 }
 
@@ -627,12 +739,16 @@ function TurnManager.handleStarterSelection(player, jobName)
 	player:SetAttribute("JobAbility", jobData.Ability)
 	player:SetAttribute("AbilityUsedThisTurn", false)
 
-	-- Give random starter Pokemon based on job (optional flavor)
+	-- Give starter Pokemon based on job
 	local starterPokemon = {
 		Gambler = "Meowth",    -- Money-related
 		Esper = "Abra",        -- Psychic
 		Shaman = "Gastly",     -- Ghost/Spirit
-		Biker = "Voltorb"      -- Fast/Electric
+		Biker = "Voltorb",     -- Fast/Electric
+		Trainer = "Pikachu",   -- Classic trainer
+		Fisherman = "Magikarp",-- Fishing
+		Rocket = "Rattata",    -- Team Rocket
+		NurseJoy = "Chansey"   -- Healing
 	}
 
 	local starterName = starterPokemon[jobName] or "Pikachu"
@@ -674,7 +790,8 @@ function TurnManager.handleStarterSelection(player, jobName)
 		end
 	end
 
-	if allReady then
+	-- SOLO MODE: If only 1 player and they're ready, start immediately
+	if allReady or (playerCount == 1 and TurnManager.readyPlayers[player.UserId]) then
 		TurnManager.startGame()
 	elseif TurnManager.gameStarted then
 		-- LATE JOINER HANDLING:

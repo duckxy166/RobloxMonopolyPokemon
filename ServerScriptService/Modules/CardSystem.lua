@@ -110,11 +110,21 @@ function CardSystem.countHand(player)
 	return total
 end
 
+-- Get player's hand limit (Trainer gets 6)
+function CardSystem.getHandLimit(player)
+	local job = player:GetAttribute("Job")
+	if job == "Trainer" then
+		return 6
+	end
+	return CardSystem.HAND_LIMIT
+end
+
 -- Add card to player hand
 function CardSystem.addCardToHand(player, cardId)
 	local hand = CardSystem.getHandFolder(player)
 	if not hand then return false, "no_hand" end
-	if CardSystem.countHand(player) >= CardSystem.HAND_LIMIT then
+	local handLimit = CardSystem.getHandLimit(player)
+	if CardSystem.countHand(player) >= handLimit then
 		return false, "hand_full"
 	end
 
@@ -149,9 +159,10 @@ end
 function CardSystem.drawOneCard(player)
 	CardSystem.refillDeckIfEmpty()
 
-	if CardSystem.countHand(player) >= CardSystem.HAND_LIMIT then
+	local handLimit = CardSystem.getHandLimit(player)
+	if CardSystem.countHand(player) >= handLimit then
 		if notifyEvent then 
-			notifyEvent:FireClient(player, "Hand is full (5 cards)! Discard or use cards first!") 
+			notifyEvent:FireClient(player, "Hand is full (" .. handLimit .. " cards)! Discard or use cards first!") 
 		end
 		return nil
 	end
@@ -341,6 +352,18 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 				-- 1. TWISTED SPOON (Teleport to Target + Trigger Tile Event) - Unblockable  
 				if cardName == "Twisted Spoon" then
 					local targetPos = playerManager.playerPositions[targetPlayer.UserId]
+					local currentPos = playerManager.playerPositions[player.UserId] or 0
+					
+					-- ANTI-EXPLOIT: Prevent warping to tile 0 (Sell Center) to avoid lap skipping
+					if targetPos == 0 then
+						if events.Notify then
+							events.Notify:FireClient(player, "❌ Cannot warp to Sell Center (Tile 0)! Choose another target.")
+						end
+						-- Refund the card
+						CardSystem.addCardToHand(player, cardName)
+						return
+					end
+					
 					playerManager.playerPositions[player.UserId] = targetPos
 					
 					if player.Character and targetPlayer.Character then

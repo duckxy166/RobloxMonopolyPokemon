@@ -27,7 +27,8 @@ local JobDB = {
 		Description = "นักพนัน - เสี่ยงดวงเพื่อรางวัลใหญ่",
 		Ability = "Lucky Guess",
 		AbilityDesc = "ทายเลข 1-6 ถ้าถูกได้ 6 เหรียญ!",
-		PassiveDesc = "ความโชคดีอยู่ข้างคุณเสมอ"
+		PassiveDesc = "ความโชคดีอยู่ข้างคุณเสมอ",
+		Starter = "Meowth"
 	},
 	Esper = {
 		Name = "Esper",
@@ -36,7 +37,8 @@ local JobDB = {
 		Description = "จิตสัมผัส - ควบคุมโชคชะตา",
 		Ability = "Mind Move",
 		AbilityDesc = "กำหนดช่องเดินได้ 1 หรือ 2 ช่อง (แทนทอยเต๋า)",
-		PassiveDesc = "เลือกเส้นทางได้ตามใจ"
+		PassiveDesc = "เลือกเส้นทางได้ตามใจ",
+		Starter = "Abra"
 	},
 	Shaman = {
 		Name = "Shaman",
@@ -45,7 +47,8 @@ local JobDB = {
 		Description = "หมอผี - สาปแช่งศัตรู",
 		Ability = "Curse",
 		AbilityDesc = "สาปผู้เล่นคนอื่น: ทิ้งการ์ด 1 ใบ + เสียเงิน 1 เหรียญ",
-		PassiveDesc = "พลังแห่งความมืดคือเพื่อนของคุณ"
+		PassiveDesc = "พลังแห่งความมืดคือเพื่อนของคุณ",
+		Starter = "Gastly"
 	},
 	Biker = {
 		Name = "Biker",
@@ -54,11 +57,52 @@ local JobDB = {
 		Description = "นักบิด - เร็วแรงทะลุนรก",
 		Ability = "Turbo Boost",
 		AbilityDesc = "เดินเพิ่ม +2 ช่อง ในเทิร์นนี้",
-		PassiveDesc = "ความเร็วคือพลัง"
+		PassiveDesc = "ความเร็วคือพลัง",
+		Starter = "Voltorb"
+	},
+	Trainer = {
+		Name = "Trainer",
+		Icon = "🎒",
+		Color = Color3.fromRGB(100, 150, 255), -- Blue
+		Description = "เทรนเนอร์ - ผู้เชี่ยวชาญการ์ด",
+		Ability = "Extra Hand",
+		AbilityDesc = "ถือการ์ดได้ 6 ใบ (ปกติ 5)",
+		PassiveDesc = "มาพร้อม Pikachu",
+		Starter = "Pikachu"
+	},
+	Fisherman = {
+		Name = "Fisherman",
+		Icon = "🎣",
+		Color = Color3.fromRGB(50, 150, 200), -- Cyan
+		Description = "นักตกปลา - ขโมยของคนอื่น",
+		Ability = "Steal Card",
+		AbilityDesc = "ขโมยการ์ด 1 ใบจากผู้เล่นคนอื่น",
+		PassiveDesc = "มาพร้อม Magikarp",
+		Starter = "Magikarp"
+	},
+	Rocket = {
+		Name = "Rocket",
+		Icon = "💀",
+		Color = Color3.fromRGB(80, 80, 80), -- Dark Gray
+		Description = "แก๊งร็อคเก็ต - ขโมยโปเกม่อน!",
+		Ability = "Steal Pokemon",
+		AbilityDesc = "เมื่อชนะ PvP ขโมยโปเกม่อน 1 ตัว",
+		PassiveDesc = "มาพร้อม Rattata",
+		Starter = "Rattata"
+	},
+	NurseJoy = {
+		Name = "NurseJoy",
+		Icon = "💖",
+		Color = Color3.fromRGB(255, 150, 200), -- Pink
+		Description = "คุณจอย - รักษาโปเกม่อน",
+		Ability = "Revive",
+		AbilityDesc = "ฟื้นคืนชีพโปเกม่อนที่ตายได้ทุกเทิร์น",
+		PassiveDesc = "มาพร้อม Chansey",
+		Starter = "Chansey"
 	}
 }
 
-local JobOrder = {"Gambler", "Esper", "Shaman", "Biker"}
+local JobOrder = {"Gambler", "Esper", "Shaman", "Biker", "Trainer", "Fisherman", "Rocket", "NurseJoy"}
 
 -- ============================================================================
 -- UI CREATION
@@ -166,7 +210,7 @@ local function createJobCard(jobName)
 
 	local card = Instance.new("Frame")
 	card.Name = jobName
-	card.Size = UDim2.new(0.22, 0, 0.95, 0)
+	card.Size = UDim2.new(0.115, 0, 0.95, 0) -- Smaller for 8 cards
 	card.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 	card.BorderSizePixel = 0
 	card.Parent = cardsContainer

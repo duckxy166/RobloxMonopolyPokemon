@@ -233,13 +233,14 @@ end)
 
 -- [[ 🔌 LOGIC CONNECTIONS ]] --
 
--- Rarity Colors
+-- Rarity Colors (Updated with Divine tier)
 local RARITY_COLORS = {
-	["None"] = Color3.fromRGB(150, 150, 150),
-	["Common"] = Color3.fromRGB(100, 200, 100),
-	["Uncommon"] = Color3.fromRGB(80, 180, 255),
-	["Rare"] = Color3.fromRGB(200, 100, 255),
-	["Legend"] = Color3.fromRGB(255, 215, 0)
+	["Common"] = Color3.fromRGB(180, 180, 180),    -- Gray (base tier)
+	["Uncommon"] = Color3.fromRGB(100, 255, 100),  -- Green
+	["Rare"] = Color3.fromRGB(100, 200, 255),      -- Blue
+	["Epic"] = Color3.fromRGB(255, 100, 255),      -- Purple/Magenta
+	["Divine"] = Color3.fromRGB(255, 80, 80),      -- Red/Crimson
+	["Legend"] = Color3.fromRGB(255, 215, 0)       -- Gold
 }
 
 

@@ -13,16 +13,17 @@
 
 local SellSystem = {}
 
--- Constants
+-- Constants (Updated with Divine tier)
 SellSystem.SELL_PRICES = {
-	["None"] = 3,
-	["Common"] = 5,
-	["Uncommon"] = 8,
-	["Rare"] = 12,
-	["Legend"] = 20
+	["Common"] = 3,
+	["Uncommon"] = 6,
+	["Rare"] = 10,
+	["Epic"] = 18,
+	["Divine"] = 28,
+	["Legend"] = 40
 }
 
-SellSystem.MIN_PARTY_SIZE = 0 -- Can sell all Pokemon (no minimum required)
+SellSystem.MIN_PARTY_SIZE = 1 -- Must keep at least 1 Pokemon
 
 -- Dependencies
 local Events = nil
@@ -142,6 +143,15 @@ function SellSystem.handleSell(player, pokemonName)
 	if status == "Dead" then
 		if Events.Notify then
 			Events.Notify:FireClient(player, "❌ Cannot sell dead Pokemon!")
+		end
+		return
+	end
+	
+	-- Check minimum party size - must keep at least 1 Pokemon
+	local totalPokemon = #inventory:GetChildren()
+	if totalPokemon <= SellSystem.MIN_PARTY_SIZE then
+		if Events.Notify then
+			Events.Notify:FireClient(player, "❌ Cannot sell your last Pokemon! Must keep at least 1.")
 		end
 		return
 	end

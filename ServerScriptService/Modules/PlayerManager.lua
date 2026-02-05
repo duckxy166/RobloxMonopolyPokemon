@@ -126,9 +126,9 @@ function PlayerManager.onPlayerAdded(player)
 	hand.Name = "Hand"
 	hand.Parent = player
 
-	-- Draw starter cards (2 cards at game start)
+	-- Draw starter cards (3 cards at game start)
 	if CardSystem then
-		for i = 1, 2 do
+		for i = 1, 3 do
 			CardSystem.drawOneCard(player)
 		end
 		-- FIX: Validate hand to remove/swap legacy cards if any

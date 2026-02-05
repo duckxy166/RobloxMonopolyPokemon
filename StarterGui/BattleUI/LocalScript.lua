@@ -435,7 +435,8 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 
 	task.wait(1.5)
 
-	if isBattleActive then
+	-- Only show roll button if battle is STILL active (not ended yet)
+	if isBattleActive and rollBtn then
 		rollBtn.Visible = true
 		rollBtn.Text = "🎲 ROLL ATTACK"
 		rollBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
@@ -502,9 +503,20 @@ end)
 -- Battle End
 Events.BattleEnd.OnClientEvent:Connect(function(result)
 	isBattleActive = false
+	isRolling = false -- Reset rolling state
 	currentBattleData = nil
-	if vsFrame then vsFrame:Destroy() vsFrame = nil end
-	rollBtn.Visible = false
+	
+	-- Safe cleanup of UI
+	if rollBtn then 
+		rollBtn.Visible = false 
+	end
+	if vsFrame then 
+		vsFrame:Destroy() 
+		vsFrame = nil 
+	end
+	
+	-- Cleanup any remaining dice
+	cleanupDice()
 
 	local msgText = result
 	local msgColor = Color3.fromRGB(255, 255, 255)
