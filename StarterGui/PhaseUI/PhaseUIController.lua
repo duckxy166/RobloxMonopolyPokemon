@@ -21,15 +21,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
-local Events = ReplicatedStorage:WaitForChild("Events")
 
 -- ============================================================================
--- REMOTE EVENTS
+-- REMOTE EVENTS (directly from ReplicatedStorage, not "Events" folder)
 -- ============================================================================
-local PhaseUpdateEvent = Events:WaitForChild("PhaseUpdate", 5)
-local UpdateTurnEvent = Events:WaitForChild("UpdateTurn")
-local AdvancePhaseEvent = Events:WaitForChild("AdvancePhase", 5)
-local RollDiceEvent = Events:WaitForChild("RollDice")
+local PhaseUpdateEvent = ReplicatedStorage:WaitForChild("PhaseUpdateEvent", 5)
+local UpdateTurnEvent = ReplicatedStorage:WaitForChild("UpdateTurnEvent")
+local AdvancePhaseEvent = ReplicatedStorage:WaitForChild("AdvancePhaseEvent", 5)
+local RollDiceEvent = ReplicatedStorage:WaitForChild("RollDiceEvent")
 
 -- ============================================================================
 -- UI REFERENCES

@@ -164,15 +164,27 @@ function TurnManager.nextTurn()
 	print("⚠️ No valid players found to take turn?")
 end
 
+-- ============================================================================
+-- 🎮 4-PHASE TURN SYSTEM
+-- Phase 1: Draw Phase - จั่วการ์ด 1 ใบอัตโนมัติ
+-- Phase 2: Item Phase - ใช้การ์ดได้ + ปุ่ม "Next Phase"
+-- Phase 3: Ability Phase - ใช้ Skill อาชีพ + ปุ่ม "Next Phase"
+-- Phase 4: Roll Phase - ทอยเต๋า
+-- ============================================================================
+
+-- Phase Timeouts (seconds)
+TurnManager.ITEM_PHASE_TIMEOUT = 60
+TurnManager.ABILITY_PHASE_TIMEOUT = 30
+
 -- Enter draw phase (Always draw 1 card at start of turn)
 function TurnManager.enterDrawPhase(player)
 	TurnManager.turnPhase = "Draw"
 	TurnManager.isTurnActive = true
-	print("Phase: Draw Phase for:", player.Name)
+	print("📍 Phase 1: DRAW Phase for:", player.Name)
 
 	-- Highlight Current Turn Player
 	local UIHelpers = require(game:GetService("ReplicatedStorage"):WaitForChild("UIHelpers"))
-	
+
 	-- Remove highlight from all other players
 	for _, p in ipairs(PlayerManager.playersInGame) do
 		if p.Character then
@@ -185,11 +197,16 @@ function TurnManager.enterDrawPhase(player)
 			end
 		end
 	end
-	
+
 	-- Add highlight to current player
 	if player.Character then
 		UIHelpers.CreatePlayerHighlight(player.Character, true)
 		UIHelpers.CreatePlayerNameLabel(player.Character, player.Name, true)
+	end
+
+	-- Fire PhaseUpdate to client
+	if Events.PhaseUpdate then
+		Events.PhaseUpdate:FireClient(player, "Draw", "🃏 กำลังจั่วการ์ด...")
 	end
 
 	-- Force Draw 1 Card
@@ -210,16 +227,83 @@ function TurnManager.enterDrawPhase(player)
 		end
 	end
 
-	-- Short delay to show card drawn, then go to Roll
+	-- Short delay to show card drawn, then go to Item Phase
 	task.wait(1.5)
-	TurnManager.enterRollPhase(player)
+	TurnManager.enterItemPhase(player)
+end
+
+-- Enter Item Phase (Use cards before rolling)
+function TurnManager.enterItemPhase(player)
+	TurnManager.turnPhase = "Item"
+	print("📍 Phase 2: ITEM Phase for:", player.Name)
+
+	-- Fire PhaseUpdate to client
+	if Events.PhaseUpdate then
+		Events.PhaseUpdate:FireClient(player, "Item", "🎒 ใช้การ์ดได้เลย หรือกด Next Phase")
+	end
+
+	-- Notify all clients about phase change
+	if Events.Notify then
+		Events.Notify:FireAllClients("🎒 " .. player.Name .. " อยู่ใน Item Phase")
+	end
+
+	-- Start Item Phase timer
+	TimerSystem.startPhaseTimer(TurnManager.ITEM_PHASE_TIMEOUT, "Item", function()
+		if TurnManager.turnPhase == "Item" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
+			print("⏱️ Timer: Item Phase timeout for " .. player.Name .. " -> Auto-advance")
+			TurnManager.enterAbilityPhase(player)
+		end
+	end)
+end
+
+-- Enter Ability Phase (Use class abilities)
+function TurnManager.enterAbilityPhase(player)
+	TurnManager.turnPhase = "Ability"
+	print("📍 Phase 3: ABILITY Phase for:", player.Name)
+
+	-- Fire PhaseUpdate to client
+	if Events.PhaseUpdate then
+		Events.PhaseUpdate:FireClient(player, "Ability", "⚡ ใช้ Ability ได้ หรือกด Next Phase")
+	end
+
+	-- Check if player has a class/job with abilities
+	local playerClass = player:GetAttribute("Class") or player:GetAttribute("Job")
+
+	if not playerClass then
+		-- No class - auto skip to Roll Phase after short delay
+		print("⏩ No class found, skipping Ability Phase")
+		if Events.Notify then
+			Events.Notify:FireClient(player, "⏩ ไม่มี Ability - ข้ามไป Roll Phase")
+		end
+		task.wait(1)
+		TurnManager.enterRollPhase(player)
+		return
+	end
+
+	-- Notify all clients about phase change
+	if Events.Notify then
+		Events.Notify:FireAllClients("⚡ " .. player.Name .. " อยู่ใน Ability Phase (" .. playerClass .. ")")
+	end
+
+	-- Start Ability Phase timer
+	TimerSystem.startPhaseTimer(TurnManager.ABILITY_PHASE_TIMEOUT, "Ability", function()
+		if TurnManager.turnPhase == "Ability" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
+			print("⏱️ Timer: Ability Phase timeout for " .. player.Name .. " -> Auto-advance")
+			TurnManager.enterRollPhase(player)
+		end
+	end)
 end
 
 -- Enter roll phase
 function TurnManager.enterRollPhase(player)
 	TurnManager.turnPhase = "Roll"
 	TurnManager.isTurnActive = true  -- IMPORTANT: Allow player to roll
-	print("Phase: Enter Roll Phase for:", player.Name)
+	print("📍 Phase 4: ROLL Phase for:", player.Name)
+
+	-- Fire PhaseUpdate to client
+	if Events.PhaseUpdate then
+		Events.PhaseUpdate:FireClient(player, "Roll", "🎲 กดทอยเต๋าได้เลย!")
+	end
 
 	-- Check if on same tile as another player (e.g., pushed back here)
 	local currentPos = PlayerManager.playerPositions[player.UserId] or 0
@@ -284,6 +368,47 @@ function TurnManager.connectEvents()
 	if Events.SelectStarter then
 		Events.SelectStarter.OnServerEvent:Connect(function(player, starterName)
 			TurnManager.handleStarterSelection(player, starterName)
+		end)
+	end
+
+	-- 4-Phase System: Advance Phase Event
+	if Events.AdvancePhase then
+		Events.AdvancePhase.OnServerEvent:Connect(function(player)
+			-- Validate it's the current player's turn
+			if #PlayerManager.playersInGame == 0 then return end
+			if player ~= PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
+				print("⚠️ AdvancePhase rejected: Not " .. player.Name .. "'s turn")
+				return
+			end
+
+			print("➡️ AdvancePhase from " .. player.Name .. " (current phase: " .. TurnManager.turnPhase .. ")")
+
+			-- Advance based on current phase
+			if TurnManager.turnPhase == "Item" then
+				TurnManager.enterAbilityPhase(player)
+			elseif TurnManager.turnPhase == "Ability" then
+				TurnManager.enterRollPhase(player)
+			else
+				print("⚠️ Cannot advance from phase: " .. TurnManager.turnPhase)
+			end
+		end)
+	end
+
+	-- 4-Phase System: Use Ability Event (for future class abilities)
+	if Events.UseAbility then
+		Events.UseAbility.OnServerEvent:Connect(function(player, abilityName)
+			if TurnManager.turnPhase ~= "Ability" then
+				if Events.Notify then
+					Events.Notify:FireClient(player, "❌ ใช้ Ability ได้แค่ใน Ability Phase เท่านั้น!")
+				end
+				return
+			end
+
+			-- TODO: Implement class-specific abilities here
+			print("⚡ " .. player.Name .. " used ability: " .. tostring(abilityName))
+
+			-- After using ability, auto-advance to Roll Phase
+			TurnManager.enterRollPhase(player)
 		end)
 	end
 end
