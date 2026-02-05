@@ -488,88 +488,75 @@ end
 
 function BattleSystem.resolveTurn(battle, roll1, roll2)
 	local winner = nil
-	local damage = 0
+
+	-- ============================================
+	-- SIMPLIFIED BATTLE: No HP reduction!
+	-- Winner is decided by single roll comparison
+	-- Draw = re-roll (return and wait for next roll)
+	-- ============================================
 
 	if roll1 == roll2 then
+		local drawData = {PlayerRoll = roll1, EnemyRoll = roll2, AttackerRoll = roll1, DefenderRoll = roll2}
 		if battle.Type == "PvP" then
 			battle.AttackerRoll = nil
 			battle.DefenderRoll = nil
-			Events.BattleAttack:FireClient(battle.Attacker, "Draw", 0, {AttackerRoll = roll1, DefenderRoll = roll2})
-			Events.BattleAttack:FireClient(battle.Defender, "Draw", 0, {AttackerRoll = roll1, DefenderRoll = roll2})
+			Events.BattleAttack:FireAllClients("Draw", 0, drawData)
 		elseif battle.Type == "PvE" then
-			Events.BattleAttack:FireClient(battle.Player, "Draw", 0, {PlayerRoll = roll1, EnemyRoll = roll2})
+			Events.BattleAttack:FireAllClients("Draw", 0, drawData)
 		end
-		return
+		return -- Re-roll on draw
 	end
 
 	if battle.Type == "PvE" then
 		if roll1 > roll2 then
 			winner = "Player"
-			damage = battle.MyStats.Attack
-			battle.EnemyStats.CurrentHP -= damage
 		else
 			winner = "Enemy"
-			damage = battle.EnemyStats.Attack
-			battle.MyStats.CurrentHP -= damage
-			battle.MyPokeObj:SetAttribute("CurrentHP", battle.MyStats.CurrentHP)
 		end
 
-		Events.BattleAttack:FireClient(battle.Player, winner, damage, {
+		-- Fire result to ALL clients (no HP change, just roll result)
+		Events.BattleAttack:FireAllClients(winner, 0, {
 			PlayerRoll = roll1, EnemyRoll = roll2,
-			PlayerHP = battle.MyStats.CurrentHP, EnemyHP = battle.EnemyStats.CurrentHP
+			PlayerHP = battle.MyStats.MaxHP, EnemyHP = battle.EnemyStats.MaxHP,
+			AttackerRoll = roll1, DefenderRoll = roll2
 		})
 
-		if battle.EnemyStats.CurrentHP <= 0 then
-			task.spawn(function()
-				task.wait(6)
+		-- End battle immediately based on roll winner
+		task.spawn(function()
+			task.wait(3) -- Shorter wait since no HP animation needed
+			if winner == "Player" then
 				BattleSystem.endBattle(battle, "Win")
-			end)
-		elseif battle.MyStats.CurrentHP <= 0 then
-			task.spawn(function()
-				task.wait(6)
+			else
 				BattleSystem.endBattle(battle, "Lose")
-			end)
-		end
+			end
+		end)
 
 	elseif battle.Type == "PvP" then
-		local attacker = battle.Attacker
-		local defender = battle.Defender
-
 		if roll1 > roll2 then
 			winner = "Attacker"
-			damage = battle.AttackerStats.Attack
-			battle.DefenderStats.CurrentHP -= damage
-			battle.DefenderPokeObj:SetAttribute("CurrentHP", battle.DefenderStats.CurrentHP)
 		else
 			winner = "Defender"
-			damage = battle.DefenderStats.Attack
-			battle.AttackerStats.CurrentHP -= damage
-			battle.AttackerPokeObj:SetAttribute("CurrentHP", battle.AttackerStats.CurrentHP)
 		end
 
 		local updateData = {
-			Winner = winner, Damage = damage,
+			Winner = winner, Damage = 0,
 			AttackerRoll = roll1, DefenderRoll = roll2,
-			AttackerHP = battle.AttackerStats.CurrentHP,
-			DefenderHP = battle.DefenderStats.CurrentHP
+			AttackerHP = battle.AttackerStats.MaxHP,
+			DefenderHP = battle.DefenderStats.MaxHP,
+			PlayerRoll = roll1, EnemyRoll = roll2,
+			PlayerHP = battle.AttackerStats.MaxHP, EnemyHP = battle.DefenderStats.MaxHP
 		}
-		Events.BattleAttack:FireClient(attacker, winner, damage, updateData)
-		Events.BattleAttack:FireClient(defender, winner, damage, updateData)
+		Events.BattleAttack:FireAllClients(winner, 0, updateData)
 
-		if battle.DefenderStats.CurrentHP <= 0 then
-			task.spawn(function()
-				task.wait(6)
+		-- End battle immediately based on roll winner
+		task.spawn(function()
+			task.wait(3)
+			if winner == "Attacker" then
 				BattleSystem.endBattle(battle, "AttackerWin")
-			end)
-		elseif battle.AttackerStats.CurrentHP <= 0 then
-			task.spawn(function()
-				task.wait(6)
+			else
 				BattleSystem.endBattle(battle, "DefenderWin")
-			end)
-		else
-			battle.AttackerRoll = nil
-			battle.DefenderRoll = nil
-		end
+			end
+		end)
 	end
 end
 
@@ -580,19 +567,8 @@ end
 function BattleSystem.endBattle(battle, result)
 	print("🏁 Battle Ended: " .. result)
 
-	-- Delayed Dead Status set
-	if battle.Type == "PvE" then
-		if battle.MyStats.CurrentHP <= 0 then
-			battle.MyPokeObj:SetAttribute("Status", "Dead")
-		end
-	elseif battle.Type == "PvP" then
-		if battle.AttackerStats.CurrentHP <= 0 then
-			battle.AttackerPokeObj:SetAttribute("Status", "Dead")
-		end
-		if battle.DefenderStats.CurrentHP <= 0 then
-			battle.DefenderPokeObj:SetAttribute("Status", "Dead")
-		end
-	end
+	-- NOTE: Pokemon HP system removed - no Dead status from battles
+	-- Pokemon only "faint" visually during battle but don't actually lose HP
 
 	local tilesFolder = workspace:FindFirstChild("Tiles")
 

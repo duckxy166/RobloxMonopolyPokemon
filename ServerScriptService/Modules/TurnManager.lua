@@ -401,9 +401,9 @@ function TurnManager.connectEvents()
 		end)
 	end
 
-	-- 4-Phase System: Use Ability Event (for future class abilities)
+	-- 4-Phase System: Use Ability Event
 	if Events.UseAbility then
-		Events.UseAbility.OnServerEvent:Connect(function(player, abilityName)
+		Events.UseAbility.OnServerEvent:Connect(function(player, abilityName, abilityData)
 			if TurnManager.turnPhase ~= "Ability" then
 				if Events.Notify then
 					Events.Notify:FireClient(player, "❌ ใช้ Ability ได้แค่ใน Ability Phase เท่านั้น!")
@@ -411,8 +411,140 @@ function TurnManager.connectEvents()
 				return
 			end
 
-			-- TODO: Implement class-specific abilities here
-			print("⚡ " .. player.Name .. " used ability: " .. tostring(abilityName))
+			-- Check if already used this turn
+			if player:GetAttribute("AbilityUsedThisTurn") then
+				if Events.Notify then
+					Events.Notify:FireClient(player, "❌ ใช้ Ability ได้แค่ 1 ครั้งต่อเทิร์น!")
+				end
+				return
+			end
+
+			local playerJob = player:GetAttribute("Job")
+			print("⚡ " .. player.Name .. " (" .. (playerJob or "No Job") .. ") used ability: " .. tostring(abilityName))
+
+			local abilitySuccess = false
+
+			-- ============================================
+			-- GAMBLER: Lucky Guess - ทายเลข 1-6
+			-- ============================================
+			if playerJob == "Gambler" and abilityName == "LuckyGuess" then
+				local guessedNumber = abilityData and abilityData.guess
+				if not guessedNumber or type(guessedNumber) ~= "number" then
+					if Events.Notify then
+						Events.Notify:FireClient(player, "❌ กรุณาเลือกเลข 1-6!")
+					end
+					return
+				end
+
+				local actualRoll = math.random(1, 6)
+				if guessedNumber == actualRoll then
+					-- WIN! +6 coins
+					local leaderstats = player:FindFirstChild("leaderstats")
+					if leaderstats and leaderstats:FindFirstChild("Money") then
+						leaderstats.Money.Value += 6
+					end
+					if Events.Notify then
+						Events.Notify:FireClient(player, "🎰 ทายถูก! เลข " .. actualRoll .. " ได้ 6 เหรียญ!")
+						Events.Notify:FireAllClients("🎰 " .. player.Name .. " ทายเลขถูก! (" .. actualRoll .. ") +6 เหรียญ")
+					end
+				else
+					if Events.Notify then
+						Events.Notify:FireClient(player, "🎰 ทายผิด! คุณทาย " .. guessedNumber .. " แต่ออก " .. actualRoll)
+						Events.Notify:FireAllClients("🎰 " .. player.Name .. " ทายเลขผิด (ทาย " .. guessedNumber .. " ออก " .. actualRoll .. ")")
+					end
+				end
+				abilitySuccess = true
+
+			-- ============================================
+			-- ESPER: Mind Move - กำหนดช่องเดิน 1-2
+			-- ============================================
+			elseif playerJob == "Esper" and abilityName == "MindMove" then
+				local moveAmount = abilityData and abilityData.move
+				if not moveAmount or (moveAmount ~= 1 and moveAmount ~= 2) then
+					if Events.Notify then
+						Events.Notify:FireClient(player, "❌ กรุณาเลือก 1 หรือ 2 ช่อง!")
+					end
+					return
+				end
+
+				-- Store the fixed move for this turn
+				player:SetAttribute("FixedDiceRoll", moveAmount)
+				if Events.Notify then
+					Events.Notify:FireClient(player, "🔮 กำหนดเดิน " .. moveAmount .. " ช่องสำหรับเทิร์นนี้!")
+					Events.Notify:FireAllClients("🔮 " .. player.Name .. " ใช้พลังจิตกำหนดการเดิน!")
+				end
+				abilitySuccess = true
+
+			-- ============================================
+			-- SHAMAN: Curse - สาปคนอื่น (ทิ้งการ์ด + -1 เหรียญ)
+			-- ============================================
+			elseif playerJob == "Shaman" and abilityName == "Curse" then
+				local targetUserId = abilityData and abilityData.targetUserId
+				local targetPlayer = nil
+
+				-- Find target player
+				for _, p in ipairs(PlayerManager.playersInGame) do
+					if p.UserId == targetUserId and p ~= player then
+						targetPlayer = p
+						break
+					end
+				end
+
+				if not targetPlayer then
+					if Events.Notify then
+						Events.Notify:FireClient(player, "❌ กรุณาเลือกผู้เล่นที่จะสาป!")
+					end
+					return
+				end
+
+				-- Curse effect: -1 Money
+				local targetStats = targetPlayer:FindFirstChild("leaderstats")
+				if targetStats and targetStats:FindFirstChild("Money") then
+					targetStats.Money.Value = math.max(0, targetStats.Money.Value - 1)
+				end
+
+				-- Curse effect: Discard 1 random card
+				local targetHand = targetPlayer:FindFirstChild("Hand")
+				if targetHand then
+					local cards = targetHand:GetChildren()
+					if #cards > 0 then
+						local randomCard = cards[math.random(1, #cards)]
+						local cardName = randomCard.Name
+						randomCard:Destroy()
+						if Events.Notify then
+							Events.Notify:FireClient(targetPlayer, "🌿 ถูกสาป! เสียการ์ด " .. cardName .. " และ 1 เหรียญ!")
+						end
+					end
+				end
+
+				if Events.Notify then
+					Events.Notify:FireClient(player, "🌿 สาป " .. targetPlayer.Name .. " สำเร็จ!")
+					Events.Notify:FireAllClients("🌿 " .. player.Name .. " สาป " .. targetPlayer.Name .. "! (-1 การ์ด, -1 เหรียญ)")
+				end
+				abilitySuccess = true
+
+			-- ============================================
+			-- BIKER: Turbo Boost - เดินเพิ่ม +2 ช่อง
+			-- ============================================
+			elseif playerJob == "Biker" and abilityName == "TurboBoost" then
+				player:SetAttribute("BonusDiceRoll", 2)
+				if Events.Notify then
+					Events.Notify:FireClient(player, "🏍️ Turbo Boost! +2 ช่องในเทิร์นนี้!")
+					Events.Notify:FireAllClients("🏍️ " .. player.Name .. " เปิด Turbo Boost! +2 ช่อง")
+				end
+				abilitySuccess = true
+
+			else
+				if Events.Notify then
+					Events.Notify:FireClient(player, "❌ Ability ไม่ถูกต้องสำหรับอาชีพของคุณ!")
+				end
+				return
+			end
+
+			-- Mark ability as used
+			if abilitySuccess then
+				player:SetAttribute("AbilityUsedThisTurn", true)
+			end
 
 			-- After using ability, auto-advance to Roll Phase
 			TurnManager.enterRollPhase(player)
@@ -458,23 +590,23 @@ end
 local ValidJobs = {
 	Gambler = {
 		Name = "Gambler",
-		Ability = "LuckyRoll",
-		Description = "นักพนัน - เสี่ยงดวงเพื่อรางวัลใหญ่"
+		Ability = "LuckyGuess",
+		Description = "นักพนัน - ทายเลข 1-6 ถูกได้ 6 เหรียญ"
 	},
 	Esper = {
 		Name = "Esper",
-		Ability = "FutureSight",
-		Description = "จิตสัมผัส - มองเห็นอนาคต"
+		Ability = "MindMove",
+		Description = "จิตสัมผัส - กำหนดช่องเดินได้ 1-2 ช่อง"
 	},
 	Shaman = {
 		Name = "Shaman",
-		Ability = "SpiritHeal",
-		Description = "หมอผี - รักษาและฟื้นฟู"
+		Ability = "Curse",
+		Description = "หมอผี - สาปให้คนอื่นทิ้งการ์ด+เสียเงิน"
 	},
 	Biker = {
 		Name = "Biker",
 		Ability = "TurboBoost",
-		Description = "นักบิด - เคลื่อนที่เร็วและแรง"
+		Description = "นักบิด - เดินเพิ่ม +2 ช่อง"
 	}
 }
 
@@ -605,9 +737,29 @@ function TurnManager.processPlayerRoll(player)
 	TurnManager.isTurnActive = false
 	if EncounterSystem then EncounterSystem.clearCenterStage() end
 
-	--local roll = 10
-	local roll = math.random(1, 6)
-	print("🎲 [Server] Roll result:", roll)
+	-- Check for Esper's Fixed Roll (MindMove ability)
+	local fixedRoll = player:GetAttribute("FixedDiceRoll")
+	local bonusRoll = player:GetAttribute("BonusDiceRoll") or 0
+
+	local roll
+	if fixedRoll and fixedRoll > 0 then
+		-- Esper: Use fixed roll (1 or 2)
+		roll = fixedRoll
+		player:SetAttribute("FixedDiceRoll", nil) -- Clear after use
+		print("🔮 [Server] Esper fixed roll:", roll)
+	else
+		-- Normal random roll
+		roll = math.random(1, 6)
+	end
+
+	-- Apply Biker bonus (+2)
+	if bonusRoll > 0 then
+		roll = roll + bonusRoll
+		player:SetAttribute("BonusDiceRoll", nil) -- Clear after use
+		print("🏍️ [Server] Biker bonus applied: +" .. bonusRoll)
+	end
+
+	print("🎲 [Server] Final roll result:", roll)
 	Events.RollDice:FireAllClients(player, roll)
 	task.wait(2.5)
 
