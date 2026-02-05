@@ -92,6 +92,11 @@ function EventManager.init()
 		
 		-- Game End (for final results UI)
 		GameEnd = EventManager.getOrCreate("GameEndEvent"),
+
+		-- 4-Phase Turn System Events
+		PhaseUpdate = EventManager.getOrCreate("PhaseUpdateEvent"),
+		AdvancePhase = EventManager.getOrCreate("AdvancePhaseEvent"),
+		UseAbility = EventManager.getOrCreate("UseAbilityEvent"),
 	}
 
 	print("✅ EventManager initialized with " .. #events .. " events")
