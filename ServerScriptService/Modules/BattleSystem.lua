@@ -358,22 +358,11 @@ function BattleSystem.startPvE(player, chosenPoke, desiredRarity)
 		Events.Notify:FireAllClients("⚔️ " .. player.Name .. " entered a PvE battle!")
 	end
 
-	-- 5. Send Client Event to Active Player
+	-- 5. Send Client Event to Active Player ONLY
+	-- FIX: Don't send to spectators - they don't need Battle UI
 	Events.BattleStart:FireClient(player, "PvE", BattleSystem.activeBattles[player.UserId])
-
-	-- 6. Send to Spectators (all other players)
-	for _, spectator in ipairs(game.Players:GetPlayers()) do
-		if spectator ~= player then
-			local spectatorData = {
-				Type = "PvE",
-				Player = player,
-				MyStats = BattleSystem.activeBattles[player.UserId].MyStats,
-				EnemyStats = BattleSystem.activeBattles[player.UserId].EnemyStats,
-				IsSpectator = true
-			}
-			Events.BattleStart:FireClient(spectator, "PvE", spectatorData)
-		end
-	end
+	
+	-- NOTE: Removed spectator BattleStart firing to prevent UI showing for non-participants
 end
 
 -- Start PvP (Player vs Player)
@@ -766,6 +755,21 @@ end
 function BattleSystem.connectEvents()
 	if Events.BattleAttack then
 		Events.BattleAttack.OnServerEvent:Connect(function(player)
+			-- FIX: Validate player is actually in a battle before processing roll
+			local battle = BattleSystem.activeBattles[player.UserId]
+			if not battle then
+				warn("⚠️ [BattleSystem] " .. player.Name .. " tried to roll but is not in a battle!")
+				return
+			end
+			
+			-- For PvP, also check they are either Attacker or Defender
+			if battle.Type == "PvP" then
+				if player ~= battle.Attacker and player ~= battle.Defender then
+					warn("⚠️ [BattleSystem] " .. player.Name .. " tried to roll but is not part of this PvP battle!")
+					return
+				end
+			end
+			
 			local roll = math.random(1, 6)
 			BattleSystem.processRoll(player, roll)
 		end)
@@ -798,7 +802,9 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 				-- Check for recent battle
 				if BattleSystem.lastBattleOpponent[player.UserId] == target.UserId then
 					if Events.Notify then Events.Notify:FireClient(player, "❌ เพิ่ง Battle กับคนนี้! ต้องเดินก่อน") end
-					TurnManager.resumeTurn(player)
+					-- FIX: Don't call resumeTurn (it triggers PvE on Red Tile)
+					-- Instead, go directly to Roll Phase
+					TurnManager.enterRollPhase(player, true) -- true = skip PvP check
 					return
 				end
 				

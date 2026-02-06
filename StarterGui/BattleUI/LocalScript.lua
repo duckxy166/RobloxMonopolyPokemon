@@ -48,6 +48,7 @@ local battleResolved = false
 local currentBattleData = nil
 local vsFrame = nil
 local lastRollTime = 0       -- Anti-spam: track last roll time
+local isSpectator = false    -- FIX: Module-level spectator flag
 local ROLL_COOLDOWN = 1      -- 1 second cooldown between rolls
 
 -- Active dice storage (must be declared before createVSFrame)
@@ -239,7 +240,8 @@ local function createVSFrame()
 
 	-- Connect rollBtn click handler
 	rollBtn.MouseButton1Click:Connect(function()
-		if not isBattleActive or isRolling or battleResolved then return end
+		-- FIX: Spectators cannot roll
+		if not isBattleActive or isRolling or battleResolved or isSpectator then return end
 
 		-- Anti-spam cooldown check
 		local now = tick()
@@ -388,6 +390,11 @@ end)
 
 -- Battle Update (Damage)
 Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
+	-- FIX: Ignore if we're not in an active battle (spectator protection)
+	if not isBattleActive or isSpectator then
+		return
+	end
+	
 	isRolling = false
 
 	-- Check if battle is over (someone's HP reached 0)
@@ -630,10 +637,17 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 		return 
 	end
 
+	-- FIX: Skip UI creation entirely for spectators
+	if data.IsSpectator then
+		print("👁️ [BattleUI] Spectator mode - skipping UI creation")
+		return
+	end
+
 	print("⚔️ [Client] Battle Started!", type)
 	isBattleActive = true
 	isRolling = false
 	battleResolved = false
+	isSpectator = false -- Ensure we're not a spectator
 	currentBattleData = data
 
 	createVSFrame()
@@ -675,8 +689,8 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 		end
 	end
 
-	-- Check if spectator mode
-	local isSpectator = data.IsSpectator or false
+	-- Check if spectator mode (use module-level variable)
+	isSpectator = data.IsSpectator or false
 
 	if isSpectator then
 		-- Add spectator label

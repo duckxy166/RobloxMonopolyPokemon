@@ -1139,12 +1139,30 @@ function TurnManager.processLanding(player, currentPos, forceOpponent)
 	end
 
 	if #opponents > 0 and Events.BattleTrigger then
-		print("⚔️ PvP Potential on landing! Triggering Selection...")
-		print("🔴 [Server] Firing BattleTrigger to " .. player.Name) -- Diagnostic
-		-- Clear ProcessingTile since turn control is now with BattleSystem
-		player:SetAttribute("ProcessingTile", nil)
-		Events.BattleTrigger:FireClient(player, "PvP", { Opponents = opponents })
-		return
+		-- FIX: Filter out opponents we just battled (prevents UI from showing when battle would be blocked)
+		local BattleSystem = require(game.ServerScriptService.Modules.BattleSystem)
+		local validOpponents = {}
+		for _, opp in ipairs(opponents) do
+			if BattleSystem.lastBattleOpponent[player.UserId] ~= opp.UserId then
+				table.insert(validOpponents, opp)
+			else
+				print("⏭️ Skipping PvP UI for " .. opp.Name .. " (recent battle)")
+			end
+		end
+		
+		if #validOpponents > 0 then
+			print("⚔️ PvP Potential on landing! Triggering Selection...")
+			print("🔴 [Server] Firing BattleTrigger to " .. player.Name) -- Diagnostic
+			-- Clear ProcessingTile since turn control is now with BattleSystem
+			player:SetAttribute("ProcessingTile", nil)
+			Events.BattleTrigger:FireClient(player, "PvP", { Opponents = validOpponents })
+			return
+		else
+			print("⏭️ All opponents recently battled. Skipping PvP UI.")
+			-- No valid opponents, skip to Roll Phase
+			TurnManager.enterRollPhase(player, true)
+			return
+		end
 	end
 
 	-- If no PvP, process tile normally
