@@ -450,24 +450,21 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 	end
 
 	-- Step B: Rolling sequence (Visuals)
-
-	-- Stop My Dice (it was already spinning from button click or spacebar)
-	if activeDice.Player then
-		activeDice.Player.Stop(myRoll or 1)
-	else
-		-- Cleanup any leftover dice first
-		cleanupDice()
-		-- If triggered by spacebar or lag, spawn it now
-		activeDice.Player = spawn3NDice(myDiceOffset)
-		task.wait(0.5) -- Short spin time
-		if activeDice.Player then activeDice.Player.Stop(myRoll or 1) end
-	end
-
+	-- FIX: Always cleanup and create fresh dice to handle any roll order in PvP
+	cleanupDice()
+	
+	-- Spawn and animate my dice
+	sendMsg("🎲 Rolling...", Color3.fromRGB(100, 200, 255))
+	activeDice.Player = spawn3NDice(myDiceOffset)
 	task.wait(1.0)
+	if activeDice.Player then activeDice.Player.Stop(myRoll or 1) end
 
-	sendMsg("🎲 " .. (enemyName or "Enemy") .. " is rolling...", Color3.fromRGB(255, 100, 100))
+	task.wait(0.5)
+
+	-- Spawn and animate enemy dice
+	sendMsg("🎲 " .. (enemyName or "Enemy") .. " rolled!", Color3.fromRGB(255, 100, 100))
 	activeDice.Enemy = spawn3NDice(enemyDiceOffset)
-	task.wait(1.2)
+	task.wait(1.0)
 	if activeDice.Enemy then activeDice.Enemy.Stop(enemyRoll or 1) end
 
 	task.wait(1.5)
@@ -522,8 +519,9 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 		Debris:AddItem(resultBanner, 3)
 	end
 
-	-- Always show roll button if battle is active and NOT resolved (for next round)
-	if isBattleActive and not battleResolved and rollBtn then
+	-- Always show roll button if battle is active, NOT resolved, and NOT spectating
+	-- FIX: Added isSpectator check to prevent button showing for spectators
+	if isBattleActive and not battleResolved and not isSpectator and rollBtn then
 		rollBtn.Visible = true
 		rollBtn.Text = "🎲 ROLL AGAIN"
 		rollBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
@@ -817,7 +815,11 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 
 				forceRunBtn.MouseButton1Click:Connect(function()
 					warnFrame:Destroy()
-					Events.BattleTriggerResponse:FireServer("Run", nil)
+					choiceFrame:Destroy()  -- FIX: Also cleanup choiceFrame
+					-- FIX: Send correct action based on type
+					local action = "Run"
+					if type == "Defend" then action = "DefendRun" end
+					Events.BattleTriggerResponse:FireServer(action, nil)
 				end)
 				return
 			end

@@ -897,7 +897,8 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 			local pending = BattleSystem.pendingBattles[player.UserId]
 			if pending then
 				if Events.Notify then Events.Notify:FireClient(pending.Attacker, "🏃 " .. player.Name .. " หนีการต่อสู้!") end
-				TurnManager.resumeTurn(pending.Attacker)
+				-- FIX: Use enterRollPhase instead of resumeTurn to prevent PvE trigger
+				TurnManager.enterRollPhase(pending.Attacker, true) -- true = skip PvP check
 				BattleSystem.pendingBattles[player.UserId] = nil
 			end
 		else
