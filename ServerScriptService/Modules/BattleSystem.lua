@@ -26,6 +26,7 @@ local EvolutionSystem = require(script.Parent:WaitForChild("EvolutionSystem"))
 
 -- State
 BattleSystem.activeBattles = {} -- Key: PlayerId, Value: BattleData
+BattleSystem.lastRollTime = {}  -- Track last roll time per player (anti-spam)
 
 -- ============================================================================
 -- ✅ STAGE / TELEPORT HELPERS (FIX)
@@ -479,6 +480,15 @@ function BattleSystem.processRoll(player, roll)
 	local battle = BattleSystem.activeBattles[player.UserId]
 	if not battle then return end
 	if battle.Resolved then return end
+
+	-- Anti-spam: Check cooldown (1 second between rolls)
+	local now = tick()
+	local lastRoll = BattleSystem.lastRollTime[player.UserId] or 0
+	if (now - lastRoll) < 1 then
+		warn("⚠️ Battle roll spam detected from " .. player.Name)
+		return
+	end
+	BattleSystem.lastRollTime[player.UserId] = now
 
 	if battle.Type == "PvE" then
 		local aiRoll = math.random(1, 6)

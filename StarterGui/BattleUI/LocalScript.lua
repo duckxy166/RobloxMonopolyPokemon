@@ -47,6 +47,8 @@ local isRolling = false
 local battleResolved = false
 local currentBattleData = nil
 local vsFrame = nil
+local lastRollTime = 0       -- Anti-spam: track last roll time
+local ROLL_COOLDOWN = 1      -- 1 second cooldown between rolls
 
 -- Active dice storage (must be declared before createVSFrame)
 local activeDice = {} -- {Player=?, Enemy=?}
@@ -238,7 +240,13 @@ local function createVSFrame()
 	-- Connect rollBtn click handler
 	rollBtn.MouseButton1Click:Connect(function()
 		if not isBattleActive or isRolling or battleResolved then return end
+
+		-- Anti-spam cooldown check
+		local now = tick()
+		if (now - lastRollTime) < ROLL_COOLDOWN then return end
+
 		isRolling = true
+		lastRollTime = now
 		rollBtn.Visible = false -- Hide button while rolling
 
 		-- Cleanup previous dice before spawning new ones (for round 2+)
@@ -353,10 +361,15 @@ UserInputService.InputBegan:Connect(function(input, gamProcessed)
 	if gamProcessed then return end
 	if not isBattleActive then return end
 
+	-- Anti-spam cooldown check
+	local now = tick()
+	if (now - lastRollTime) < ROLL_COOLDOWN then return end
+
 	if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space then
 		-- Attack
 		if not isRolling and not battleResolved then
 			isRolling = true
+			lastRollTime = now
 			sendMsg("Rolling dice... 🎲", Color3.fromRGB(255, 255, 100))
 			Events.BattleAttack:FireServer()
 		end
@@ -364,6 +377,7 @@ UserInputService.InputBegan:Connect(function(input, gamProcessed)
 		-- Touch Attack
 		if not isRolling and not battleResolved then
 			isRolling = true
+			lastRollTime = now
 			sendMsg("Rolling dice... 🎲", Color3.fromRGB(255, 255, 100))
 			Events.BattleAttack:FireServer()
 		end
