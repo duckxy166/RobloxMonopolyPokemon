@@ -25,6 +25,9 @@ local RollDiceEvent = ReplicatedStorage:WaitForChild("RollDiceEvent")
 local UseAbilityEvent = ReplicatedStorage:WaitForChild("UseAbilityEvent", 5)
 local SwitchPhaseEvent = ReplicatedStorage:WaitForChild("SwitchPhaseEvent", 5)
 
+-- Sound Manager
+local SoundManager = require(ReplicatedStorage:WaitForChild("SoundManager"))
+
 -- Reference to Hand UI for hiding during Ability Phase
 local HandUI = nil
 task.spawn(function()
@@ -651,6 +654,7 @@ local function showAbilityPopup()
 			
 			btn.MouseButton1Click:Connect(function()
 				abilityPopup.Visible = false
+				SoundManager.Play("Skill") -- 🔊 Sound effect
 				if UseAbilityEvent then
 					UseAbilityEvent:FireServer("LuckyGuess", {guess = i})
 				end
@@ -693,6 +697,7 @@ local function showAbilityPopup()
 			
 			btn.MouseButton1Click:Connect(function()
 				abilityPopup.Visible = false
+				SoundManager.Play("Skill") -- 🔊 Sound effect
 				if UseAbilityEvent then
 					UseAbilityEvent:FireServer("MindMove", {move = choice})
 				end
@@ -738,6 +743,7 @@ local function showAbilityPopup()
 				
 				btn.MouseButton1Click:Connect(function()
 					abilityPopup.Visible = false
+					SoundManager.Play("Skill") -- 🔊 Sound effect
 					if UseAbilityEvent then
 						UseAbilityEvent:FireServer(abilityName, {targetUserId = p.UserId})
 					end
@@ -772,6 +778,12 @@ local function showAbilityPopup()
 		
 		btn.MouseButton1Click:Connect(function()
 			abilityPopup.Visible = false
+			-- Play appropriate sound (Revive uses special sound)
+			if abilityName == "Revive" then
+				SoundManager.Play("Revive")
+			else
+				SoundManager.Play("Skill")
+			end
 			if UseAbilityEvent then
 				UseAbilityEvent:FireServer(abilityName, {})
 			end
@@ -830,12 +842,14 @@ actionButton.MouseButton1Click:Connect(function()
 	-- Logic
 	if currentPhase == "Item" or currentPhase == "Ability" then
 		print("➡️ Advancing Phase")
+		SoundManager.Play("PhaseClick") -- 🔊 Sound effect
 		actionButton.Active = false -- Debounce
 		if AdvancePhaseEvent then AdvancePhaseEvent:FireServer() end
 		
 	elseif currentPhase == "Roll" then
 		if isRolling then return end
 		print("🎲 Rolling...")
+		SoundManager.Play("DiceRoll") -- 🔊 Sound effect
 		isRolling = true
 		updateActionButton("Rolling")
 		if RollDiceEvent then RollDiceEvent:FireServer() end

@@ -11,6 +11,9 @@ local playerGui = player:WaitForChild("PlayerGui")
 local playCardEvent = ReplicatedStorage:WaitForChild("PlayCardEvent")
 local discardCardEvent = ReplicatedStorage:WaitForChild("DiscardCardEvent")
 
+-- Sound Manager
+local SoundManager = require(ReplicatedStorage:WaitForChild("SoundManager"))
+
 -- [[ 🎨 CARD TEXTURE CONFIGURATION ]] --
 --[[
     📝 วิธีเพิ่ม Asset สำหรับการ์ด:
@@ -250,6 +253,7 @@ local function connectHandListener()
 
 	print("✅ [HandUI] Hand folder connected.")
 	hand.ChildAdded:Connect(function(child)
+		SoundManager.Play("DrawCard") -- 🔊 Sound effect
 		renderHand()
 		-- Also connect Changed for newly added cards
 		if child:IsA("IntValue") then

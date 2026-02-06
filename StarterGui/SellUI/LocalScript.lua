@@ -19,6 +19,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 -- Load PokemonDB
 local PokemonDB = require(ReplicatedStorage:WaitForChild("PokemonDB"))
+local SoundManager = require(ReplicatedStorage:WaitForChild("SoundManager"))
 
 -- Events
 local sellUIEvent = ReplicatedStorage:WaitForChild("SellUIEvent", 10)
@@ -227,6 +228,7 @@ local function createPokemonSlot(pokeData)
 		
 		-- Fire Server
 		if sellPokemonEvent then
+			SoundManager.Play("Sell") -- 🔊 Sound effect
 			sellPokemonEvent:FireServer(pokeData.Name)
 		end
 		

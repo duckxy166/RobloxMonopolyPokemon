@@ -23,6 +23,7 @@ local JobDB = {
 	Gambler = {
 		Name = "Gambler",
 		Icon = "🎰",
+		ImageId = "rbxassetid://0", -- 🖼️ ใส่รูปที่นี่
 		Color = Color3.fromRGB(255, 200, 50), -- Gold
 		Description = "นักพนัน - เสี่ยงดวงเพื่อรางวัลใหญ่",
 		Ability = "Lucky Guess",
@@ -33,6 +34,7 @@ local JobDB = {
 	Esper = {
 		Name = "Esper",
 		Icon = "🔮",
+		ImageId = "rbxassetid://0", -- 🖼️ ใส่รูปที่นี่
 		Color = Color3.fromRGB(200, 100, 255), -- Purple
 		Description = "จิตสัมผัส - ควบคุมโชคชะตา",
 		Ability = "Mind Move",
@@ -43,6 +45,7 @@ local JobDB = {
 	Shaman = {
 		Name = "Shaman",
 		Icon = "🌿",
+		ImageId = "rbxassetid://0", -- 🖼️ ใส่รูปที่นี่
 		Color = Color3.fromRGB(100, 200, 100), -- Green
 		Description = "หมอผี - สาปแช่งศัตรู",
 		Ability = "Curse",
@@ -53,6 +56,7 @@ local JobDB = {
 	Biker = {
 		Name = "Biker",
 		Icon = "🏍️",
+		ImageId = "rbxassetid://0", -- 🖼️ ใส่รูปที่นี่
 		Color = Color3.fromRGB(255, 100, 100), -- Red
 		Description = "นักบิด - เร็วแรงทะลุนรก",
 		Ability = "Turbo Boost",
@@ -63,6 +67,7 @@ local JobDB = {
 	Trainer = {
 		Name = "Trainer",
 		Icon = "🎒",
+		ImageId = "rbxassetid://0", -- 🖼️ ใส่รูปที่นี่
 		Color = Color3.fromRGB(100, 150, 255), -- Blue
 		Description = "เทรนเนอร์ - ผู้เชี่ยวชาญการ์ด",
 		Ability = "Extra Hand",
@@ -73,6 +78,7 @@ local JobDB = {
 	Fisherman = {
 		Name = "Fisherman",
 		Icon = "🎣",
+		ImageId = "rbxassetid://0", -- 🖼️ ใส่รูปที่นี่
 		Color = Color3.fromRGB(50, 150, 200), -- Cyan
 		Description = "นักตกปลา - ขโมยของคนอื่น",
 		Ability = "Steal Card",
@@ -83,6 +89,7 @@ local JobDB = {
 	Rocket = {
 		Name = "Rocket",
 		Icon = "💀",
+		ImageId = "rbxassetid://0", -- 🖼️ ใส่รูปที่นี่
 		Color = Color3.fromRGB(80, 80, 80), -- Dark Gray
 		Description = "แก๊งร็อคเก็ต - ขโมยโปเกม่อน!",
 		Ability = "Steal Pokemon",
@@ -93,6 +100,7 @@ local JobDB = {
 	NurseJoy = {
 		Name = "NurseJoy",
 		Icon = "💖",
+		ImageId = "rbxassetid://0", -- 🖼️ ใส่รูปที่นี่
 		Color = Color3.fromRGB(255, 150, 200), -- Pink
 		Description = "คุณจอย - รักษาโปเกม่อน",
 		Ability = "Revive",
@@ -225,15 +233,29 @@ local function createJobCard(jobName)
 	cardStroke.Transparency = 0.5
 	cardStroke.Parent = card
 
-	-- Icon
-	local iconLabel = Instance.new("TextLabel")
-	iconLabel.Name = "Icon"
-	iconLabel.Text = data.Icon
-	iconLabel.Size = UDim2.new(1, 0, 0, 80)
-	iconLabel.Position = UDim2.new(0, 0, 0.02, 0)
-	iconLabel.BackgroundTransparency = 1
-	iconLabel.TextSize = 60
-	iconLabel.Parent = card
+	-- Icon / Image
+	local hasImage = data.ImageId and data.ImageId ~= "" and data.ImageId ~= "rbxassetid://0"
+	
+	if hasImage then
+		local iconImg = Instance.new("ImageLabel")
+		iconImg.Name = "IconImage"
+		iconImg.Image = data.ImageId
+		iconImg.Size = UDim2.new(0.8, 0, 0, 80) -- Slightly narrower than full width
+		iconImg.Position = UDim2.new(0.1, 0, 0.02, 0)
+		iconImg.BackgroundTransparency = 1
+		iconImg.ScaleType = Enum.ScaleType.Fit
+		iconImg.Parent = card
+	else
+		-- Fallback to Emoji Text
+		local iconLabel = Instance.new("TextLabel")
+		iconLabel.Name = "Icon"
+		iconLabel.Text = data.Icon
+		iconLabel.Size = UDim2.new(1, 0, 0, 80)
+		iconLabel.Position = UDim2.new(0, 0, 0.02, 0)
+		iconLabel.BackgroundTransparency = 1
+		iconLabel.TextSize = 60
+		iconLabel.Parent = card
+	end
 
 	-- Job Name
 	local nameLabel = Instance.new("TextLabel")

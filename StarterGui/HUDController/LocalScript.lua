@@ -3,6 +3,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local PokemonDB = require(ReplicatedStorage:WaitForChild("PokemonDB"))
+local SoundManager = require(ReplicatedStorage:WaitForChild("SoundManager"))
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -134,9 +135,10 @@ local function createPlayerBox(targetPlayer, index)
 	-- REPLACE THESE IDs WITH YOUR UPLOADED IMAGE IDs
 	local COIN_ICON_ID = "rbxassetid://88871535760357" -- Put Coin Image ID here
 	local BALL_ICON_ID = "rbxassetid://136940926868953" -- Put Pokeball Image ID here
+	local CARD_ICON_ID = "rbxassetid://0" -- 🃏 Put Card Image ID here
 
 	createStat(COIN_ICON_ID, "Money", Color3.fromRGB(255, 220, 0))
-	createStat("C", "Cards", Color3.fromRGB(200, 200, 200)) -- Keep Cards as Text 'C' or change if needed
+	createStat(CARD_ICON_ID, "Cards", Color3.fromRGB(200, 200, 200)) 
 	createStat(BALL_ICON_ID, "Balls", Color3.fromRGB(255, 100, 100))
 
 	-- Status Effects Row (Sleep, Poison, Burn icons)
@@ -675,6 +677,7 @@ end)
 -- [[ RESET BUTTON CLICK ]] --
 local resetCharEvent = ReplicatedStorage:WaitForChild("ResetCharacterEvent", 10)
 resetButton.MouseButton1Click:Connect(function()
+	SoundManager.Play("ResetClick") -- 🔊 Sound effect
 	-- 1. Fire ResetCameraEvent to BoardCamera
 	if resetCamEvent then 
 		resetCamEvent:Fire() 
