@@ -717,20 +717,55 @@ function BattleSystem.endBattle(battle, result)
 
 		finalMsg = "⚔️ PvP Result: " .. winnerName .. " defeated " .. loserName .. "!"
 
-		-- Winner gets evolution or money
+
+		-- Check for Team Rocket Passive (Steal Pokemon)
+		local stolen = false
+		if winner:GetAttribute("Job") == "Team Rocket" and loserPokeObj then
+			local wInv = winner:FindFirstChild("PokemonInventory")
+			if wInv and #wInv:GetChildren() < 6 then -- Check space
+				stolen = true
+				loserPokeObj.Parent = wInv
+				
+				-- FIX: Stolen Pokemon remains DEAD (0 HP)
+				loserPokeObj:SetAttribute("CurrentHP", 0) 
+				loserPokeObj:SetAttribute("Status", "Dead") -- Stolen as dead
+				
+				if Events.Notify then 
+					Events.Notify:FireClient(winner, "🚀 Team Rocket Passive! Stole " .. loserPokeName .. "!") 
+					Events.Notify:FireClient(loser, "🚀 Team Rocket stole your " .. loserPokeName .. "!") 
+				end
+				finalMsg = "🚀 " .. winnerName .. " (Team Rocket) stole " .. loserPokeName .. " from " .. loserName .. "!"
+			else
+				if Events.Notify then Events.Notify:FireClient(winner, "⚠️ Party full! Cannot steal Pokemon.") end
+			end
+		end
+
+		-- FIX: Wining Pokemon gets Full HP Recovery
+		if winnerPokeObj then
+			local maxHP = winnerPokeObj:GetAttribute("MaxHP") or 10
+			winnerPokeObj:SetAttribute("CurrentHP", maxHP)
+		end
+
+		-- Winner ALWAYS gets evolution check or money (Even if stole)
 		local success = EvolutionSystem.tryEvolve(winner)
 		if not success then
 			winner.leaderstats.Money.Value += 3
 			if Events.Notify then Events.Notify:FireClient(winner, "⭐ No evolution available. +3 Coins!") end
 		end
 
-		-- Loser loses money and Pokemon dies
+		-- Loser loses money and Pokemon dies (Unless stolen)
 		loser.leaderstats.Money.Value = math.max(0, loser.leaderstats.Money.Value - 5)
-		if loserPokeObj then
-			loserPokeObj:SetAttribute("Status", "Dead")
-			loserPokeObj:SetAttribute("CurrentHP", 0)
+		
+		if not stolen then
+			if loserPokeObj then
+				loserPokeObj:SetAttribute("Status", "Dead")
+				loserPokeObj:SetAttribute("CurrentHP", 0)
+				if Events.Notify then Events.Notify:FireClient(loser, "💀 Your " .. loserPokeName .. " fainted! -5 Coins") end
+			end
+		else
+			-- If stolen, still lose money but Pokemon is gone (already handled)
+			if Events.Notify then Events.Notify:FireClient(loser, "💸 You lost 5 Coins.") end
 		end
-		if Events.Notify then Events.Notify:FireClient(loser, "💀 Your " .. loserPokeName .. " fainted! -5 Coins") end
 
 		Events.BattleEnd:FireAllClients(finalMsg)
 
@@ -897,9 +932,12 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 			local pending = BattleSystem.pendingBattles[player.UserId]
 			if pending then
 				if Events.Notify then Events.Notify:FireClient(pending.Attacker, "🏃 " .. player.Name .. " หนีการต่อสู้!") end
-				-- FIX: Use enterRollPhase instead of resumeTurn to prevent PvE trigger
-				TurnManager.enterRollPhase(pending.Attacker, true) -- true = skip PvP check
+				-- FIX: Defender ran, so Attacker wins by default (or just ends interaction)
+				-- Do NOT call enterRollPhase (causes double roll)
+				-- Do NOT call resumeTurn (causes PvE trigger)
+				-- Just end the turn
 				BattleSystem.pendingBattles[player.UserId] = nil
+				TurnManager.nextTurn()
 			end
 		else
 			TurnManager.nextTurn()

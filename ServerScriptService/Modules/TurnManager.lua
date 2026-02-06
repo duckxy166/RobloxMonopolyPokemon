@@ -1159,8 +1159,10 @@ function TurnManager.processLanding(player, currentPos, forceOpponent)
 			return
 		else
 			print("⏭️ All opponents recently battled. Skipping PvP UI.")
-			-- No valid opponents, skip to Roll Phase
-			TurnManager.enterRollPhase(player, true)
+			-- FIX: Don't enter Roll Phase again (causes Double Roll)
+			-- Instead, process the tile event normally (White/Red/etc.)
+			player:SetAttribute("ProcessingTile", nil)
+			TurnManager.processTileEvent(player, currentPos, landingTile)
 			return
 		end
 	end
