@@ -705,175 +705,181 @@ end)
 
 -- Battle Trigger (Selection UI)
 Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
-	print("⚔️ [Client] BattleTrigger Received! Type:", type)
+	print("⚔️ [BattleUI] BattleTrigger Received! Type:", type, " | Data:", data) -- EARLY DIAGNOSTIC
 
-	local choiceFrame = Instance.new("Frame")
-	choiceFrame.Size = UDim2.new(0, 300, 0, 150)
-	choiceFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-	choiceFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-	choiceFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-	choiceFrame.BorderSizePixel = 0
-	choiceFrame.Parent = screenGui
-	Instance.new("UICorner", choiceFrame).CornerRadius = UDim.new(0, 12)
+	local ok, err = pcall(function()
+		local choiceFrame = Instance.new("Frame")
+		choiceFrame.Size = UDim2.new(0, 300, 0, 150)
+		choiceFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+		choiceFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+		choiceFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+		choiceFrame.BorderSizePixel = 0
+		choiceFrame.Parent = screenGui
+		Instance.new("UICorner", choiceFrame).CornerRadius = UDim.new(0, 12)
 
-	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, 0, 0, 40)
-	title.BackgroundTransparency = 1
-	title.TextColor3 = Color3.fromRGB(255, 255, 255)
-	title.Font = Enum.Font.FredokaOne
-	title.TextSize = 20
-	title.Parent = choiceFrame
+		local title = Instance.new("TextLabel")
+		title.Size = UDim2.new(1, 0, 0, 40)
+		title.BackgroundTransparency = 1
+		title.TextColor3 = Color3.fromRGB(255, 255, 255)
+		title.Font = Enum.Font.FredokaOne
+		title.TextSize = 20
+		title.Parent = choiceFrame
 
-	local fightBtn = Instance.new("TextButton")
-	fightBtn.Size = UDim2.new(0, 120, 0, 50)
-	fightBtn.Position = UDim2.new(0, 20, 1, -60)
-	fightBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
-	fightBtn.Text = "⚔️ FIGHT"
-	fightBtn.Font = Enum.Font.FredokaOne
-	fightBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	fightBtn.Parent = choiceFrame
-	Instance.new("UICorner", fightBtn).CornerRadius = UDim.new(0, 8)
+		local fightBtn = Instance.new("TextButton")
+		fightBtn.Size = UDim2.new(0, 120, 0, 50)
+		fightBtn.Position = UDim2.new(0, 20, 1, -60)
+		fightBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+		fightBtn.Text = "⚔️ FIGHT"
+		fightBtn.Font = Enum.Font.FredokaOne
+		fightBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		fightBtn.Parent = choiceFrame
+		Instance.new("UICorner", fightBtn).CornerRadius = UDim.new(0, 8)
 
-	local runBtn = Instance.new("TextButton")
-	runBtn.Size = UDim2.new(0, 120, 0, 50)
-	runBtn.Position = UDim2.new(1, -140, 1, -60)
-	runBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-	runBtn.Text = "🏃 RUN"
-	runBtn.Font = Enum.Font.FredokaOne
-	runBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	runBtn.Parent = choiceFrame
-	Instance.new("UICorner", runBtn).CornerRadius = UDim.new(0, 8)
+		local runBtn = Instance.new("TextButton")
+		runBtn.Size = UDim2.new(0, 120, 0, 50)
+		runBtn.Position = UDim2.new(1, -140, 1, -60)
+		runBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+		runBtn.Text = "🏃 RUN"
+		runBtn.Font = Enum.Font.FredokaOne
+		runBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		runBtn.Parent = choiceFrame
+		Instance.new("UICorner", runBtn).CornerRadius = UDim.new(0, 8)
 
-	if type == "PvE" then
-		title.Text = "Gym Battle! Fight?"
-	elseif type == "PvP" then
-		title.Text = "Player Encounter! Battle?"
-	elseif type == "Defend" then
-		local attackerName = data and data.AttackerName or "Unknown"
-		title.Text = "⚠️ Challenged by " .. attackerName .. "!"
-		fightBtn.Text = "⚔️ ACCEPT"
-		runBtn.Text = "🏳️ DECLINE"
-	end
-
-	fightBtn.MouseButton1Click:Connect(function()
-		choiceFrame.Visible = false
-
-		-- OPEN SELECTION UI
-		local inventory = player:FindFirstChild("PokemonInventory")
-		local pokemons = inventory and inventory:GetChildren() or {}
-
-		local alivePokemons = {}
-		for _, poke in ipairs(pokemons) do
-			if poke:GetAttribute("Status") == "Alive" then
-				table.insert(alivePokemons, poke)
-			end
+		if type == "PvE" then
+			title.Text = "Gym Battle! Fight?"
+		elseif type == "PvP" then
+			title.Text = "Player Encounter! Battle?"
+		elseif type == "Defend" then
+			local attackerName = data and data.AttackerName or "Unknown"
+			title.Text = "⚠️ Challenged by " .. attackerName .. "!"
+			fightBtn.Text = "⚔️ ACCEPT"
+			runBtn.Text = "🏳️ DECLINE"
 		end
 
-		if #alivePokemons == 0 then
-			local warnFrame = Instance.new("Frame")
-			warnFrame.Size = UDim2.new(0, 320, 0, 180)
-			warnFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-			warnFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-			warnFrame.BackgroundColor3 = Color3.fromRGB(40, 20, 20)
-			warnFrame.BorderSizePixel = 0
-			warnFrame.Parent = screenGui
-			Instance.new("UICorner", warnFrame).CornerRadius = UDim.new(0, 12)
-			Instance.new("UIStroke", warnFrame).Color = Color3.fromRGB(255, 50, 50)
-			Instance.new("UIStroke", warnFrame).Thickness = 2
+		fightBtn.MouseButton1Click:Connect(function()
+			choiceFrame.Visible = false
 
-			local warnText = Instance.new("TextLabel")
-			warnText.Text = "🚫 NO POKEMON AVAILABLE!\n\nAll your Pokemon are fainted.\nYou cannot fight right now!"
-			warnText.Size = UDim2.new(0.9, 0, 0.6, 0)
-			warnText.Position = UDim2.new(0.05, 0, 0.1, 0)
-			warnText.BackgroundTransparency = 1
-			warnText.TextColor3 = Color3.fromRGB(255, 100, 100)
-			warnText.Font = Enum.Font.FredokaOne
-			warnText.TextSize = 20
-			warnText.TextWrapped = true
-			warnText.Parent = warnFrame
+			-- OPEN SELECTION UI
+			local inventory = player:FindFirstChild("PokemonInventory")
+			local pokemons = inventory and inventory:GetChildren() or {}
 
-			local forceRunBtn = Instance.new("TextButton")
-			forceRunBtn.Size = UDim2.new(0, 140, 0, 45)
-			forceRunBtn.Position = UDim2.new(0.5, -70, 0.75, 0)
-			forceRunBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-			forceRunBtn.Text = "🏃 RUN AWAY"
-			forceRunBtn.Font = Enum.Font.FredokaOne
-			forceRunBtn.TextSize = 18
-			forceRunBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-			forceRunBtn.Parent = warnFrame
-			Instance.new("UICorner", forceRunBtn).CornerRadius = UDim.new(0, 8)
-
-			forceRunBtn.MouseButton1Click:Connect(function()
-				warnFrame:Destroy()
-				Events.BattleTriggerResponse:FireServer("Run", nil)
-			end)
-			return
-		end
-
-		local selFrame = Instance.new("Frame")
-		selFrame.Size = UDim2.new(0, 400, 0, 300)
-		selFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-		selFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-		selFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-		selFrame.BorderSizePixel = 0
-		selFrame.Parent = screenGui
-		Instance.new("UICorner", selFrame).CornerRadius = UDim.new(0, 12)
-
-		local selTitle = Instance.new("TextLabel")
-		selTitle.Size = UDim2.new(1, 0, 0, 50)
-		selTitle.BackgroundTransparency = 1
-		selTitle.Text = "Choose your Pokemon!"
-		selTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-		selTitle.Font = Enum.Font.FredokaOne
-		selTitle.TextSize = 24
-		selTitle.Parent = selFrame
-
-		local scroll = Instance.new("ScrollingFrame")
-		scroll.Size = UDim2.new(0.9, 0, 0.7, 0)
-		scroll.Position = UDim2.new(0.05, 0, 0.2, 0)
-		scroll.BackgroundTransparency = 1
-		scroll.Parent = selFrame
-
-		local layout = Instance.new("UIListLayout")
-		layout.Parent = scroll
-		layout.Padding = UDim.new(0, 10)
-		layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-		for _, poke in ipairs(alivePokemons) do
-			local btn = Instance.new("TextButton")
-			btn.Size = UDim2.new(0.9, 0, 0, 50)
-			btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-			btn.Text = "  " .. poke.Name .. " (HP: " .. (poke:GetAttribute("CurrentHP") or "?") .. ")"
-			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-			btn.Font = Enum.Font.FredokaOne
-			btn.TextSize = 18
-			btn.TextXAlignment = Enum.TextXAlignment.Left
-			btn.Parent = scroll
-			Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-
-			btn.MouseButton1Click:Connect(function()
-				selFrame:Destroy()
-				choiceFrame:Destroy()
-
-				local responseData = { Type = type, SelectedPokemonName = poke.Name }
-				if type == "PvP" and data and data.Opponents then
-					responseData.Target = data.Opponents[1]
+			local alivePokemons = {}
+			for _, poke in ipairs(pokemons) do
+				if poke:GetAttribute("Status") == "Alive" then
+					table.insert(alivePokemons, poke)
 				end
-				
-				local action = "Fight"
-				if type == "Defend" then action = "DefendFight" end
-				
-				Events.BattleTriggerResponse:FireServer(action, responseData)
-			end)
-		end
+			end
 
-		scroll.CanvasSize = UDim2.new(0, 0, 0, #alivePokemons * 60)
+			if #alivePokemons == 0 then
+				local warnFrame = Instance.new("Frame")
+				warnFrame.Size = UDim2.new(0, 320, 0, 180)
+				warnFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+				warnFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+				warnFrame.BackgroundColor3 = Color3.fromRGB(40, 20, 20)
+				warnFrame.BorderSizePixel = 0
+				warnFrame.Parent = screenGui
+				Instance.new("UICorner", warnFrame).CornerRadius = UDim.new(0, 12)
+				Instance.new("UIStroke", warnFrame).Color = Color3.fromRGB(255, 50, 50)
+				Instance.new("UIStroke", warnFrame).Thickness = 2
+
+				local warnText = Instance.new("TextLabel")
+				warnText.Text = "🚫 NO POKEMON AVAILABLE!\n\nAll your Pokemon are fainted.\nYou cannot fight right now!"
+				warnText.Size = UDim2.new(0.9, 0, 0.6, 0)
+				warnText.Position = UDim2.new(0.05, 0, 0.1, 0)
+				warnText.BackgroundTransparency = 1
+				warnText.TextColor3 = Color3.fromRGB(255, 100, 100)
+				warnText.Font = Enum.Font.FredokaOne
+				warnText.TextSize = 20
+				warnText.TextWrapped = true
+				warnText.Parent = warnFrame
+
+				local forceRunBtn = Instance.new("TextButton")
+				forceRunBtn.Size = UDim2.new(0, 140, 0, 45)
+				forceRunBtn.Position = UDim2.new(0.5, -70, 0.75, 0)
+				forceRunBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+				forceRunBtn.Text = "🏃 RUN AWAY"
+				forceRunBtn.Font = Enum.Font.FredokaOne
+				forceRunBtn.TextSize = 18
+				forceRunBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				forceRunBtn.Parent = warnFrame
+				Instance.new("UICorner", forceRunBtn).CornerRadius = UDim.new(0, 8)
+
+				forceRunBtn.MouseButton1Click:Connect(function()
+					warnFrame:Destroy()
+					Events.BattleTriggerResponse:FireServer("Run", nil)
+				end)
+				return
+			end
+
+			local selFrame = Instance.new("Frame")
+			selFrame.Size = UDim2.new(0, 400, 0, 300)
+			selFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+			selFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+			selFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+			selFrame.BorderSizePixel = 0
+			selFrame.Parent = screenGui
+			Instance.new("UICorner", selFrame).CornerRadius = UDim.new(0, 12)
+
+			local selTitle = Instance.new("TextLabel")
+			selTitle.Size = UDim2.new(1, 0, 0, 50)
+			selTitle.BackgroundTransparency = 1
+			selTitle.Text = "Choose your Pokemon!"
+			selTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+			selTitle.Font = Enum.Font.FredokaOne
+			selTitle.TextSize = 24
+			selTitle.Parent = selFrame
+
+			local scroll = Instance.new("ScrollingFrame")
+			scroll.Size = UDim2.new(0.9, 0, 0.7, 0)
+			scroll.Position = UDim2.new(0.05, 0, 0.2, 0)
+			scroll.BackgroundTransparency = 1
+			scroll.Parent = selFrame
+
+			local layout = Instance.new("UIListLayout")
+			layout.Parent = scroll
+			layout.Padding = UDim.new(0, 10)
+			layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+			for _, poke in ipairs(alivePokemons) do
+				local btn = Instance.new("TextButton")
+				btn.Size = UDim2.new(0.9, 0, 0, 50)
+				btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+				btn.Text = "  " .. poke.Name .. " (HP: " .. (poke:GetAttribute("CurrentHP") or "?") .. ")"
+				btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				btn.Font = Enum.Font.FredokaOne
+				btn.TextSize = 18
+				btn.TextXAlignment = Enum.TextXAlignment.Left
+				btn.Parent = scroll
+				Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+
+				btn.MouseButton1Click:Connect(function()
+					selFrame:Destroy()
+					choiceFrame:Destroy()
+
+					local responseData = { Type = type, SelectedPokemonName = poke.Name }
+					if type == "PvP" and data and data.Opponents then
+						responseData.Target = data.Opponents[1]
+					end
+					
+					local action = "Fight"
+					if type == "Defend" then action = "DefendFight" end
+					
+					Events.BattleTriggerResponse:FireServer(action, responseData)
+				end)
+			end
+
+			scroll.CanvasSize = UDim2.new(0, 0, 0, #alivePokemons * 60)
+		end)
+
+		runBtn.MouseButton1Click:Connect(function()
+			choiceFrame:Destroy()
+			local action = "Run"
+			if type == "Defend" then action = "DefendRun" end
+			Events.BattleTriggerResponse:FireServer(action, nil)
+		end)
 	end)
 
-	runBtn.MouseButton1Click:Connect(function()
-		choiceFrame:Destroy()
-		local action = "Run"
-		if type == "Defend" then action = "DefendRun" end
-		Events.BattleTriggerResponse:FireServer(action, nil)
-	end)
+	if not ok then
+		warn("⚠️ [BattleUI] CRITICAL ERROR in BattleTrigger Handler:", err)
+	end
 end)

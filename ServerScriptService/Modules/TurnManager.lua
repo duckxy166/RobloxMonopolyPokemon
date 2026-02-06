@@ -292,7 +292,13 @@ function TurnManager.enterItemPhase(player)
 		Events.Notify:FireAllClients("🎒 " .. player.Name .. " อยู่ใน Item Phase")
 	end
 	
-	-- No forced timer - player can switch phases freely
+	-- FIX: Add timeout to prevent infinite wait (AI/AFK)
+	TimerSystem.startPhaseTimer(TurnManager.ITEM_PHASE_TIMEOUT, "Item", function()
+		if TurnManager.turnPhase == "Item" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
+			print("⏰ Item Phase Timeout for " .. player.Name .. ". Auto-advancing to Roll Phase.")
+			TurnManager.enterRollPhase(player)
+		end
+	end)
 end
 
 -- Enter Ability Phase (Use class abilities)
@@ -335,10 +341,11 @@ function TurnManager.enterAbilityPhase(player)
 end
 
 -- Enter roll phase
-function TurnManager.enterRollPhase(player)
+-- Optional: skipPvPCheck = true when called from Twisted Spoon to avoid triggering battles
+function TurnManager.enterRollPhase(player, skipPvPCheck)
 	TurnManager.turnPhase = "Roll"
 	TurnManager.isTurnActive = true  -- IMPORTANT: Allow player to roll
-	print("📍 Phase 4: ROLL Phase for:", player.Name)
+	print("📍 Phase 4: ROLL Phase for:", player.Name, skipPvPCheck and "(Skip PvP Check)" or "")
 
 	-- Fire PhaseUpdate to client
 	if Events.PhaseUpdate then
@@ -349,7 +356,8 @@ function TurnManager.enterRollPhase(player)
 	local currentPos = PlayerManager.playerPositions[player.UserId] or 0
 	
 	-- Skip battle check on start tile (tile 0) to prevent game-start battles
-	if currentPos == 0 then
+	-- Also skip if explicitly requested (e.g., from Twisted Spoon warp)
+	if currentPos == 0 or skipPvPCheck then
 		Events.UpdateTurn:FireAllClients(player.Name)
 		TimerSystem.startPhaseTimer(TimerSystem.ROLL_TIMEOUT, "Roll", function()
 			if TurnManager.turnPhase == "Roll" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
@@ -1132,6 +1140,7 @@ function TurnManager.processLanding(player, currentPos, forceOpponent)
 
 	if #opponents > 0 and Events.BattleTrigger then
 		print("⚔️ PvP Potential on landing! Triggering Selection...")
+		print("🔴 [Server] Firing BattleTrigger to " .. player.Name) -- Diagnostic
 		-- Clear ProcessingTile since turn control is now with BattleSystem
 		player:SetAttribute("ProcessingTile", nil)
 		Events.BattleTrigger:FireClient(player, "PvP", { Opponents = opponents })
@@ -1272,6 +1281,20 @@ function TurnManager.processTileEvent(player, currentPos, nextTile)
 	-- 5. DEFAULT (Draw Card - if logic falls through)
 	-- Previously checked for PvP here. Now handled before.
 	CardSystem.drawOneCard(player)
+
+	-- FIX: Twisted Spoon Phase Leap
+	-- If we are in Item or Ability Phase (e.g. from Twisted Spoon warp), DO NOT end turn!
+	-- Only end turn if we are in Main/Roll/Encounter phase or if logic explicitly dictates.
+	if TurnManager.turnPhase == "Item" or TurnManager.turnPhase == "Ability" then
+		print("🔄 Landed on Tile during " .. TurnManager.turnPhase .. " Phase. Returning control to player.")
+		if Events.Notify then
+			Events.Notify:FireClient(player, "✅ Warped safely! Continue your turn.")
+		end
+		-- Maybe reset timer if it was cancelled? 
+		-- Actually, just let the player decide via "Next Phase".
+		return
+	end
+
 	TurnManager.nextTurn()
 end
 

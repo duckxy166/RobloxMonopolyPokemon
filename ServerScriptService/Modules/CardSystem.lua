@@ -407,20 +407,16 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 						})
 					end
 					
-					-- PAUSE PHASE TIMER! Critical to prevent phase leak
+				-- PAUSE PHASE TIMER! Critical to prevent phase leak
 					local TimerSystem = require(game.ServerScriptService.Modules.TimerSystem)
 					if TimerSystem then TimerSystem.cancelTimer() end
 
-					-- Trigger landing logic at new position (checks PvP first, then tile event)
-					-- Pass targetPlayer to FORCE PvP trigger (don't rely on position sync)
+					-- FIX: Skip all landing logic (PvP/PvE), go directly to Roll Phase
+					-- This simplifies the flow and avoids phase confusion
 					task.spawn(function()
 						task.wait(0.5)
-						if turnManager.processLanding then
-							turnManager.processLanding(player, targetPos, targetPlayer)
-						else
-							-- Fallback to next turn if function not found
-							turnManager.nextTurn()
-						end
+						print("🔮 [Twisted Spoon] Warp complete. Entering Roll Phase directly.")
+						turnManager.enterRollPhase(player, true) -- true = skip PvP check
 					end)
 					return -- Early return to skip "Used card" message since this card handles its own flow
 				end

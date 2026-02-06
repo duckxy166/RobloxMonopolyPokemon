@@ -822,6 +822,21 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 					print("Notification: Waiting for " .. target.Name)
 					Events.Notify:FireClient(player, "⏳ รอ " .. target.Name .. " เลือก Pokemon...")
 				end
+				
+				-- FIX: Add timeout for pending PvP (30 seconds)
+				-- If defender doesn't respond, auto-decline
+				task.delay(30, function()
+					local stillPending = BattleSystem.pendingBattles[target.UserId]
+					if stillPending and stillPending.Attacker == player then
+						print("⏰ PvP Timeout! " .. target.Name .. " did not respond. Auto-declining.")
+						BattleSystem.pendingBattles[target.UserId] = nil
+						if Events.Notify then
+							Events.Notify:FireClient(player, "⏰ " .. target.Name .. " ไม่ตอบ! ข้ามการต่อสู้")
+							Events.Notify:FireClient(target, "⏰ หมดเวลาตอบรับ Battle!")
+						end
+						TurnManager.resumeTurn(player)
+					end
+				end)
 			end
 		end
 		
