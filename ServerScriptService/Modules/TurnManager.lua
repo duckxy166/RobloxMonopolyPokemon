@@ -742,9 +742,9 @@ function TurnManager.handleStarterSelection(player, jobName)
 	-- Give starter Pokemon based on job
 	local starterPokemon = {
 		Gambler = "Meowth",    -- Money-related
-		Esper = "Abra",        -- Psychic
+		Esper = "Drowzee",     -- Psychic/Sleep
 		Shaman = "Gastly",     -- Ghost/Spirit
-		Biker = "Voltorb",     -- Fast/Electric
+		Biker = "Cyclizar",    -- Fast/Motorcycle Pokemon
 		Trainer = "Pikachu",   -- Classic trainer
 		Fisherman = "Magikarp",-- Fishing
 		Rocket = "Rattata",    -- Team Rocket

@@ -38,7 +38,7 @@ local JobDB = {
 		Ability = "Mind Move",
 		AbilityDesc = "กำหนดช่องเดินได้ 1 หรือ 2 ช่อง (แทนทอยเต๋า)",
 		PassiveDesc = "เลือกเส้นทางได้ตามใจ",
-		Starter = "Abra"
+		Starter = "Drowzee"
 	},
 	Shaman = {
 		Name = "Shaman",
@@ -58,7 +58,7 @@ local JobDB = {
 		Ability = "Turbo Boost",
 		AbilityDesc = "เดินเพิ่ม +2 ช่อง ในเทิร์นนี้",
 		PassiveDesc = "ความเร็วคือพลัง",
-		Starter = "Voltorb"
+		Starter = "Cyclizar"
 	},
 	Trainer = {
 		Name = "Trainer",
