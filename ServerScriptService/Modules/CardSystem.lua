@@ -110,7 +110,7 @@ function CardSystem.countHand(player)
 	return total
 end
 
--- Get player's hand limit (Trainer gets 6)
+-- Get player's hand limit (Trainer gets 6 - PASSIVE ability)
 function CardSystem.getHandLimit(player)
 	local job = player:GetAttribute("Job")
 	if job == "Trainer" then

@@ -240,8 +240,13 @@ function EncounterSystem.handleCatch(player)
 	-- Check if party is full (6/6)
 	local inventory = player:FindFirstChild("PokemonInventory")
 	if inventory and #inventory:GetChildren() >= MAX_PARTY_SIZE then
-		if Events.Notify then Events.Notify:FireClient(player, "❌ Party full! (6/6)") end
-		-- Restart encounter timer so they don't get stuck
+		if Events.Notify then
+			Events.Notify:FireClient(player, "❌ Party full! (6/6) - กด Run เพื่อหนี")
+		end
+		-- Send catch failed event so UI doesn't freeze
+		Events.CatchPokemon:FireAllClients(player, false, 0, 99, false) -- false = not finished, can still run
+
+		-- Set phase back to Encounter so Run button works
 		TurnManager.turnPhase = "Encounter"
 		TimerSystem.startPhaseTimer(TimerSystem.ENCOUNTER_TIMEOUT, "Encounter", function()
 			if TurnManager.turnPhase == "Encounter" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
