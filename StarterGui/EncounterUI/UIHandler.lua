@@ -343,16 +343,22 @@ CatchEvent.OnClientEvent:Connect(function(catcher, success, roll, target, isFini
 		s:Destroy()
 	end
 
+	-- Use Debris to ensure cleanup even if script errors
+	Debris:AddItem(dice, 2)
+
 	local connection
 	connection = RunService.RenderStepped:Connect(function()
-		if not dice.Parent then connection:Disconnect() return end
+		if not dice or not dice.Parent then 
+			if connection then connection:Disconnect() end
+			return 
+		end
 		local cf = camera.CFrame
 		local pos = cf + (cf.LookVector * 10)
 		dice.CFrame = CFrame.new(pos.Position) * CFrame.Angles(math.rad(os.clock()*700), math.rad(os.clock()*500), math.rad(os.clock()*600))
 	end)
 
 	task.wait(0.25)
-	connection:Disconnect()
+	if connection then connection:Disconnect() end
 
 	local ROTATION_OFFSETS = {
 		[1] = CFrame.Angles(0, 0, 0),
@@ -367,13 +373,15 @@ CatchEvent.OnClientEvent:Connect(function(catcher, success, roll, target, isFini
 	local dicePos = (finalCF + finalCF.LookVector * 8).Position
 	if not ROTATION_OFFSETS[safeRoll] then safeRoll = 1 end
 
-	TweenService:Create(dice, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		CFrame = CFrame.lookAt(dicePos, finalCF.Position) * ROTATION_OFFSETS[safeRoll]
-	}):Play()
-	playSound(LAND_SOUND_ID)
+    if dice and dice.Parent then
+        TweenService:Create(dice, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            CFrame = CFrame.lookAt(dicePos, finalCF.Position) * ROTATION_OFFSETS[safeRoll]
+        }):Play()
+        playSound(LAND_SOUND_ID)
+    end
 
 	task.wait(0.5)
-	dice:Destroy()
+	if dice then dice:Destroy() end
 
 	-- Update UI Status
 	if catcher == player then

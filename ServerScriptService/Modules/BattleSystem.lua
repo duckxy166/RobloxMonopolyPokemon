@@ -376,6 +376,12 @@ function BattleSystem.startPvP(player1, player2, p1ChosenPoke, p2ChosenPoke)
 		return
 	end
 
+	-- Force cleanup any existing encounter on Client/Server
+	if EncounterSystem then
+		EncounterSystem.clearCenterStage()
+	end
+	if TimerSystem then TimerSystem.cancelTimer() end
+
 	-- Reset both Pokemon HP to full before battle
 	local p1MaxHP = p1Poke:GetAttribute("MaxHP") or 10
 	local p2MaxHP = p2Poke:GetAttribute("MaxHP") or 10
@@ -789,6 +795,7 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 				
 				-- 2. Send Challenge to Defender
 				if Events.BattleTrigger then
+					print("⚔️ Sending PvP Challenge to " .. target.Name)
 					Events.BattleTrigger:FireClient(target, "Defend", { 
 						Attacker = player,
 						AttackerName = player.Name
@@ -796,6 +803,7 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 				end
 				
 				if Events.Notify then
+					print("Notification: Waiting for " .. target.Name)
 					Events.Notify:FireClient(player, "⏳ รอ " .. target.Name .. " เลือก Pokemon...")
 				end
 			end

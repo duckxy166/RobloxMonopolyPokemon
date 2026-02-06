@@ -141,6 +141,9 @@ function TurnManager.nextTurn()
 			continue
 		end
 
+		-- Reset flags for new turn
+		p:SetAttribute("ProcessingTile", nil)
+
 		-- Process Active Player
 		local status = p:FindFirstChild("Status")
 		local sleep = status and status:FindFirstChild("SleepTurns")
@@ -1094,7 +1097,7 @@ end
 
 -- RESUME TURN (Called after declining PvP)
 function TurnManager.resumeTurn(player)
-	print("🔄 Resuming turn for " .. player.Name)
+	print("🔄 Resuming turn for " .. player.Name .. " | Caller: " .. debug.traceback())
 	local currentPos = PlayerManager.playerPositions[player.UserId] or 0
 	local tile = tilesFolder:FindFirstChild(tostring(currentPos))
 
@@ -1110,8 +1113,17 @@ end
 -- Used by: processPlayerRoll, Twisted Spoon Warp
 -- forceOpponent: Optional - if provided, always trigger PvP with this player (used by Twisted Spoon)
 function TurnManager.processLanding(player, currentPos, forceOpponent)
+	-- Prevent re-entry if player is already handling an event
+	if player:GetAttribute("ProcessingTile") then
+		warn("⚠️ processLanding ignored for " .. player.Name .. " (Already processing)" .. " | Caller: " .. debug.traceback())
+		return
+	end
+	player:SetAttribute("ProcessingTile", true)
+	print("🛬 processLanding for " .. player.Name .. " at " .. currentPos .. " | Caller: " .. debug.traceback())
+
 	local landingTile = tilesFolder:FindFirstChild(tostring(currentPos))
 	if not landingTile then
+		player:SetAttribute("ProcessingTile", nil)
 		TurnManager.nextTurn()
 		return
 	end
