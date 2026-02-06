@@ -154,6 +154,16 @@ function PlayerManager.onPlayerAdded(player)
 	sleep.Value = 0
 	sleep.Parent = status
 
+	local poison = Instance.new("IntValue")
+	poison.Name = "PoisonTurns"
+	poison.Value = 0
+	poison.Parent = status
+
+	local burn = Instance.new("IntValue")
+	burn.Name = "BurnTurns"
+	burn.Value = 0
+	burn.Parent = status
+
 
 
 	-- Starter Pokemon REMOVED (Handled by Selection UI)

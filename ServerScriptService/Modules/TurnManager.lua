@@ -152,16 +152,58 @@ function TurnManager.nextTurn()
 				-- Broadcast to all
 				Events.Notify:FireAllClients("💤 " .. p.Name .. " is asleep! Turn skipped.")
 			end
+			if Events.StatusChanged then
+				Events.StatusChanged:FireAllClients(p.UserId, "Sleep", sleep.Value)
+			end
 		else
 			TurnManager.isTurnActive = true
 			PlayerManager.playerInShop[p.UserId] = false
 			print("🎲 [Server] Turn started for:", p.Name)
+			TurnManager.processStatusEffects(p)
 			TurnManager.enterDrawPhase(p)
 			return
 		end
 	end
 
 	print("⚠️ No valid players found to take turn?")
+end
+
+-- Process Status Effects (Poison, Burn) at start of turn
+function TurnManager.processStatusEffects(player)
+	local status = player:FindFirstChild("Status")
+	if not status then return end
+
+	-- Poison: -1 coin per turn
+	local poison = status:FindFirstChild("PoisonTurns")
+	if poison and poison.Value > 0 then
+		local leaderstats = player:FindFirstChild("leaderstats")
+		if leaderstats and leaderstats:FindFirstChild("Money") then
+			leaderstats.Money.Value = math.max(0, leaderstats.Money.Value - 1)
+		end
+		poison.Value -= 1
+		if Events.Notify then
+			Events.Notify:FireClient(player, "☠️ Poison! -1 เหรียญ")
+		end
+		if Events.StatusChanged then
+			Events.StatusChanged:FireAllClients(player.UserId, "Poison", poison.Value)
+		end
+	end
+
+	-- Burn: -2 coins per turn
+	local burn = status:FindFirstChild("BurnTurns")
+	if burn and burn.Value > 0 then
+		local leaderstats = player:FindFirstChild("leaderstats")
+		if leaderstats and leaderstats:FindFirstChild("Money") then
+			leaderstats.Money.Value = math.max(0, leaderstats.Money.Value - 2)
+		end
+		burn.Value -= 1
+		if Events.Notify then
+			Events.Notify:FireClient(player, "🔥 Burn! -2 เหรียญ")
+		end
+		if Events.StatusChanged then
+			Events.StatusChanged:FireAllClients(player.UserId, "Burn", burn.Value)
+		end
+	end
 end
 
 -- ============================================================================

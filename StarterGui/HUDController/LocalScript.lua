@@ -139,6 +139,19 @@ local function createPlayerBox(targetPlayer, index)
 	createStat("C", "Cards", Color3.fromRGB(200, 200, 200)) -- Keep Cards as Text 'C' or change if needed
 	createStat(BALL_ICON_ID, "Balls", Color3.fromRGB(255, 100, 100))
 
+	-- Status Effects Row (Sleep, Poison, Burn icons)
+	local statusEffectsRow = Instance.new("Frame")
+	statusEffectsRow.Name = "StatusEffectsRow"
+	statusEffectsRow.Size = UDim2.new(1, -80, 0, 18)
+	statusEffectsRow.Position = UDim2.new(0, 80, 0, 28) -- Between name and stats
+	statusEffectsRow.BackgroundTransparency = 1
+	statusEffectsRow.Parent = box
+
+	local effectsLayout = Instance.new("UIListLayout")
+	effectsLayout.FillDirection = Enum.FillDirection.Horizontal
+	effectsLayout.Padding = UDim.new(0, 4)
+	effectsLayout.Parent = statusEffectsRow
+
 	-- Status Pill (New)
 	local statusPill = Instance.new("Frame")
 	statusPill.Name = "StatusPill"
@@ -224,7 +237,8 @@ local function createPlayerBox(targetPlayer, index)
 		BallLbl = box:FindFirstChild("ValueLabel_Balls", true),
 		PartySlots = partySlots,
 		StatusPill = statusPill,
-		StatusLabel = statusLbl
+		StatusLabel = statusLbl,
+		StatusEffectsRow = statusEffectsRow
 	}
 end
 
@@ -237,6 +251,53 @@ local POKEMON_ICONS = {
 	["Mewtwo"] = "🔮",
 	["Default"] = "🔵"
 }
+
+-- Status Effect Icons Config
+local STATUS_EFFECTS_CONFIG = {
+	Sleep = {icon = "💤", color = Color3.fromRGB(100, 150, 255)},
+	Poison = {icon = "☠️", color = Color3.fromRGB(200, 100, 255)},
+	Burn = {icon = "🔥", color = Color3.fromRGB(255, 150, 50)}
+}
+
+-- Create/Update Status Effect Icon
+local function updateStatusIcon(statusRow, statusType, turns)
+	local config = STATUS_EFFECTS_CONFIG[statusType]
+	if not config then return end
+
+	local existing = statusRow:FindFirstChild("Status_" .. statusType)
+
+	if turns <= 0 then
+		-- Remove icon if turns = 0
+		if existing then existing:Destroy() end
+		return
+	end
+
+	-- Create or update icon
+	local iconFrame = existing
+	if not iconFrame then
+		iconFrame = Instance.new("Frame")
+		iconFrame.Name = "Status_" .. statusType
+		iconFrame.Size = UDim2.new(0, 32, 0, 16)
+		iconFrame.BackgroundColor3 = config.color
+		iconFrame.BackgroundTransparency = 0.3
+		iconFrame.Parent = statusRow
+		Instance.new("UICorner", iconFrame).CornerRadius = UDim.new(0, 6)
+
+		local lbl = Instance.new("TextLabel")
+		lbl.Name = "Label"
+		lbl.Size = UDim2.new(1, 0, 1, 0)
+		lbl.BackgroundTransparency = 1
+		lbl.Font = Enum.Font.GothamBold
+		lbl.TextSize = 11
+		lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+		lbl.Parent = iconFrame
+	end
+
+	local lbl = iconFrame:FindFirstChild("Label")
+	if lbl then
+		lbl.Text = config.icon .. turns
+	end
+end
 
 -- Update Pokemon party icons for a player
 local function updatePartyIcons(targetPlayer)
@@ -366,6 +427,24 @@ if PhaseUpdateEvent then
 	PhaseUpdateEvent.OnClientEvent:Connect(function(phase, message)
 		-- Update my own status box
 		updatePlayerStatus(player.Name, "MyTurn", phase:upper() .. " PHASE")
+	end)
+end
+
+-- Status Changed Event (Listen for Sleep/Poison/Burn status updates)
+local StatusChangedEvent = ReplicatedStorage:WaitForChild("StatusChangedEvent", 5)
+if StatusChangedEvent then
+	StatusChangedEvent.OnClientEvent:Connect(function(userId, statusType, turns)
+		-- Find player frame by userId
+		for pName, data in pairs(playerFrames) do
+			local p = Players:FindFirstChild(pName)
+			if p and p.UserId == userId then
+				local statusRow = data.StatusEffectsRow
+				if statusRow then
+					updateStatusIcon(statusRow, statusType, turns)
+				end
+				break
+			end
+		end
 	end)
 end
 
