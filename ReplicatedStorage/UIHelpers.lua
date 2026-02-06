@@ -12,13 +12,14 @@
 
 local UIHelpers = {}
 
--- Rarity -> Color mapping
+-- Rarity -> Color mapping (Updated with Divine tier)
 UIHelpers.RarityColors = {
-	["None"] = Color3.fromRGB(180, 180, 180),      -- Gray
-	["Common"] = Color3.fromRGB(100, 255, 100),    -- Green
-	["Uncommon"] = Color3.fromRGB(100, 200, 255),  -- Blue
-	["Rare"] = Color3.fromRGB(255, 200, 50),       -- Gold/Orange
-	["Legend"] = Color3.fromRGB(255, 100, 255),    -- Purple/Magenta
+	["Common"] = Color3.fromRGB(180, 180, 180),      -- Gray (base tier)
+	["Uncommon"] = Color3.fromRGB(100, 255, 100),    -- Green
+	["Rare"] = Color3.fromRGB(100, 200, 255),        -- Blue
+	["Epic"] = Color3.fromRGB(255, 100, 255),        -- Purple/Magenta
+	["Divine"] = Color3.fromRGB(255, 80, 80),        -- Red/Crimson
+	["Legend"] = Color3.fromRGB(255, 215, 0),        -- Gold
 }
 
 -- Create a BillboardGui label above a model
@@ -27,7 +28,7 @@ function UIHelpers.CreateNameLabel(parent, name, rarity)
 	local existing = parent:FindFirstChild("NameLabel")
 	if existing then existing:Destroy() end
 
-	local color = UIHelpers.RarityColors[rarity] or UIHelpers.RarityColors["None"]
+	local color = UIHelpers.RarityColors[rarity] or UIHelpers.RarityColors["Common"] or Color3.fromRGB(255, 255, 255)
 
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "NameLabel"

@@ -152,16 +152,58 @@ function TurnManager.nextTurn()
 				-- Broadcast to all
 				Events.Notify:FireAllClients("💤 " .. p.Name .. " is asleep! Turn skipped.")
 			end
+			if Events.StatusChanged then
+				Events.StatusChanged:FireAllClients(p.UserId, "Sleep", sleep.Value)
+			end
 		else
 			TurnManager.isTurnActive = true
 			PlayerManager.playerInShop[p.UserId] = false
 			print("🎲 [Server] Turn started for:", p.Name)
+			TurnManager.processStatusEffects(p)
 			TurnManager.enterDrawPhase(p)
 			return
 		end
 	end
 
 	print("⚠️ No valid players found to take turn?")
+end
+
+-- Process Status Effects (Poison, Burn) at start of turn
+function TurnManager.processStatusEffects(player)
+	local status = player:FindFirstChild("Status")
+	if not status then return end
+
+	-- Poison: -1 coin per turn
+	local poison = status:FindFirstChild("PoisonTurns")
+	if poison and poison.Value > 0 then
+		local leaderstats = player:FindFirstChild("leaderstats")
+		if leaderstats and leaderstats:FindFirstChild("Money") then
+			leaderstats.Money.Value = math.max(0, leaderstats.Money.Value - 1)
+		end
+		poison.Value -= 1
+		if Events.Notify then
+			Events.Notify:FireClient(player, "☠️ Poison! -1 เหรียญ")
+		end
+		if Events.StatusChanged then
+			Events.StatusChanged:FireAllClients(player.UserId, "Poison", poison.Value)
+		end
+	end
+
+	-- Burn: -2 coins per turn
+	local burn = status:FindFirstChild("BurnTurns")
+	if burn and burn.Value > 0 then
+		local leaderstats = player:FindFirstChild("leaderstats")
+		if leaderstats and leaderstats:FindFirstChild("Money") then
+			leaderstats.Money.Value = math.max(0, leaderstats.Money.Value - 2)
+		end
+		burn.Value -= 1
+		if Events.Notify then
+			Events.Notify:FireClient(player, "🔥 Burn! -2 เหรียญ")
+		end
+		if Events.StatusChanged then
+			Events.StatusChanged:FireAllClients(player.UserId, "Burn", burn.Value)
+		end
+	end
 end
 
 -- ============================================================================
@@ -261,17 +303,18 @@ function TurnManager.enterAbilityPhase(player)
 	TurnManager.turnPhase = "Ability"
 	print("📍 Phase 3: ABILITY Phase for:", player.Name)
 
-	-- Fire PhaseUpdate to client
-	if Events.PhaseUpdate then
-		Events.PhaseUpdate:FireClient(player, "Ability", "⚡ ใช้ Ability ได้ หรือกด Next Phase")
-	end
+	-- Reset ability usage for this turn
+	player:SetAttribute("AbilityUsedThisTurn", false)
 
-	-- Check if player has a class/job with abilities
-	local playerClass = player:GetAttribute("Class") or player:GetAttribute("Job")
+	-- Check if player has a job with abilities
+	local playerJob = player:GetAttribute("Job")
 
-	if not playerClass then
-		-- No class - auto skip to Roll Phase after short delay
-		print("⏩ No class found, skipping Ability Phase")
+	if not playerJob then
+		-- No job - auto skip to Roll Phase after short delay
+		print("⏩ No job found, skipping Ability Phase")
+		if Events.PhaseUpdate then
+			Events.PhaseUpdate:FireClient(player, "Ability", "⏩ ไม่มี Ability - ข้ามไป Roll Phase")
+		end
 		if Events.Notify then
 			Events.Notify:FireClient(player, "⏩ ไม่มี Ability - ข้ามไป Roll Phase")
 		end
@@ -280,9 +323,15 @@ function TurnManager.enterAbilityPhase(player)
 		return
 	end
 
+	-- Fire PhaseUpdate to client with job info
+	local jobAbility = player:GetAttribute("JobAbility") or "Unknown"
+	if Events.PhaseUpdate then
+		Events.PhaseUpdate:FireClient(player, "Ability", "⚡ ใช้ " .. jobAbility .. " หรือกด Next Phase")
+	end
+
 	-- Notify all clients about phase change
 	if Events.Notify then
-		Events.Notify:FireAllClients("⚡ " .. player.Name .. " อยู่ใน Ability Phase (" .. playerClass .. ")")
+		Events.Notify:FireAllClients("⚡ " .. player.Name .. " อยู่ใน Ability Phase (" .. playerJob .. ")")
 	end
 
 	-- Start Ability Phase timer
@@ -394,9 +443,9 @@ function TurnManager.connectEvents()
 		end)
 	end
 
-	-- 4-Phase System: Use Ability Event (for future class abilities)
+	-- 4-Phase System: Use Ability Event
 	if Events.UseAbility then
-		Events.UseAbility.OnServerEvent:Connect(function(player, abilityName)
+		Events.UseAbility.OnServerEvent:Connect(function(player, abilityName, abilityData)
 			if TurnManager.turnPhase ~= "Ability" then
 				if Events.Notify then
 					Events.Notify:FireClient(player, "❌ ใช้ Ability ได้แค่ใน Ability Phase เท่านั้น!")
@@ -404,8 +453,231 @@ function TurnManager.connectEvents()
 				return
 			end
 
-			-- TODO: Implement class-specific abilities here
-			print("⚡ " .. player.Name .. " used ability: " .. tostring(abilityName))
+			-- Check if already used this turn
+			if player:GetAttribute("AbilityUsedThisTurn") then
+				if Events.Notify then
+					Events.Notify:FireClient(player, "❌ ใช้ Ability ได้แค่ 1 ครั้งต่อเทิร์น!")
+				end
+				return
+			end
+
+			local playerJob = player:GetAttribute("Job")
+			print("⚡ " .. player.Name .. " (" .. (playerJob or "No Job") .. ") used ability: " .. tostring(abilityName))
+
+			local abilitySuccess = false
+
+			-- ============================================
+			-- GAMBLER: Lucky Guess - ทายเลข 1-6
+			-- ============================================
+			if playerJob == "Gambler" and abilityName == "LuckyGuess" then
+				local guessedNumber = abilityData and abilityData.guess
+				if not guessedNumber or type(guessedNumber) ~= "number" then
+					if Events.Notify then
+						Events.Notify:FireClient(player, "❌ กรุณาเลือกเลข 1-6!")
+					end
+					return
+				end
+
+				local actualRoll = math.random(1, 6)
+				if guessedNumber == actualRoll then
+					-- WIN! +6 coins
+					local leaderstats = player:FindFirstChild("leaderstats")
+					if leaderstats and leaderstats:FindFirstChild("Money") then
+						leaderstats.Money.Value += 6
+					end
+					if Events.Notify then
+						Events.Notify:FireClient(player, "🎰 ทายถูก! เลข " .. actualRoll .. " ได้ 6 เหรียญ!")
+						Events.Notify:FireAllClients("🎰 " .. player.Name .. " ทายเลขถูก! (" .. actualRoll .. ") +6 เหรียญ")
+					end
+				else
+					if Events.Notify then
+						Events.Notify:FireClient(player, "🎰 ทายผิด! คุณทาย " .. guessedNumber .. " แต่ออก " .. actualRoll)
+						Events.Notify:FireAllClients("🎰 " .. player.Name .. " ทายเลขผิด (ทาย " .. guessedNumber .. " ออก " .. actualRoll .. ")")
+					end
+				end
+				abilitySuccess = true
+
+			-- ============================================
+			-- ESPER: Mind Move - กำหนดช่องเดิน 1-2
+			-- ============================================
+			elseif playerJob == "Esper" and abilityName == "MindMove" then
+				local moveAmount = abilityData and abilityData.move
+				if not moveAmount or (moveAmount ~= 1 and moveAmount ~= 2) then
+					if Events.Notify then
+						Events.Notify:FireClient(player, "❌ กรุณาเลือก 1 หรือ 2 ช่อง!")
+					end
+					return
+				end
+
+				-- Store the fixed move for this turn
+				player:SetAttribute("FixedDiceRoll", moveAmount)
+				if Events.Notify then
+					Events.Notify:FireClient(player, "🔮 กำหนดเดิน " .. moveAmount .. " ช่องสำหรับเทิร์นนี้!")
+					Events.Notify:FireAllClients("🔮 " .. player.Name .. " ใช้พลังจิตกำหนดการเดิน!")
+				end
+				abilitySuccess = true
+
+			-- ============================================
+			-- SHAMAN: Curse - สาปคนอื่น (ทิ้งการ์ด + -1 เหรียญ)
+			-- ============================================
+			elseif playerJob == "Shaman" and abilityName == "Curse" then
+				local targetUserId = abilityData and abilityData.targetUserId
+				local targetPlayer = nil
+
+				-- Find target player
+				for _, p in ipairs(PlayerManager.playersInGame) do
+					if p.UserId == targetUserId and p ~= player then
+						targetPlayer = p
+						break
+					end
+				end
+
+				if not targetPlayer then
+					if Events.Notify then
+						Events.Notify:FireClient(player, "❌ กรุณาเลือกผู้เล่นที่จะสาป!")
+					end
+					return
+				end
+
+				-- Curse effect: -1 Money
+				local targetStats = targetPlayer:FindFirstChild("leaderstats")
+				if targetStats and targetStats:FindFirstChild("Money") then
+					targetStats.Money.Value = math.max(0, targetStats.Money.Value - 1)
+				end
+
+				-- Curse effect: Discard 1 random card
+				local targetHand = targetPlayer:FindFirstChild("Hand")
+				if targetHand then
+					local cards = targetHand:GetChildren()
+					if #cards > 0 then
+						local randomCard = cards[math.random(1, #cards)]
+						local cardName = randomCard.Name
+						randomCard:Destroy()
+						if Events.Notify then
+							Events.Notify:FireClient(targetPlayer, "🌿 ถูกสาป! เสียการ์ด " .. cardName .. " และ 1 เหรียญ!")
+						end
+					end
+				end
+
+				if Events.Notify then
+					Events.Notify:FireClient(player, "🌿 สาป " .. targetPlayer.Name .. " สำเร็จ!")
+					Events.Notify:FireAllClients("🌿 " .. player.Name .. " สาป " .. targetPlayer.Name .. "! (-1 การ์ด, -1 เหรียญ)")
+				end
+				abilitySuccess = true
+
+			-- ============================================
+			-- BIKER: Turbo Boost - เดินเพิ่ม +2 ช่อง
+			-- ============================================
+			elseif playerJob == "Biker" and abilityName == "TurboBoost" then
+				player:SetAttribute("BonusDiceRoll", 2)
+				if Events.Notify then
+					Events.Notify:FireClient(player, "🏍️ Turbo Boost! +2 ช่องในเทิร์นนี้!")
+					Events.Notify:FireAllClients("🏍️ " .. player.Name .. " เปิด Turbo Boost! +2 ช่อง")
+				end
+				abilitySuccess = true
+
+			-- ============================================
+			-- TRAINER: Extra Hand - Passive (no active ability)
+			-- ============================================
+			elseif playerJob == "Trainer" and abilityName == "ExtraHand" then
+				if Events.Notify then
+					Events.Notify:FireClient(player, "🎒 เทรนเนอร์สามารถถือการ์ดได้ 6 ใบ (Passive)")
+				end
+				-- No active ability, just passive hand limit
+				abilitySuccess = false -- Don't count as used
+
+			-- ============================================
+			-- FISHERMAN: Steal Card - แย่งชิงการ์ดจากผู้เล่นอื่น
+			-- ============================================
+			elseif playerJob == "Fisherman" and abilityName == "StealCard" then
+				local targetUserId = abilityData and abilityData.targetUserId
+				local targetPlayer = nil
+
+				for _, p in ipairs(PlayerManager.playersInGame) do
+					if p.UserId == targetUserId and p ~= player then
+						targetPlayer = p
+						break
+					end
+				end
+
+				if not targetPlayer then
+					if Events.Notify then
+						Events.Notify:FireClient(player, "❌ กรุณาเลือกผู้เล่นที่จะแย่งการ์ด!")
+					end
+					return
+				end
+
+				local targetHand = targetPlayer:FindFirstChild("Hand")
+				local myHand = player:FindFirstChild("Hand")
+
+				if targetHand and myHand then
+					local cards = targetHand:GetChildren()
+					if #cards > 0 then
+						local stolenCard = cards[math.random(1, #cards)]
+						local cardName = stolenCard.Name
+						stolenCard.Parent = myHand
+						if Events.Notify then
+							Events.Notify:FireClient(player, "🎣 แย่งการ์ด " .. cardName .. " จาก " .. targetPlayer.Name .. " สำเร็จ!")
+							Events.Notify:FireClient(targetPlayer, "🎣 " .. player.Name .. " แย่งการ์ด " .. cardName .. " ไป!")
+							Events.Notify:FireAllClients("🎣 " .. player.Name .. " แย่งการ์ดจาก " .. targetPlayer.Name .. "!")
+						end
+						abilitySuccess = true
+					else
+						if Events.Notify then
+							Events.Notify:FireClient(player, "❌ " .. targetPlayer.Name .. " ไม่มีการ์ดให้แย่ง!")
+						end
+						return
+					end
+				end
+
+			-- ============================================
+			-- ROCKET: Steal Pokemon - Passive (triggers on PvP win)
+			-- ============================================
+			elseif playerJob == "Rocket" and abilityName == "StealPokemon" then
+				if Events.Notify then
+					Events.Notify:FireClient(player, "💀 แก็งร็อกเก็ตจะขโมย Pokemon เมื่อชนะ PvP (Passive)")
+				end
+				abilitySuccess = false -- Passive, no active use
+
+			-- ============================================
+			-- NURSE JOY: Revive - ฟื้นฟู Pokemon ที่ตาย
+			-- ============================================
+			elseif playerJob == "NurseJoy" and abilityName == "Revive" then
+				local inventory = player:FindFirstChild("PokemonInventory")
+				if inventory then
+					local revived = false
+					for _, poke in ipairs(inventory:GetChildren()) do
+						if poke:GetAttribute("Status") == "Dead" then
+							poke:SetAttribute("Status", "Alive")
+							poke:SetAttribute("CurrentHP", poke:GetAttribute("MaxHP"))
+							if Events.Notify then
+								Events.Notify:FireClient(player, "💖 ฟื้นฟู " .. poke.Name .. " สำเร็จ!")
+								Events.Notify:FireAllClients("💖 " .. player.Name .. " ฟื้นฟู " .. poke.Name .. "!")
+							end
+							revived = true
+							break -- Revive only 1 per turn
+						end
+					end
+					if not revived then
+						if Events.Notify then
+							Events.Notify:FireClient(player, "❌ ไม่มี Pokemon ที่ต้องฟื้นฟู!")
+						end
+						return
+					end
+				end
+				abilitySuccess = true
+
+			else
+				if Events.Notify then
+					Events.Notify:FireClient(player, "❌ Ability ไม่ถูกต้องสำหรับอาชีพของคุณ!")
+				end
+				return
+			end
+
+			-- Mark ability as used
+			if abilitySuccess then
+				player:SetAttribute("AbilityUsedThisTurn", true)
+			end
 
 			-- After using ability, auto-advance to Roll Phase
 			TurnManager.enterRollPhase(player)
@@ -445,31 +717,96 @@ function TurnManager.checkPreGameStart()
 	end)
 end
 
-function TurnManager.handleStarterSelection(player, starterName)
+-- ============================================================================
+-- JOB DATABASE (Server-side validation)
+-- ============================================================================
+local ValidJobs = {
+	Gambler = {
+		Name = "Gambler",
+		Ability = "LuckyGuess",
+		Description = "นักพนัน - ทายเลข 1-6 ถูกได้ 6 เหรียญ"
+	},
+	Esper = {
+		Name = "Esper",
+		Ability = "MindMove",
+		Description = "จิตสัมผัส - กำหนดช่องเดินได้ 1-2 ช่อง"
+	},
+	Shaman = {
+		Name = "Shaman",
+		Ability = "Curse",
+		Description = "หมอผี - สาปให้คนอื่นทิ้งการ์ด+เสียเงิน"
+	},
+	Biker = {
+		Name = "Biker",
+		Ability = "TurboBoost",
+		Description = "นักบิด - เดินเพิ่ม +2 ช่อง"
+	},
+	Trainer = {
+		Name = "Trainer",
+		Ability = "ExtraHand",
+		Description = "เทรนเนอร์ - ถือการ์ดได้ 6 ใบ (Passive)",
+		HandLimit = 6
+	},
+	Fisherman = {
+		Name = "Fisherman",
+		Ability = "StealCard",
+		Description = "นักตกปลา - แย่งชิงการ์ดจากผู้เล่นอื่น"
+	},
+	Rocket = {
+		Name = "Rocket",
+		Ability = "StealPokemon",
+		Description = "แก็งร็อกเก็ต - ขโมย Pokemon เมื่อชนะ PvP (Passive)"
+	},
+	NurseJoy = {
+		Name = "NurseJoy",
+		Ability = "Revive",
+		Description = "คุณจอย - ฟื้นฟู Pokemon ที่ตายได้ทุกเทิร์น"
+	}
+}
+
+function TurnManager.handleStarterSelection(player, jobName)
 	if TurnManager.readyPlayers[player.UserId] then return end -- Already picked
 
-	-- Validate Name
-	local data = PokemonDB.GetPokemon(starterName)
-	if not data then 
-		warn("Invalid starter: " .. tostring(starterName))
-		return 
+	-- Validate Job Name
+	local jobData = ValidJobs[jobName]
+	if not jobData then
+		warn("Invalid job: " .. tostring(jobName))
+		return
 	end
 
-	print("✅ " .. player.Name .. " selected " .. starterName)
+	print("✅ " .. player.Name .. " selected job: " .. jobName)
 
-	-- Give Pokemon
+	-- Set Player's Job/Class
+	player:SetAttribute("Job", jobName)
+	player:SetAttribute("JobAbility", jobData.Ability)
+	player:SetAttribute("AbilityUsedThisTurn", false)
+
+	-- Give starter Pokemon based on job
+	local starterPokemon = {
+		Gambler = "Meowth",    -- Money-related
+		Esper = "Drowzee",     -- Psychic/Sleep
+		Shaman = "Gastly",     -- Ghost/Spirit
+		Biker = "Cyclizar",    -- Fast/Motorcycle Pokemon
+		Trainer = "Pikachu",   -- Classic trainer
+		Fisherman = "Magikarp",-- Fishing
+		Rocket = "Rattata",    -- Team Rocket
+		NurseJoy = "Chansey"   -- Healing
+	}
+
+	local starterName = starterPokemon[jobName] or "Pikachu"
 	local inventory = player:FindFirstChild("PokemonInventory")
 	if inventory then
-		local starterPoke = Instance.new("StringValue")
-		starterPoke.Name = starterName
-		starterPoke.Value = data.Rarity or "Common"
-
-		-- Set Stats
-		starterPoke:SetAttribute("CurrentHP", data.HP)
-		starterPoke:SetAttribute("MaxHP", data.HP)
-		starterPoke:SetAttribute("Attack", data.Attack)
-		starterPoke:SetAttribute("Status", "Alive")
-		starterPoke.Parent = inventory
+		local data = PokemonDB.GetPokemon(starterName)
+		if data then
+			local starterPoke = Instance.new("StringValue")
+			starterPoke.Name = starterName
+			starterPoke.Value = data.Rarity or "Common"
+			starterPoke:SetAttribute("CurrentHP", data.HP)
+			starterPoke:SetAttribute("MaxHP", data.HP)
+			starterPoke:SetAttribute("Attack", data.Attack)
+			starterPoke:SetAttribute("Status", "Alive")
+			starterPoke.Parent = inventory
+		end
 	end
 
 	-- Draw 1 Starter Card
@@ -478,7 +815,9 @@ function TurnManager.handleStarterSelection(player, starterName)
 	-- Mark Ready
 	TurnManager.readyPlayers[player.UserId] = true
 
-	if Events.Notify then Events.Notify:FireClient(player, "You selected " .. starterName .. "! Waiting for players...") end
+	if Events.Notify then
+		Events.Notify:FireClient(player, "🎭 คุณเลือกอาชีพ " .. jobName .. "! รอผู้เล่นคนอื่น...")
+	end
 
 	-- Check if ALL players are ready
 	local allReady = true
@@ -493,7 +832,8 @@ function TurnManager.handleStarterSelection(player, starterName)
 		end
 	end
 
-	if allReady then
+	-- SOLO MODE: If only 1 player and they're ready, start immediately
+	if allReady or (playerCount == 1 and TurnManager.readyPlayers[player.UserId]) then
 		TurnManager.startGame()
 	elseif TurnManager.gameStarted then
 		-- LATE JOINER HANDLING:
@@ -556,9 +896,29 @@ function TurnManager.processPlayerRoll(player)
 	TurnManager.isTurnActive = false
 	if EncounterSystem then EncounterSystem.clearCenterStage() end
 
-	--local roll = 10
-	local roll = math.random(1, 6)
-	print("🎲 [Server] Roll result:", roll)
+	-- Check for Esper's Fixed Roll (MindMove ability)
+	local fixedRoll = player:GetAttribute("FixedDiceRoll")
+	local bonusRoll = player:GetAttribute("BonusDiceRoll") or 0
+
+	local roll
+	if fixedRoll and fixedRoll > 0 then
+		-- Esper: Use fixed roll (1 or 2)
+		roll = fixedRoll
+		player:SetAttribute("FixedDiceRoll", nil) -- Clear after use
+		print("🔮 [Server] Esper fixed roll:", roll)
+	else
+		-- Normal random roll
+		roll = math.random(1, 6)
+	end
+
+	-- Apply Biker bonus (+2)
+	if bonusRoll > 0 then
+		roll = roll + bonusRoll
+		player:SetAttribute("BonusDiceRoll", nil) -- Clear after use
+		print("🏍️ [Server] Biker bonus applied: +" .. bonusRoll)
+	end
+
+	print("🎲 [Server] Final roll result:", roll)
 	Events.RollDice:FireAllClients(player, roll)
 	task.wait(2.5)
 

@@ -6,47 +6,49 @@
 local PokemonDB = {}
 
 -- Rarity -> Catch Difficulty (ความยากในการจับ)
+-- SYSTEM: Common=1, Uncommon=2, Rare=3, Epic=4, Divine=5, Legend=6
 PokemonDB.RarityDifficulty = {
-	["None"] = 2,    -- จับง่ายสุด
-	["Common"] = 3,
-	["Uncommon"] = 4,
-	["Rare"] = 5,
-	["Legend"] = 6
+	["Common"] = 1,    -- จับง่ายสุด (1 ลูก)
+	["Uncommon"] = 2,
+	["Rare"] = 3,
+	["Epic"] = 4,
+	["Divine"] = 5,    -- NEW!
+	["Legend"] = 6     -- ยากสุด (6 ลูก)
 }
 
 -- Tile Encounter Rates (โอกาสเกิดตามสีช่อง)
--- *None ในที่นี้คือโอกาสเจอโปเกม่อนระดับ None (Rattata/Pidgey)
+-- NEW: Common is base tier, Epic/Divine/Legend as higher tiers
 PokemonDB.EncounterRates = {
-	["Bright green"] = { None = 60, Common = 40, Uncommon = 0, Rare = 0, Legend = 0 },
-	["Forest green"] = { None = 10, Common = 60, Uncommon = 20, Rare = 0, Legend = 0 },
-	["Dark green"]   = { None = 0,  Common = 30, Uncommon = 60, Rare = 10, Legend = 0 },
-	["Earth green"]  = { None = 0,  Common = 10, Uncommon = 50, Rare = 40, Legend = 0 },
-	["Gold"]         = { None = 0,  Common = 0,  Uncommon = 0,  Rare = 0,  Legend = 100 },
+	["Bright green"] = { Common = 60, Uncommon = 30, Rare = 8, Epic = 2, Divine = 0, Legend = 0 },
+	["Forest green"] = { Common = 35, Uncommon = 40, Rare = 20, Epic = 5, Divine = 0, Legend = 0 },
+	["Dark green"]   = { Common = 15, Uncommon = 35, Rare = 35, Epic = 12, Divine = 3, Legend = 0 },
+	["Earth green"]  = { Common = 5,  Uncommon = 15, Rare = 35, Epic = 30, Divine = 15, Legend = 0 },
+	["Gold"]         = { Common = 0,  Uncommon = 0,  Rare = 0,  Epic = 0, Divine = 0, Legend = 100 },
 	-- Default fallback
-	["Default"]      = { None = 100, Common = 0, Uncommon = 0, Rare = 0, Legend = 0 }
+	["Default"]      = { Common = 80, Uncommon = 15, Rare = 5, Epic = 0, Divine = 0, Legend = 0 }
 }
 
 -- Pokemon Data
 PokemonDB.Pokemon = {
-	-- ===== NONE POOL (Creeps) =====
+	-- ===== COMMON POOL (Base Creeps - formerly "None") =====
 	["Caterpie"] = { 
-		Id = 10, Rarity = "None", Attack = 4, HP = 5, Type = "Bug",
+		Id = 10, Rarity = "Common", Attack = 4, HP = 5, Type = "Bug",
 		Model = "010 - Caterpie", EvolveTo = "Metapod", Icon = "rbxassetid://104608486929955", Image = "rbxassetid://104608486929955"
 	},
 	["Pidgey"] = { 
-		Id = 16, Rarity = "None", Attack = 5, HP = 5, Type = "Normal",
+		Id = 16, Rarity = "Common", Attack = 5, HP = 5, Type = "Normal",
 		Model = "016 - Pidgey", EvolveTo = "Pidgeotto", Icon = "rbxassetid://79968359884209", Image = "rbxassetid://79968359884209"
 	},
 	["Rattata"] = { 
-		Id = 19, Rarity = "None", Attack = 6, HP = 5, Type = "Normal",
+		Id = 19, Rarity = "Common", Attack = 6, HP = 5, Type = "Normal",
 		Model = "019 - Rattata", EvolveTo = "Raticate", Icon = "rbxassetid://103265419643338", Image = "rbxassetid://103265419643338"
 	},
 	["Magikarp"] = { 
-		Id = 129, Rarity = "None", Attack = 1, HP = 5, Type = "Water",
+		Id = 129, Rarity = "Common", Attack = 1, HP = 5, Type = "Water",
 		Model = "129 - Magikarp", EvolveTo = "Gyarados", Icon = "rbxassetid://102675286979211", Image = "rbxassetid://102675286979211"
 	},
 
-	-- ===== COMMON POOL (Base Forms) =====
+	-- ===== UNCOMMON POOL (Starter Forms) =====
 	["Charmander"] = {
 		Id = 4, Rarity = "Common", Attack = 10, HP = 10, Type = "Fire",
 		Model = "004 - Charmander", EvolveTo = "Charmeleon", Icon = "rbxassetid://121436913614801", Image = "rbxassetid://121436913614801"
@@ -185,7 +187,7 @@ PokemonDB.Pokemon = {
 	},
 	-- ===== GEN 1-2 ADDITIONS =====
 	["Zubat"] = {
-		Id = 41, Rarity = "None", Attack = 5, HP = 5, Type = "Poison",
+		Id = 41, Rarity = "Common", Attack = 5, HP = 5, Type = "Poison",
 		Model = "041 - Zubat", EvolveTo = "Golbat", Icon = "rbxassetid://135969606810652", Image = "rbxassetid://135969606810652"
 	},
 	["Golbat"] = {
@@ -329,7 +331,7 @@ PokemonDB.Pokemon = {
 		Model = "395 - Empoleon", Icon = "rbxassetid://90435442302767", Image = "rbxassetid://90435442302767"
 	},
 	["Bidoof"] = {
-		Id = 399, Rarity = "None", Attack = 4, HP = 6, Type = "Normal",
+		Id = 399, Rarity = "Common", Attack = 4, HP = 6, Type = "Normal",
 		Model = "399 - Bidoof", EvolveTo = "Bibarel", Icon = "rbxassetid://88041120791602", Image = "rbxassetid://88041120791602"
 	},
 	["Bibarel"] = {
@@ -404,6 +406,35 @@ PokemonDB.Pokemon = {
 		Id = 914, Rarity = "Rare", Attack = 26, HP = 22, Type = "Water",
 		Model = "914 - Quaquaval", Icon = "rbxassetid://108393314003706", Image = "rbxassetid://108393314003706"
 	},
+	-- ===== EPIC POOL (Powerful Stage 2) =====
+	["Charizard"] = {
+		Id = 6, Rarity = "Epic", Attack = 25, HP = 20, Type = "Fire",
+		Model = "006 - Charizard", Icon = "rbxassetid://121771857774500", Image = "rbxassetid://121771857774500"
+	},
+	["Blastoise"] = {
+		Id = 9, Rarity = "Epic", Attack = 22, HP = 25, Type = "Water",
+		Model = "009 - Blastoise", Icon = "rbxassetid://134654930089233", Image = "rbxassetid://134654930089233"
+	},
+	["Venusaur"] = {
+		Id = 3, Rarity = "Epic", Attack = 22, HP = 24, Type = "Grass",
+		Model = "003 - Venusaur", Icon = "rbxassetid://136798929875157", Image = "rbxassetid://136798929875157"
+	},
+	["Dragonite"] = {
+		Id = 149, Rarity = "Epic", Attack = 28, HP = 25, Type = "Dragon",
+		Model = "149 - Dragonite", Icon = "rbxassetid://121255668090770", Image = "rbxassetid://121255668090770"
+	},
+	["Tyranitar"] = {
+		Id = 248, Rarity = "Epic", Attack = 28, HP = 28, Type = "Rock",
+		Model = "248 - Tyranitar", Icon = "rbxassetid://85138698243117", Image = "rbxassetid://85138698243117"
+	},
+	["Garchomp"] = {
+		Id = 445, Rarity = "Epic", Attack = 30, HP = 28, Type = "Dragon",
+		Model = "445 - Garchomp", Icon = "rbxassetid://78500346251469", Image = "rbxassetid://78500346251469"
+	},
+	["Metagross"] = {
+		Id = 376, Rarity = "Epic", Attack = 28, HP = 26, Type = "Steel",
+		Model = "376 - Metagross", Icon = "rbxassetid://122380520580963", Image = "rbxassetid://122380520580963"
+	},
 
 	-- ===== LEGENDARY POOL =====
 	["Mewtwo"] = {
@@ -432,8 +463,8 @@ function PokemonDB.GetEncounterFromTile(tileColorName)
 	local cumulative = 0
 	local selectedRarity = "None"
 
-	-- เรียงลำดับโอกาส
-	local order = {"None", "Common", "Uncommon", "Rare", "Legend"}
+	-- เรียงลำดับโอกาส (Updated with Divine)
+	local order = {"Common", "Uncommon", "Rare", "Epic", "Divine", "Legend"}
 	for _, rarity in ipairs(order) do
 		local chance = rates[rarity] or 0
 		cumulative = cumulative + chance
@@ -446,10 +477,10 @@ function PokemonDB.GetEncounterFromTile(tileColorName)
 	-- 2. Pick Pokemon from Pool (รวมถึง None ด้วย)
 	local pool = PokemonDB.GetByRarity(selectedRarity)
 
-	-- ถ้าไม่มีใน Pool (เช่นตั้งค่าผิด) ให้ลองถอยไปหา Common หรือ None
+	-- ถ้าไม่มีใน Pool (เช่นตั้งค่าผิด) ให้ลองถอยไปหา Common
 	if #pool == 0 then
 		warn("⚠️ No pokemon found for rarity: " .. selectedRarity .. ". Trying fallback.")
-		pool = PokemonDB.GetByRarity("None")
+		pool = PokemonDB.GetByRarity("Common")
 	end
 
 	if #pool > 0 then

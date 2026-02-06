@@ -212,22 +212,22 @@ function BattleSystem.spawnPokemonModel(modelName, stageObj, pokemonName, rarity
 	-- Calculate spawn position and rotation
 	local anchorPos = anchor.CFrame.Position
 	local anchorTopY = anchorPos.Y + (anchor.Size.Y / 2)
-	
+
 	-- Get model bounding box to find the actual bottom
 	local modelCF, modelSize = clone:GetBoundingBox()
 	local currentPivot = clone:GetPivot()
-	
+
 	-- Calculate the distance from the current pivot to the bottom of the model
 	local modelCenterY = modelCF.Position.Y
 	local modelBottomY = modelCenterY - (modelSize.Y / 2)
 	local pivotToBottomOffset = currentPivot.Position.Y - modelBottomY
-	
+
 	-- Rotation: 0 degrees for -Z face (faceNegativeZ=true), 180 degrees for +Z face (faceNegativeZ=false)
 	local yRotation = faceNegativeZ and 0 or math.rad(180)
-	
+
 	-- Position model so its bottom sits exactly on top of the stage
 	local spawnCF = CFrame.new(anchorPos.X, anchorTopY + pivotToBottomOffset, anchorPos.Z) * CFrame.Angles(0, yRotation, 0)
-	
+
 	clone:PivotTo(spawnCF)
 	print(("✅ Spawned '%s' on %s (facing %s)"):format(modelName, key, faceNegativeZ and "+Z" or "-Z"))
 
@@ -284,7 +284,11 @@ function BattleSystem.startPvE(player, chosenPoke, desiredRarity)
 		IsNPC = true
 	}
 
-	-- 3. Setup Battle State
+	-- 3. Reset Pokemon HP to full before battle
+	local maxHP = myPoke:GetAttribute("MaxHP") or 10
+	myPoke:SetAttribute("CurrentHP", maxHP)
+
+	-- 4. Setup Battle State
 	BattleSystem.activeBattles[player.UserId] = {
 		Type = "PvE",
 		Player = player,
@@ -337,7 +341,7 @@ function BattleSystem.startPvE(player, chosenPoke, desiredRarity)
 
 	-- 5. Send Client Event to Active Player
 	Events.BattleStart:FireClient(player, "PvE", BattleSystem.activeBattles[player.UserId])
-	
+
 	-- 6. Send to Spectators (all other players)
 	for _, spectator in ipairs(game.Players:GetPlayers()) do
 		if spectator ~= player then
@@ -365,6 +369,12 @@ function BattleSystem.startPvP(player1, player2)
 		TurnManager.nextTurn()
 		return
 	end
+
+	-- Reset both Pokemon HP to full before battle
+	local p1MaxHP = p1Poke:GetAttribute("MaxHP") or 10
+	local p2MaxHP = p2Poke:GetAttribute("MaxHP") or 10
+	p1Poke:SetAttribute("CurrentHP", p1MaxHP)
+	p2Poke:SetAttribute("CurrentHP", p2MaxHP)
 
 	local battleData = {
 		Type = "PvP",
@@ -439,12 +449,12 @@ function BattleSystem.startPvP(player1, player2)
 
 	Events.BattleStart:FireClient(player1, "PvP", attackerBasicData)
 	Events.BattleStart:FireClient(player2, "PvP", defenderBasicData)
-	
+
 	-- Broadcast to all players
 	if Events.Notify then
 		Events.Notify:FireAllClients("⚔️ " .. player1.Name .. " vs " .. player2.Name .. " - PvP Battle!")
 	end
-	
+
 	-- Send to Spectators (all other players)
 	for _, spectator in ipairs(game.Players:GetPlayers()) do
 		if spectator ~= player1 and spectator ~= player2 then
@@ -468,6 +478,7 @@ end
 function BattleSystem.processRoll(player, roll)
 	local battle = BattleSystem.activeBattles[player.UserId]
 	if not battle then return end
+	if battle.Resolved then return end
 
 	if battle.Type == "PvE" then
 		local aiRoll = math.random(1, 6)
@@ -488,111 +499,120 @@ end
 
 function BattleSystem.resolveTurn(battle, roll1, roll2)
 	local winner = nil
-	local damage = 0
+
+	-- ============================================
+	-- BATTLE WITH HP/DAMAGE SYSTEM
+	-- Winner deals damage based on Attack stat
+	-- Battle ends when HP reaches 0
+	-- Draw = re-roll (return and wait for next roll)
+	-- ============================================
 
 	if roll1 == roll2 then
+		local drawData = {
+			PlayerRoll = roll1, EnemyRoll = roll2, 
+			AttackerRoll = roll1, DefenderRoll = roll2,
+			PlayerHP = battle.Type == "PvE" and battle.MyStats.CurrentHP or battle.AttackerStats.CurrentHP,
+			EnemyHP = battle.Type == "PvE" and battle.EnemyStats.CurrentHP or battle.DefenderStats.CurrentHP,
+			AttackerHP = battle.Type == "PvP" and battle.AttackerStats.CurrentHP or nil,
+			DefenderHP = battle.Type == "PvP" and battle.DefenderStats.CurrentHP or nil
+		}
 		if battle.Type == "PvP" then
 			battle.AttackerRoll = nil
 			battle.DefenderRoll = nil
-			Events.BattleAttack:FireClient(battle.Attacker, "Draw", 0, {AttackerRoll = roll1, DefenderRoll = roll2})
-			Events.BattleAttack:FireClient(battle.Defender, "Draw", 0, {AttackerRoll = roll1, DefenderRoll = roll2})
+			Events.BattleAttack:FireAllClients("Draw", 0, drawData)
 		elseif battle.Type == "PvE" then
-			Events.BattleAttack:FireClient(battle.Player, "Draw", 0, {PlayerRoll = roll1, EnemyRoll = roll2})
+			Events.BattleAttack:FireAllClients("Draw", 0, drawData)
 		end
-		return
+		return -- Re-roll on draw
 	end
 
 	if battle.Type == "PvE" then
+		local damage = 0
 		if roll1 > roll2 then
 			winner = "Player"
-			damage = battle.MyStats.Attack
-			battle.EnemyStats.CurrentHP -= damage
+			damage = battle.MyStats.Attack or 5
+			battle.EnemyStats.CurrentHP = math.max(0, battle.EnemyStats.CurrentHP - damage)
 		else
 			winner = "Enemy"
-			damage = battle.EnemyStats.Attack
-			battle.MyStats.CurrentHP -= damage
-			battle.MyPokeObj:SetAttribute("CurrentHP", battle.MyStats.CurrentHP)
+			damage = battle.EnemyStats.Attack or 5
+			battle.MyStats.CurrentHP = math.max(0, battle.MyStats.CurrentHP - damage)
 		end
 
-		Events.BattleAttack:FireClient(battle.Player, winner, damage, {
+		-- Fire result to ALL clients with HP update
+		Events.BattleAttack:FireAllClients(winner, damage, {
 			PlayerRoll = roll1, EnemyRoll = roll2,
-			PlayerHP = battle.MyStats.CurrentHP, EnemyHP = battle.EnemyStats.CurrentHP
+			PlayerHP = battle.MyStats.CurrentHP, 
+			EnemyHP = battle.EnemyStats.CurrentHP,
+			PlayerMaxHP = battle.MyStats.MaxHP,
+			EnemyMaxHP = battle.EnemyStats.MaxHP,
+			AttackerRoll = roll1, DefenderRoll = roll2
 		})
 
+		-- Check if battle is over (someone's HP reached 0)
 		if battle.EnemyStats.CurrentHP <= 0 then
+			battle.Resolved = true
 			task.spawn(function()
-				task.wait(6)
+				task.wait(5) -- Wait for client dice animation + result display
 				BattleSystem.endBattle(battle, "Win")
 			end)
 		elseif battle.MyStats.CurrentHP <= 0 then
+			battle.Resolved = true
 			task.spawn(function()
-				task.wait(6)
+				task.wait(5) -- Wait for client dice animation + result display
 				BattleSystem.endBattle(battle, "Lose")
 			end)
 		end
+		-- If neither HP is 0, battle continues (wait for next roll)
 
 	elseif battle.Type == "PvP" then
-		local attacker = battle.Attacker
-		local defender = battle.Defender
-
+		local damage = 0
 		if roll1 > roll2 then
 			winner = "Attacker"
-			damage = battle.AttackerStats.Attack
-			battle.DefenderStats.CurrentHP -= damage
-			battle.DefenderPokeObj:SetAttribute("CurrentHP", battle.DefenderStats.CurrentHP)
+			damage = battle.AttackerStats.Attack or 5
+			battle.DefenderStats.CurrentHP = math.max(0, battle.DefenderStats.CurrentHP - damage)
 		else
 			winner = "Defender"
-			damage = battle.DefenderStats.Attack
-			battle.AttackerStats.CurrentHP -= damage
-			battle.AttackerPokeObj:SetAttribute("CurrentHP", battle.AttackerStats.CurrentHP)
+			damage = battle.DefenderStats.Attack or 5
+			battle.AttackerStats.CurrentHP = math.max(0, battle.AttackerStats.CurrentHP - damage)
 		end
 
 		local updateData = {
 			Winner = winner, Damage = damage,
 			AttackerRoll = roll1, DefenderRoll = roll2,
 			AttackerHP = battle.AttackerStats.CurrentHP,
-			DefenderHP = battle.DefenderStats.CurrentHP
+			DefenderHP = battle.DefenderStats.CurrentHP,
+			AttackerMaxHP = battle.AttackerStats.MaxHP,
+			DefenderMaxHP = battle.DefenderStats.MaxHP,
+			PlayerRoll = roll1, EnemyRoll = roll2,
+			PlayerHP = battle.AttackerStats.CurrentHP, 
+			EnemyHP = battle.DefenderStats.CurrentHP
 		}
-		Events.BattleAttack:FireClient(attacker, winner, damage, updateData)
-		Events.BattleAttack:FireClient(defender, winner, damage, updateData)
+		Events.BattleAttack:FireAllClients(winner, damage, updateData)
 
+		-- Check if battle is over (someone's HP reached 0)
 		if battle.DefenderStats.CurrentHP <= 0 then
+			battle.Resolved = true
 			task.spawn(function()
-				task.wait(6)
+				task.wait(5) -- Wait for client dice animation + result display
 				BattleSystem.endBattle(battle, "AttackerWin")
 			end)
 		elseif battle.AttackerStats.CurrentHP <= 0 then
+			battle.Resolved = true
 			task.spawn(function()
-				task.wait(6)
+				task.wait(5) -- Wait for client dice animation + result display
 				BattleSystem.endBattle(battle, "DefenderWin")
 			end)
-		else
-			battle.AttackerRoll = nil
-			battle.DefenderRoll = nil
 		end
+		-- If neither HP is 0, battle continues (wait for next roll)
 	end
 end
 
 -- ============================================================================
--- 🏁 END BATTLE + CLEANUP (UPDATED)
+-- 🏁 END BATTLE + CLEANUP (WITH REWARDS/PENALTIES)
 -- ============================================================================
 
 function BattleSystem.endBattle(battle, result)
 	print("🏁 Battle Ended: " .. result)
-
-	-- Delayed Dead Status set
-	if battle.Type == "PvE" then
-		if battle.MyStats.CurrentHP <= 0 then
-			battle.MyPokeObj:SetAttribute("Status", "Dead")
-		end
-	elseif battle.Type == "PvP" then
-		if battle.AttackerStats.CurrentHP <= 0 then
-			battle.AttackerPokeObj:SetAttribute("Status", "Dead")
-		end
-		if battle.DefenderStats.CurrentHP <= 0 then
-			battle.DefenderPokeObj:SetAttribute("Status", "Dead")
-		end
-	end
 
 	local tilesFolder = workspace:FindFirstChild("Tiles")
 
@@ -606,20 +626,27 @@ function BattleSystem.endBattle(battle, result)
 
 		if result == "Win" then
 			finalMsg = "🏆 " .. winnerName .. " defeated wild " .. loserName .. "!"
-		else
-			finalMsg = "💀 " .. winnerName .. " knocked out " .. loserName .. "!"
-		end
 
-		Events.BattleEnd:FireAllClients(finalMsg)
-		BattleSystem.activeBattles[battle.Player.UserId] = nil
-
-		if result == "Win" then
+			-- Winner gets evolution or money
 			local success = EvolutionSystem.tryEvolve(battle.Player)
 			if not success then
 				battle.Player.leaderstats.Money.Value += 3
 				if Events.Notify then Events.Notify:FireClient(battle.Player, "⭐ No evolution available. +3 Coins!") end
 			end
+		else
+			finalMsg = "💀 " .. winnerName .. " knocked out " .. loserName .. "!"
+
+			-- Loser loses money and Pokemon dies
+			battle.Player.leaderstats.Money.Value = math.max(0, battle.Player.leaderstats.Money.Value - 5)
+			if battle.MyPokeObj then
+				battle.MyPokeObj:SetAttribute("Status", "Dead")
+				battle.MyPokeObj:SetAttribute("CurrentHP", 0)
+			end
+			if Events.Notify then Events.Notify:FireClient(battle.Player, "💀 Your " .. battle.MyStats.Name .. " fainted! -5 Coins") end
 		end
+
+		Events.BattleEnd:FireAllClients(finalMsg)
+		BattleSystem.activeBattles[battle.Player.UserId] = nil
 
 		if tilesFolder then
 			PlayerManager.teleportToLastTile(battle.Player, tilesFolder)
@@ -627,24 +654,46 @@ function BattleSystem.endBattle(battle, result)
 		TurnManager.nextTurn()
 
 	elseif battle.Type == "PvP" then
-		local winner = nil
+		local winner, loser = nil, nil
+		local winnerPokeObj, loserPokeObj = nil, nil
+		local winnerPokeName, loserPokeName = "", ""
+
 		if result == "AttackerWin" then
 			winner = battle.Attacker
+			loser = battle.Defender
 			winnerName = battle.Attacker.Name
 			loserName = battle.Defender.Name
+			winnerPokeObj = battle.AttackerPokeObj
+			loserPokeObj = battle.DefenderPokeObj
+			winnerPokeName = battle.AttackerStats.Name
+			loserPokeName = battle.DefenderStats.Name
 		else
 			winner = battle.Defender
+			loser = battle.Attacker
 			winnerName = battle.Defender.Name
 			loserName = battle.Attacker.Name
+			winnerPokeObj = battle.DefenderPokeObj
+			loserPokeObj = battle.AttackerPokeObj
+			winnerPokeName = battle.DefenderStats.Name
+			loserPokeName = battle.AttackerStats.Name
 		end
 
 		finalMsg = "⚔️ PvP Result: " .. winnerName .. " defeated " .. loserName .. "!"
 
+		-- Winner gets evolution or money
 		local success = EvolutionSystem.tryEvolve(winner)
 		if not success then
 			winner.leaderstats.Money.Value += 3
 			if Events.Notify then Events.Notify:FireClient(winner, "⭐ No evolution available. +3 Coins!") end
 		end
+
+		-- Loser loses money and Pokemon dies
+		loser.leaderstats.Money.Value = math.max(0, loser.leaderstats.Money.Value - 5)
+		if loserPokeObj then
+			loserPokeObj:SetAttribute("Status", "Dead")
+			loserPokeObj:SetAttribute("CurrentHP", 0)
+		end
+		if Events.Notify then Events.Notify:FireClient(loser, "💀 Your " .. loserPokeName .. " fainted! -5 Coins") end
 
 		Events.BattleEnd:FireAllClients(finalMsg)
 

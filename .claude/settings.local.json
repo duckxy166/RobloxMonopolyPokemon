@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(git -C \"C:\\\\Users\\\\saharat\\\\.claude-worktrees\\\\RobloxMonopolyPokemon\\\\charming-ishizaka\" log --oneline -20)",
+      "Bash(git -C \"C:\\\\Users\\\\saharat\\\\.claude-worktrees\\\\RobloxMonopolyPokemon\\\\charming-ishizaka\" status)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nImplement 4-Phase Turn System \\(Draw, Item, Ability, Roll\\)\n\n- Add PhaseUpdate, AdvancePhase, UseAbility events to EventManager\n- Update TurnManager with 4-phase flow: Draw → Item → Ability → Roll\n- Add phase timeouts \\(Item: 60s, Ability: 30s\\)\n- Auto-skip Ability phase if player has no Class/Job\n- Fix PhaseUIController to use correct event paths\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nConvert Starter Selection to Job/Class System\n\n- Replace Pokemon starter selection with Job selection UI\n- Add 4 jobs: Gambler, Esper, Shaman, Biker\n- Each job has unique Ability and Passive\n- Update TurnManager to handle Job selection\n- Set player Job attribute for Ability Phase\n- Give job-themed starter Pokemon\n\nJobs:\n- Gambler \\(🎰\\): Lucky Roll - risk for big rewards\n- Esper \\(🔮\\): Future Sight - see upcoming cards\n- Shaman \\(🌿\\): Spirit Heal - revive dead Pokemon\n- Biker \\(🏍️\\): Turbo Boost - +2 to dice roll\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)"
+    ]
+  }
+}

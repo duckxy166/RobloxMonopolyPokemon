@@ -44,149 +44,25 @@ local rollBtn = nil
 -- State
 local isBattleActive = false
 local isRolling = false
+local battleResolved = false
 local currentBattleData = nil
 local vsFrame = nil
 
--- Helper: Create VS UI
-local function createVSFrame()
-	if vsFrame then vsFrame:Destroy() end
+-- Active dice storage (must be declared before createVSFrame)
+local activeDice = {} -- {Player=?, Enemy=?}
 
-	vsFrame = Instance.new("Frame")
-	vsFrame.Name = "VSFrame"
-	vsFrame.Size = UDim2.new(0.6, 0, 0.15, 0) -- Reduced width (was 0.8)
-	vsFrame.Position = UDim2.new(0.2, 0, 0.82, 0) -- Centered (was 0.1)
-	vsFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-	vsFrame.BackgroundTransparency = 0.2
-	vsFrame.Parent = screenGui
-
-	Instance.new("UICorner", vsFrame).CornerRadius = UDim.new(0, 10)
-
-	-- Create Roll Button INSIDE vsFrame (recreated each time)
-	rollBtn = Instance.new("TextButton")
-	rollBtn.Name = "RollButton"
-	rollBtn.Size = UDim2.new(0.25, 0, 0.8, 0)
-	rollBtn.Position = UDim2.new(0.5, 0, 0.5, 0)
-	rollBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-	rollBtn.Text = "🎲 ROLL ATTACK"
-	rollBtn.Font = Enum.Font.FredokaOne
-	rollBtn.TextSize = 24
-	rollBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
-	rollBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	rollBtn.Visible = false -- Hidden until turn
-	rollBtn.ZIndex = 10 -- Ensure it's on top
-	rollBtn.Parent = vsFrame
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 12)
-	corner.Parent = rollBtn
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 3
-	stroke.Color = Color3.fromRGB(255, 100, 50)
-	stroke.Parent = rollBtn
-	
-	-- Connect rollBtn click handler
-	rollBtn.MouseButton1Click:Connect(function()
-		if not isBattleActive or isRolling then return end
-		isRolling = true
-		rollBtn.Visible = false -- Hide button while rolling
-		
-		-- Cleanup previous dice before spawning new ones (for round 2+)
-		cleanupDice()
-		
-		-- Spawn player dice spinning immediately
-		local myDiceOffset = -1 -- Default left
-		if currentBattleData and currentBattleData.Type == "PvP" then
-			if player == currentBattleData.Defender then
-				myDiceOffset = 1 -- I am P2, dice on right
-			end
-		end
-		activeDice.Player = spawn3NDice(myDiceOffset)
-		
-		-- Fire server to roll
-		Events.BattleAttack:FireServer()
-	end)
-
-	-- Helper to create side
-	local function createSide(parent, side, color)
-		local container = Instance.new("Frame")
-		container.Name = side
-		container.Size = UDim2.new(0.35, 0, 1, 0) -- Reduced width to leave room for center button
-		container.Position = side == "Left" and UDim2.new(0, 0, 0, 0) or UDim2.new(0.65, 0, 0, 0)
-		container.BackgroundTransparency = 1
-		container.Parent = parent
-
-		-- Pokemon Image
-		local img = Instance.new("ImageLabel")
-		img.Name = "PokeImage"
-		img.Size = UDim2.new(0.3, 0, 0.9, 0)
-		img.Position = side == "Left" and UDim2.new(0, 5, 0.05, 0) or UDim2.new(0.7, -5, 0.05, 0)
-		img.BackgroundColor3 = color
-		img.Parent = container
-		Instance.new("UICorner", img).CornerRadius = UDim.new(0, 8)
-
-		-- Name
-		local nameLbl = Instance.new("TextLabel")
-		nameLbl.Name = "NameLabel"
-		nameLbl.Text = "Pokemon"
-		nameLbl.Size = UDim2.new(0.6, 0, 0.3, 0)
-		nameLbl.Position = side == "Left" and UDim2.new(0.35, 0, 0.1, 0) or UDim2.new(0.05, 0, 0.1, 0)
-		nameLbl.Font = Enum.Font.FredokaOne
-		nameLbl.TextSize = 18
-		nameLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-		nameLbl.BackgroundTransparency = 1
-		nameLbl.Parent = container
-		if side == "Right" then nameLbl.TextXAlignment = Enum.TextXAlignment.Right end
-		if side == "Left" then nameLbl.TextXAlignment = Enum.TextXAlignment.Left end
-
-		-- Attack Power Label
-		local atkLbl = Instance.new("TextLabel")
-		atkLbl.Name = "AttackLabel"
-		atkLbl.Text = "⚔️ 0"
-		atkLbl.Size = UDim2.new(0.6, 0, 0.2, 0)
-		atkLbl.Position = side == "Left" and UDim2.new(0.35, 0, 0.35, 0) or UDim2.new(0.05, 0, 0.35, 0)
-		atkLbl.Font = Enum.Font.GothamBold
-		atkLbl.TextSize = 14
-		atkLbl.TextColor3 = Color3.fromRGB(255, 200, 50) -- Gold/Orange
-		atkLbl.BackgroundTransparency = 1
-		atkLbl.Parent = container
-		if side == "Right" then atkLbl.TextXAlignment = Enum.TextXAlignment.Right end
-		if side == "Left" then atkLbl.TextXAlignment = Enum.TextXAlignment.Left end
-
-		-- HP Bar
-		local hpBg = Instance.new("Frame")
-		hpBg.Name = "HP_BG"
-		hpBg.Size = UDim2.new(0.6, 0, 0.2, 0)
-		hpBg.Position = side == "Left" and UDim2.new(0.35, 0, 0.6, 0) or UDim2.new(0.05, 0, 0.6, 0)
-		hpBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-		hpBg.Parent = container
-		Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0, 4)
-
-		local hpFill = Instance.new("Frame")
-		hpFill.Name = "HP_Fill"
-		hpFill.Size = UDim2.new(1, 0, 1, 0)
-		hpFill.BackgroundColor3 = Color3.fromRGB(50, 255, 100)
-		hpFill.Parent = hpBg
-		Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 4)
-
-		local hpText = Instance.new("TextLabel")
-		hpText.Name = "HP_Text"
-		hpText.Text = "100/100"
-		hpText.Size = UDim2.new(1, 0, 1, 0)
-		hpText.BackgroundTransparency = 1
-		hpText.Font = Enum.Font.Code
-		hpText.TextSize = 12
-		hpText.TextColor3 = Color3.fromRGB(255, 255, 255)
-		hpText.Parent = hpBg
-
-		return container
+local function cleanupDice()
+	if activeDice.Player then
+		if activeDice.Player.Object then activeDice.Player.Object:Destroy() end
+		activeDice.Player = nil
 	end
-
-	createSide(vsFrame, "Left", Color3.fromRGB(100, 100, 255))
-	createSide(vsFrame, "Right", Color3.fromRGB(255, 100, 100))
+	if activeDice.Enemy then
+		if activeDice.Enemy.Object then activeDice.Enemy.Object:Destroy() end
+		activeDice.Enemy = nil
+	end
 end
 
--- [[ 3D DICE LOGIC ]] --
+-- [[ 3D DICE LOGIC ]] -- (Moved here so spawn3NDice is available to createVSFrame)
 local ROTATION_OFFSETS = {
 	[1] = CFrame.Angles(0, 0, 0),
 	[2] = CFrame.Angles(math.rad(-90), 0, 0),
@@ -215,6 +91,7 @@ local function getDiceCF(sideOffset)
 
 	return CFrame.lookAt(pos, camCF.Position)
 end
+
 -- Spawn and Animate a single 3D Die
 local function spawn3NDice(sideOffset)
 	local dice
@@ -320,18 +197,143 @@ local function spawn3NDice(sideOffset)
 	}
 end
 
+-- Helper: Create VS UI
+local function createVSFrame()
+	if vsFrame then vsFrame:Destroy() end
 
-local activeDice = {} -- {Player=?, Enemy=?}
+	vsFrame = Instance.new("Frame")
+	vsFrame.Name = "VSFrame"
+	vsFrame.Size = UDim2.new(0.6, 0, 0.15, 0) -- Reduced width (was 0.8)
+	vsFrame.Position = UDim2.new(0.2, 0, 0.82, 0) -- Centered (was 0.1)
+	vsFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	vsFrame.BackgroundTransparency = 0.2
+	vsFrame.Parent = screenGui
 
-local function cleanupDice()
-	if activeDice.Player then
-		if activeDice.Player.Object then activeDice.Player.Object:Destroy() end
-		activeDice.Player = nil
+	Instance.new("UICorner", vsFrame).CornerRadius = UDim.new(0, 10)
+
+	-- Create Roll Button INSIDE vsFrame (recreated each time)
+	rollBtn = Instance.new("TextButton")
+	rollBtn.Name = "RollButton"
+	rollBtn.Size = UDim2.new(0.25, 0, 0.8, 0)
+	rollBtn.Position = UDim2.new(0.5, 0, 0.5, 0)
+	rollBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+	rollBtn.Text = "🎲 ROLL ATTACK"
+	rollBtn.Font = Enum.Font.FredokaOne
+	rollBtn.TextSize = 24
+	rollBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
+	rollBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	rollBtn.Visible = false -- Hidden until turn
+	rollBtn.ZIndex = 10 -- Ensure it's on top
+	rollBtn.Parent = vsFrame
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = rollBtn
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 3
+	stroke.Color = Color3.fromRGB(255, 100, 50)
+	stroke.Parent = rollBtn
+
+	-- Connect rollBtn click handler
+	rollBtn.MouseButton1Click:Connect(function()
+		if not isBattleActive or isRolling or battleResolved then return end
+		isRolling = true
+		rollBtn.Visible = false -- Hide button while rolling
+
+		-- Cleanup previous dice before spawning new ones (for round 2+)
+		cleanupDice()
+
+		-- Spawn player dice spinning immediately
+		local myDiceOffset = -1 -- Default left
+		if currentBattleData and currentBattleData.Type == "PvP" then
+			if player == currentBattleData.Defender then
+				myDiceOffset = 1 -- I am P2, dice on right
+			end
+		end
+		activeDice.Player = spawn3NDice(myDiceOffset)
+
+		-- Fire server to roll
+		Events.BattleAttack:FireServer()
+	end)
+
+	-- Helper to create side
+	local function createSide(parent, side, color)
+		local container = Instance.new("Frame")
+		container.Name = side
+		container.Size = UDim2.new(0.35, 0, 1, 0) -- Reduced width to leave room for center button
+		container.Position = side == "Left" and UDim2.new(0, 0, 0, 0) or UDim2.new(0.65, 0, 0, 0)
+		container.BackgroundTransparency = 1
+		container.Parent = parent
+
+		-- Pokemon Image
+		local img = Instance.new("ImageLabel")
+		img.Name = "PokeImage"
+		img.Size = UDim2.new(0.3, 0, 0.9, 0)
+		img.Position = side == "Left" and UDim2.new(0, 5, 0.05, 0) or UDim2.new(0.7, -5, 0.05, 0)
+		img.BackgroundColor3 = color
+		img.Parent = container
+		Instance.new("UICorner", img).CornerRadius = UDim.new(0, 8)
+
+		-- Name
+		local nameLbl = Instance.new("TextLabel")
+		nameLbl.Name = "NameLabel"
+		nameLbl.Text = "Pokemon"
+		nameLbl.Size = UDim2.new(0.6, 0, 0.3, 0)
+		nameLbl.Position = side == "Left" and UDim2.new(0.35, 0, 0.1, 0) or UDim2.new(0.05, 0, 0.1, 0)
+		nameLbl.Font = Enum.Font.FredokaOne
+		nameLbl.TextSize = 18
+		nameLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+		nameLbl.BackgroundTransparency = 1
+		nameLbl.Parent = container
+		if side == "Right" then nameLbl.TextXAlignment = Enum.TextXAlignment.Right end
+		if side == "Left" then nameLbl.TextXAlignment = Enum.TextXAlignment.Left end
+
+		-- Attack Power Label
+		local atkLbl = Instance.new("TextLabel")
+		atkLbl.Name = "AttackLabel"
+		atkLbl.Text = "⚔️ 0"
+		atkLbl.Size = UDim2.new(0.6, 0, 0.2, 0)
+		atkLbl.Position = side == "Left" and UDim2.new(0.35, 0, 0.35, 0) or UDim2.new(0.05, 0, 0.35, 0)
+		atkLbl.Font = Enum.Font.GothamBold
+		atkLbl.TextSize = 14
+		atkLbl.TextColor3 = Color3.fromRGB(255, 200, 50) -- Gold/Orange
+		atkLbl.BackgroundTransparency = 1
+		atkLbl.Parent = container
+		if side == "Right" then atkLbl.TextXAlignment = Enum.TextXAlignment.Right end
+		if side == "Left" then atkLbl.TextXAlignment = Enum.TextXAlignment.Left end
+
+		-- HP Bar
+		local hpBg = Instance.new("Frame")
+		hpBg.Name = "HP_BG"
+		hpBg.Size = UDim2.new(0.6, 0, 0.2, 0)
+		hpBg.Position = side == "Left" and UDim2.new(0.35, 0, 0.6, 0) or UDim2.new(0.05, 0, 0.6, 0)
+		hpBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		hpBg.Parent = container
+		Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0, 4)
+
+		local hpFill = Instance.new("Frame")
+		hpFill.Name = "HP_Fill"
+		hpFill.Size = UDim2.new(1, 0, 1, 0)
+		hpFill.BackgroundColor3 = Color3.fromRGB(50, 255, 100)
+		hpFill.Parent = hpBg
+		Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 4)
+
+		local hpText = Instance.new("TextLabel")
+		hpText.Name = "HP_Text"
+		hpText.Text = "100/100"
+		hpText.Size = UDim2.new(1, 0, 1, 0)
+		hpText.BackgroundTransparency = 1
+		hpText.Font = Enum.Font.Code
+		hpText.TextSize = 12
+		hpText.TextColor3 = Color3.fromRGB(255, 255, 255)
+		hpText.Parent = hpBg
+
+		return container
 	end
-	if activeDice.Enemy then
-		if activeDice.Enemy.Object then activeDice.Enemy.Object:Destroy() end
-		activeDice.Enemy = nil
-	end
+
+	createSide(vsFrame, "Left", Color3.fromRGB(100, 100, 255))
+	createSide(vsFrame, "Right", Color3.fromRGB(255, 100, 100))
 end
 
 -- Helper: Send System Message
@@ -353,14 +355,14 @@ UserInputService.InputBegan:Connect(function(input, gamProcessed)
 
 	if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space then
 		-- Attack
-		if not isRolling then
+		if not isRolling and not battleResolved then
 			isRolling = true
 			sendMsg("Rolling dice... 🎲", Color3.fromRGB(255, 255, 100))
 			Events.BattleAttack:FireServer()
 		end
 	elseif input.UserInputType == Enum.UserInputType.Touch then
 		-- Touch Attack
-		if not isRolling then
+		if not isRolling and not battleResolved then
 			isRolling = true
 			sendMsg("Rolling dice... 🎲", Color3.fromRGB(255, 255, 100))
 			Events.BattleAttack:FireServer()
@@ -373,6 +375,19 @@ end)
 -- Battle Update (Damage)
 Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 	isRolling = false
+
+	-- Check if battle is over (someone's HP reached 0)
+	local battleOver = false
+	if details then
+		if details.PlayerHP and details.PlayerHP <= 0 then battleOver = true end
+		if details.EnemyHP and details.EnemyHP <= 0 then battleOver = true end
+		if details.AttackerHP and details.AttackerHP <= 0 then battleOver = true end
+		if details.DefenderHP and details.DefenderHP <= 0 then battleOver = true end
+	end
+
+	if winner ~= "Draw" and battleOver then
+		battleResolved = true
+	end
 
 	local myName, enemyName, myRoll, enemyRoll
 
@@ -435,9 +450,60 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 
 	task.wait(1.5)
 
-	if isBattleActive then
+	-- Show battle result banner ONLY when battle is actually over (HP = 0)
+	if winner ~= "Draw" and battleOver and vsFrame then
+		local iWon = false
+		if currentBattleData then
+			if currentBattleData.Type == "PvE" then
+				iWon = (winner == "Player")
+			elseif currentBattleData.Type == "PvP" then
+				local myRole = (player == currentBattleData.Attacker) and "Attacker" or "Defender"
+				iWon = (winner == myRole)
+			end
+		end
+
+		local resultBanner = Instance.new("TextLabel")
+		resultBanner.Name = "ResultBanner"
+		resultBanner.Size = UDim2.new(0.5, 0, 0.12, 0)
+		resultBanner.Position = UDim2.new(0.25, 0, 0.35, 0)
+		resultBanner.BackgroundTransparency = 0.15
+		resultBanner.Font = Enum.Font.FredokaOne
+		resultBanner.TextSize = 48
+		resultBanner.TextScaled = true
+		resultBanner.TextStrokeTransparency = 0
+		resultBanner.Parent = screenGui
+		Instance.new("UICorner", resultBanner).CornerRadius = UDim.new(0, 16)
+
+		if iWon then
+			resultBanner.Text = "🏆 YOU WIN!"
+			resultBanner.TextColor3 = Color3.fromRGB(255, 215, 0)
+			resultBanner.BackgroundColor3 = Color3.fromRGB(30, 60, 30)
+		else
+			resultBanner.Text = "💀 YOU LOSE..."
+			resultBanner.TextColor3 = Color3.fromRGB(255, 80, 80)
+			resultBanner.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
+		end
+
+		-- Spectator sees winner name
+		if currentBattleData and currentBattleData.IsSpectator then
+			local winnerName = ""
+			if currentBattleData.Type == "PvE" then
+				winnerName = (winner == "Player") and currentBattleData.MyStats.Name or currentBattleData.EnemyStats.Name
+			elseif currentBattleData.Type == "PvP" then
+				winnerName = (winner == "Attacker") and currentBattleData.Attacker.Name or currentBattleData.Defender.Name
+			end
+			resultBanner.Text = "🏆 " .. winnerName .. " WINS!"
+			resultBanner.TextColor3 = Color3.fromRGB(255, 215, 0)
+			resultBanner.BackgroundColor3 = Color3.fromRGB(30, 40, 60)
+		end
+
+		Debris:AddItem(resultBanner, 3)
+	end
+
+	-- Always show roll button if battle is active and NOT resolved (for next round)
+	if isBattleActive and not battleResolved and rollBtn then
 		rollBtn.Visible = true
-		rollBtn.Text = "🎲 ROLL ATTACK"
+		rollBtn.Text = "🎲 ROLL AGAIN"
 		rollBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
 	end
 
@@ -482,19 +548,28 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 				end
 			end
 
-			local myNewHP, enemyNewHP
+			local myNewHP, enemyNewHP, myMaxHP, enemyMaxHP
 			if currentBattleData.Type == "PvE" then
-				myNewHP = details.PlayerHP; enemyNewHP = details.EnemyHP
+				myNewHP = details.PlayerHP
+				enemyNewHP = details.EnemyHP
+				myMaxHP = details.PlayerMaxHP or currentBattleData.MyStats.MaxHP
+				enemyMaxHP = details.EnemyMaxHP or currentBattleData.EnemyStats.MaxHP
 			elseif currentBattleData.Type == "PvP" then
 				if player == currentBattleData.Attacker then
-					myNewHP = details.AttackerHP; enemyNewHP = details.DefenderHP
+					myNewHP = details.AttackerHP
+					enemyNewHP = details.DefenderHP
+					myMaxHP = details.AttackerMaxHP or currentBattleData.MyStats.MaxHP
+					enemyMaxHP = details.DefenderMaxHP or currentBattleData.EnemyStats.MaxHP
 				else
-					myNewHP = details.DefenderHP; enemyNewHP = details.AttackerHP
+					myNewHP = details.DefenderHP
+					enemyNewHP = details.AttackerHP
+					myMaxHP = details.DefenderMaxHP or currentBattleData.MyStats.MaxHP
+					enemyMaxHP = details.AttackerMaxHP or currentBattleData.EnemyStats.MaxHP
 				end
 			end
 
-			if myNewHP then updateSide("Left", myNewHP, currentBattleData.MyStats.MaxHP) end
-			if enemyNewHP then updateSide("Right", enemyNewHP, currentBattleData.EnemyStats.MaxHP) end
+			if myNewHP then updateSide("Left", myNewHP, myMaxHP) end
+			if enemyNewHP then updateSide("Right", enemyNewHP, enemyMaxHP) end
 		end
 	end
 end)
@@ -502,9 +577,21 @@ end)
 -- Battle End
 Events.BattleEnd.OnClientEvent:Connect(function(result)
 	isBattleActive = false
+	isRolling = false -- Reset rolling state
+	battleResolved = false
 	currentBattleData = nil
-	if vsFrame then vsFrame:Destroy() vsFrame = nil end
-	rollBtn.Visible = false
+
+	-- Safe cleanup of UI
+	if rollBtn then 
+		rollBtn.Visible = false 
+	end
+	if vsFrame then 
+		vsFrame:Destroy() 
+		vsFrame = nil 
+	end
+
+	-- Cleanup any remaining dice
+	cleanupDice()
 
 	local msgText = result
 	local msgColor = Color3.fromRGB(255, 255, 255)
@@ -517,19 +604,8 @@ Events.BattleEnd.OnClientEvent:Connect(function(result)
 
 	sendMsg(msgText, msgColor)
 
-	local resultLabel = Instance.new("TextLabel")
-	resultLabel.Size = UDim2.new(1, 0, 0.2, 0)
-	resultLabel.Position = UDim2.new(0, 0, 0.4, 0)
-	resultLabel.BackgroundTransparency = 1
-	resultLabel.Text = msgText
-	resultLabel.Font = Enum.Font.FredokaOne
-	resultLabel.TextSize = 48
-	resultLabel.TextScaled = true
-	resultLabel.TextColor3 = msgColor
-	resultLabel.TextStrokeTransparency = 0
-	resultLabel.Parent = screenGui
-
-	Debris:AddItem(resultLabel, 5)
+	-- NOTE: Result banner is already shown in BattleAttack handler (lines 455-490)
+	-- Removed duplicate result label to prevent showing win/lose message twice
 end)
 
 -- Battle Start
@@ -539,10 +615,11 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 		warn("⚠️ [BattleUI] Received nil battle data")
 		return 
 	end
-	
+
 	print("⚔️ [Client] Battle Started!", type)
 	isBattleActive = true
 	isRolling = false
+	battleResolved = false
 	currentBattleData = data
 
 	createVSFrame()
@@ -586,7 +663,7 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 
 	-- Check if spectator mode
 	local isSpectator = data.IsSpectator or false
-	
+
 	if isSpectator then
 		-- Add spectator label
 		local spectatorLabel = Instance.new("TextLabel")
@@ -601,7 +678,7 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 		spectatorLabel.Font = Enum.Font.GothamBold
 		spectatorLabel.TextScaled = true
 		spectatorLabel.Parent = screenGui
-		
+
 		-- Hide roll button for spectators
 		rollBtn.Visible = false
 		sendMsg("Spectating battle...", Color3.fromRGB(200, 200, 200))

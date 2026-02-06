@@ -139,6 +139,42 @@ local function createPlayerBox(targetPlayer, index)
 	createStat("C", "Cards", Color3.fromRGB(200, 200, 200)) -- Keep Cards as Text 'C' or change if needed
 	createStat(BALL_ICON_ID, "Balls", Color3.fromRGB(255, 100, 100))
 
+	-- Status Effects Row (Sleep, Poison, Burn icons)
+	local statusEffectsRow = Instance.new("Frame")
+	statusEffectsRow.Name = "StatusEffectsRow"
+	statusEffectsRow.Size = UDim2.new(1, -80, 0, 18)
+	statusEffectsRow.Position = UDim2.new(0, 80, 0, 28) -- Between name and stats
+	statusEffectsRow.BackgroundTransparency = 1
+	statusEffectsRow.Parent = box
+
+	local effectsLayout = Instance.new("UIListLayout")
+	effectsLayout.FillDirection = Enum.FillDirection.Horizontal
+	effectsLayout.Padding = UDim.new(0, 4)
+	effectsLayout.Parent = statusEffectsRow
+
+	-- Status Pill (New)
+	local statusPill = Instance.new("Frame")
+	statusPill.Name = "StatusPill"
+	statusPill.Size = UDim2.new(0, 100, 0, 24)
+	statusPill.Position = UDim2.new(1, -10, 0, 10) -- Top-right of box
+	statusPill.AnchorPoint = Vector2.new(1, 0)
+	statusPill.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+	statusPill.Parent = box
+	
+	local pillCorner = Instance.new("UICorner")
+	pillCorner.CornerRadius = UDim.new(1, 0) -- Pill shape
+	pillCorner.Parent = statusPill
+	
+	local statusLbl = Instance.new("TextLabel")
+	statusLbl.Name = "StatusLabel"
+	statusLbl.Size = UDim2.new(1, 0, 1, 0)
+	statusLbl.BackgroundTransparency = 1
+	statusLbl.Text = "WAITING"
+	statusLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+	statusLbl.Font = Enum.Font.FredokaOne
+	statusLbl.TextSize = 12
+	statusLbl.Parent = statusPill
+
 	-- Pokemon Party Row (6 slots)
 	local partyRow = Instance.new("Frame")
 	partyRow.Name = "PartyRow"
@@ -199,7 +235,10 @@ local function createPlayerBox(targetPlayer, index)
 		MoneyLbl = box:FindFirstChild("ValueLabel_Money", true),
 		CardLbl = box:FindFirstChild("ValueLabel_Cards", true),
 		BallLbl = box:FindFirstChild("ValueLabel_Balls", true),
-		PartySlots = partySlots
+		PartySlots = partySlots,
+		StatusPill = statusPill,
+		StatusLabel = statusLbl,
+		StatusEffectsRow = statusEffectsRow
 	}
 end
 
@@ -212,6 +251,53 @@ local POKEMON_ICONS = {
 	["Mewtwo"] = "🔮",
 	["Default"] = "🔵"
 }
+
+-- Status Effect Icons Config
+local STATUS_EFFECTS_CONFIG = {
+	Sleep = {icon = "💤", color = Color3.fromRGB(100, 150, 255)},
+	Poison = {icon = "☠️", color = Color3.fromRGB(200, 100, 255)},
+	Burn = {icon = "🔥", color = Color3.fromRGB(255, 150, 50)}
+}
+
+-- Create/Update Status Effect Icon
+local function updateStatusIcon(statusRow, statusType, turns)
+	local config = STATUS_EFFECTS_CONFIG[statusType]
+	if not config then return end
+
+	local existing = statusRow:FindFirstChild("Status_" .. statusType)
+
+	if turns <= 0 then
+		-- Remove icon if turns = 0
+		if existing then existing:Destroy() end
+		return
+	end
+
+	-- Create or update icon
+	local iconFrame = existing
+	if not iconFrame then
+		iconFrame = Instance.new("Frame")
+		iconFrame.Name = "Status_" .. statusType
+		iconFrame.Size = UDim2.new(0, 32, 0, 16)
+		iconFrame.BackgroundColor3 = config.color
+		iconFrame.BackgroundTransparency = 0.3
+		iconFrame.Parent = statusRow
+		Instance.new("UICorner", iconFrame).CornerRadius = UDim.new(0, 6)
+
+		local lbl = Instance.new("TextLabel")
+		lbl.Name = "Label"
+		lbl.Size = UDim2.new(1, 0, 1, 0)
+		lbl.BackgroundTransparency = 1
+		lbl.Font = Enum.Font.GothamBold
+		lbl.TextSize = 11
+		lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+		lbl.Parent = iconFrame
+	end
+
+	local lbl = iconFrame:FindFirstChild("Label")
+	if lbl then
+		lbl.Text = config.icon .. turns
+	end
+end
 
 -- Update Pokemon party icons for a player
 local function updatePartyIcons(targetPlayer)
@@ -258,6 +344,48 @@ local function updatePartyIcons(targetPlayer)
 	end
 end
 
+-- Update Player Status Visuals
+local function updatePlayerStatus(pName, statusType, customText)
+	local data = playerFrames[pName]
+	if not data then return end
+	
+	local box = data.Box
+	local pill = data.StatusPill
+	local lbl = data.StatusLabel
+	local stroke = data.Stroke
+	
+	if not (box and pill and lbl and stroke) then return end
+	
+	-- Defaults
+	local pillColor = Color3.fromRGB(80, 80, 80)
+	local text = "WAITING"
+	local borderColor = Color3.fromRGB(255, 255, 255)
+	local strokeThickness = 2
+	
+	if statusType == "Active" then
+		pillColor = Color3.fromRGB(255, 200, 50) -- Gold/Orange
+		text = customText or "THINKING..."
+		borderColor = Color3.fromRGB(255, 220, 0)
+		strokeThickness = 4
+	elseif statusType == "MyTurn" then
+		pillColor = Color3.fromRGB(50, 200, 100) -- Green
+		text = customText or "YOUR TURN"
+		borderColor = Color3.fromRGB(100, 255, 100)
+		strokeThickness = 4
+	else
+		-- Waiting
+		pillColor = Color3.fromRGB(60, 60, 70)
+		text = "WAITING"
+		borderColor = Color3.fromRGB(100, 100, 120)
+		strokeThickness = 2
+	end
+	
+	-- Animate changes
+	TweenService:Create(pill, TweenInfo.new(0.3), {BackgroundColor3 = pillColor}):Play()
+	lbl.Text = text
+	TweenService:Create(stroke, TweenInfo.new(0.3), {Color = borderColor, Thickness = strokeThickness}):Play()
+end
+
 -- Listen for inventory changes for all players
 local function setupInventoryListener(targetPlayer)
 	local inventory = targetPlayer:WaitForChild("PokemonInventory", 10)
@@ -293,27 +421,40 @@ Players.PlayerAdded:Connect(function(p)
 	task.spawn(function() setupInventoryListener(p) end)
 end)
 
--- 1. ROLL BUTTON (Updated Style)
-local rollButton = Instance.new("TextButton")
-rollButton.Name = "RollButton"
-rollButton.Size = UDim2.new(0, 160, 0, 80)
--- Move to RIGHT SIDE (Center Vertical)
-rollButton.Position = UDim2.new(1, -40, 0.5, 0) 
-rollButton.AnchorPoint = Vector2.new(1, 0.5)
-rollButton.BackgroundColor3 = Color3.fromRGB(50, 200, 100) -- Green
-rollButton.Text = "🎲 ROLL"
-rollButton.Font = Enum.Font.FredokaOne
-rollButton.TextSize = 28
-rollButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-rollButton.Visible = true
-rollButton.Parent = screenGui
-Instance.new("UICorner", rollButton).CornerRadius = UDim.new(0, 16)
+-- Phase Update Logic (Local Player Only)
+local PhaseUpdateEvent = ReplicatedStorage:WaitForChild("PhaseUpdateEvent", 5)
+if PhaseUpdateEvent then
+	PhaseUpdateEvent.OnClientEvent:Connect(function(phase, message)
+		-- Update my own status box
+		updatePlayerStatus(player.Name, "MyTurn", phase:upper() .. " PHASE")
+	end)
+end
+
+-- Status Changed Event (Listen for Sleep/Poison/Burn status updates)
+local StatusChangedEvent = ReplicatedStorage:WaitForChild("StatusChangedEvent", 5)
+if StatusChangedEvent then
+	StatusChangedEvent.OnClientEvent:Connect(function(userId, statusType, turns)
+		-- Find player frame by userId
+		for pName, data in pairs(playerFrames) do
+			local p = Players:FindFirstChild(pName)
+			if p and p.UserId == userId then
+				local statusRow = data.StatusEffectsRow
+				if statusRow then
+					updateStatusIcon(statusRow, statusType, turns)
+				end
+				break
+			end
+		end
+	end)
+end
+
+
 
 -- 2. END TURN BUTTON
 local endTurnButton = Instance.new("TextButton")
 endTurnButton.Name = "EndTurnButton"
 endTurnButton.Size = UDim2.new(0, 160, 0, 80)
-endTurnButton.Position = UDim2.new(1, -40, 0.5, 0) -- Same spot as Roll
+endTurnButton.Position = UDim2.new(1, -40, 0.5, 0)
 endTurnButton.AnchorPoint = Vector2.new(1, 0.5)
 endTurnButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80) -- Red
 endTurnButton.Text = "END TURN"
@@ -328,7 +469,7 @@ Instance.new("UICorner", endTurnButton).CornerRadius = UDim.new(0, 16)
 local resetButton = Instance.new("TextButton")
 resetButton.Name = "ResetButton"
 resetButton.Size = UDim2.new(0, 120, 0, 50)
-resetButton.Position = UDim2.new(1, -40, 0.5, 100) -- Below Roll button
+resetButton.Position = UDim2.new(1, -40, 0.5, 100) -- Below End Turn button
 resetButton.AnchorPoint = Vector2.new(1, 0.5)
 resetButton.BackgroundColor3 = Color3.fromRGB(100, 100, 200) -- Blue
 resetButton.Text = "🔄 RESET"
@@ -339,92 +480,33 @@ resetButton.Visible = true
 resetButton.Parent = screenGui
 Instance.new("UICorner", resetButton).CornerRadius = UDim.new(0, 12)
 
--- 3. STATUS/LOG LABEL (Small top center)
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Name = "StatusLabel"
-statusLabel.Size = UDim2.new(0, 300, 0, 30)
-statusLabel.Position = UDim2.new(0.5, -60, 0, 10) -- Shift left to make room for timer
-statusLabel.AnchorPoint = Vector2.new(0.5, 0)
-statusLabel.BackgroundTransparency = 0.5
-statusLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-statusLabel.Text = "Waiting..."
-statusLabel.Font = Enum.Font.GothamMedium
-statusLabel.TextSize = 14
-statusLabel.Parent = screenGui
-Instance.new("UICorner", statusLabel).CornerRadius = UDim.new(0, 8)
-
--- 4. TIMER COUNTDOWN LABEL (Next to status)
-local timerCountdown = Instance.new("TextLabel")
-timerCountdown.Name = "TimerCountdown"
-timerCountdown.Size = UDim2.new(0, 80, 0, 30)
-timerCountdown.Position = UDim2.new(0.5, 95, 0, 10) -- Right of status
-timerCountdown.AnchorPoint = Vector2.new(0, 0)
-timerCountdown.BackgroundTransparency = 0.3
-timerCountdown.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-timerCountdown.TextColor3 = Color3.fromRGB(255, 200, 50)
-timerCountdown.Text = ""
-timerCountdown.Font = Enum.Font.FredokaOne
-timerCountdown.TextSize = 18
-timerCountdown.Visible = false
-timerCountdown.Parent = screenGui
-Instance.new("UICorner", timerCountdown).CornerRadius = UDim.new(0, 8)
-
--- Rename for compatibility with logic below
-local timerLabel = statusLabel
-
--- Timer countdown state
-local countdownConnection = nil
-local countdownRemaining = 0
+-- NOTE: Status/Timer labels removed - PhaseUIController handles phase display now
 
 -- [[ 🔌 CONNECTION ]] --
-local rollEvent, updateTurnEvent, resetCamEvent, lockEvent, endTurnEvent, phaseEvent, timerUpdateEvent
+local rollEvent, updateTurnEvent, resetCamEvent, lockEvent, endTurnEvent
 
--- Rolling state (declared here so event handlers can access it)
-local isRolling = false
+
 
 task.spawn(function()
 	rollEvent = ReplicatedStorage:WaitForChild("RollDiceEvent")
 	updateTurnEvent = ReplicatedStorage:WaitForChild("UpdateTurnEvent")
-	timerUpdateEvent = ReplicatedStorage:WaitForChild("TimerUpdateEvent", 5)
 
 	-- New Events for Manual Turn
-	endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent", 5) 
-	-- If it doesn't exist yet, we will create it on server soon, but client code needs to be robust
+	endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent", 5)
 	if not endTurnEvent then
-		-- Fallback if server update lags behind client update
 		warn("EndTurnEvent missing, waiting...")
 		endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent")
 	end
 
-	phaseEvent = ReplicatedStorage:WaitForChild("PhaseChangeEvent", 5)
-
 	resetCamEvent = ReplicatedStorage:FindFirstChild("ResetCameraEvent") or Instance.new("BindableEvent")
 	lockEvent = ReplicatedStorage:FindFirstChild("CameraLockEvent") or Instance.new("BindableEvent")
-	
-	-- Listen for Battle Start to hide HUD Roll Button
-	local battleStartEvent = ReplicatedStorage:WaitForChild("BattleStartEvent", 5)
-	if battleStartEvent then
-		battleStartEvent.OnClientEvent:Connect(function()
-			print("⚔️ [HUD] Battle Started -> Hiding Roll Button")
-			rollButton.Visible = false
-			timerLabel.Text = "Battle in progress..."
-		end)
-	end
+
+
 
 	-- CATCH SOUND
 	local catchEvent = ReplicatedStorage:WaitForChild("CatchPokemonEvent", 5)
 	if catchEvent then
 		catchEvent.OnClientEvent:Connect(function()
-			-- Play Throw/Catch Sound
-			local CATCH_SOUND_ID = "rbxassetid://111044334523010" -- Using same rolling sound for now as placeholder or maybe a different one?
-			-- User asked for 'Encounter dice sound'. Capture mechanic uses a 'roll'.
-			-- If there is a visual dice roll for capture, I need to find it.
-			-- Looking at EncounterSystem.lua (server), it fires 'CatchPokemon'.
-			-- Looking at HUD logic, I don't see a capture dice visual. It might just be 'success/fail' prompt.
-			-- Use the LAND sound for capture result.
-
-			-- task.wait(0.1) -- Removed delay
 			local s = Instance.new("Sound", workspace)
 			s.SoundId = "rbxassetid://90144356226455" -- Land sound
 			s.PlayOnRemove = true
@@ -432,101 +514,38 @@ task.spawn(function()
 		end)
 	end
 
-	timerLabel.Text = "Waiting for game..."
-
-	-- Timer Update Event Handler (Countdown from server)
-	if timerUpdateEvent then
-		timerUpdateEvent.OnClientEvent:Connect(function(seconds, phaseName)
-			-- Stop existing countdown
-			if countdownConnection then
-				countdownConnection:Disconnect()
-				countdownConnection = nil
-			end
-
-			if seconds <= 0 or phaseName == "" then
-				-- Hide timer
-				timerCountdown.Visible = false
-				countdownRemaining = 0
-				return
-			end
-
-			-- Start countdown
-			countdownRemaining = seconds
-			timerCountdown.Visible = true
-			timerCountdown.Text = "⏱ " .. tostring(math.ceil(countdownRemaining)) .. "s"
-
-			-- Color based on phase
-			if phaseName == "Roll" then
-				timerCountdown.TextColor3 = Color3.fromRGB(100, 255, 100) -- Green
-			elseif phaseName == "Shop" then
-				timerCountdown.TextColor3 = Color3.fromRGB(255, 200, 50) -- Gold
-			elseif phaseName == "Encounter" then
-				timerCountdown.TextColor3 = Color3.fromRGB(255, 100, 100) -- Red
-			else
-				timerCountdown.TextColor3 = Color3.fromRGB(200, 200, 200) -- Gray
-			end
-
-			-- Countdown animation
-			countdownConnection = RunService.Heartbeat:Connect(function(dt)
-				countdownRemaining = countdownRemaining - dt
-				if countdownRemaining <= 0 then
-					timerCountdown.Visible = false
-					if countdownConnection then
-						countdownConnection:Disconnect()
-						countdownConnection = nil
-					end
-				else
-					timerCountdown.Text = "⏱ " .. tostring(math.ceil(countdownRemaining)) .. "s"
-					-- Flash red when low
-					if countdownRemaining <= 5 then
-						timerCountdown.TextColor3 = Color3.fromRGB(255, math.floor(50 + (countdownRemaining / 5) * 50), 50)
-					end
-				end
-			end)
-		end)
-	end
-
-	-- Event: Update Turn (Start of Turn)
+	-- Event: Update Turn (Start of Turn) - Only handle end turn button visibility
 	updateTurnEvent.OnClientEvent:Connect(function(currentName)
 		print("🔄 [Client] UpdateTurn received. Current:", currentName, "Me:", player.Name)
 
+		-- Update all players status
+		for pName, _ in pairs(playerFrames) do
+			if pName == currentName then
+				if pName == player.Name then
+					updatePlayerStatus(pName, "MyTurn", "YOUR TURN")
+				else
+					updatePlayerStatus(pName, "Active", "PLAYING")
+				end
+			else
+				updatePlayerStatus(pName, "Waiting")
+			end
+		end
+
 		if currentName == player.Name then
-			-- My turn: Phase (Roll)
-			rollButton.Text = "🎲 ROLL DICE!" 
-			rollButton.Visible = true
-			rollButton.Active = true  -- Ensure button is clickable
+			-- My turn - PhaseUIController handles phase display
 			endTurnButton.Visible = false
-
-			timerLabel.Text = "YOUR TURN!" 
-			timerLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-
-			-- CRITICAL: Reset rolling state so player can click
-			isRolling = false
-			print("🎲 [Client] My turn! isRolling reset to false")
+			print("🎲 [Client] My turn!")
 		else
 			-- Enemy turn
-			rollButton.Visible = false
 			endTurnButton.Visible = false
-
-			timerLabel.Text = "Waiting for " .. currentName
-			timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 		end
 	end)
 
-	-- Event: Turn Phase Change (Removed - Timer handles auto-end now)
-	-- phaseEvent handler no longer needed since timer auto-ends turns
-
-
 	-- Event: Roll Result (Animation)
 	rollEvent.OnClientEvent:Connect(function(roller, rollResult)
-		-- If I am the roller, update my UI
+		-- If I am the roller, lock camera
 		if roller == player then
 			if lockEvent then lockEvent:Fire(true) end
-			rollButton.Visible = false 
-			timerLabel.Text = "Rolling..."
-		else
-			-- If someone else rolled, just update text
-			timerLabel.Text = roller.Name .. " is rolling..."
 		end
 
 		local dice
@@ -536,19 +555,14 @@ task.spawn(function()
 		if diceTemplate then dice = diceTemplate:Clone() else dice = Instance.new("Part"); dice.Size = Vector3.new(3,3,3) end
 		dice.Parent = workspace; dice.Anchored = true; dice.CanCollide = false
 
-		-- SOUNDS
-		-- SOUNDS
-		-- local ROLL_SOUND_ID = "rbxassetid://111044334523010" -- Rolling Sound
 		local LAND_SOUND_ID = "rbxassetid://90144356226455" -- Landing Sound
 
-		local function playSound(id) 
+		local function playSound(id)
 			local s = Instance.new("Sound", workspace)
 			s.SoundId = id
-			s.PlayOnRemove = true -- Play when destroyed
+			s.PlayOnRemove = true
 			s:Destroy()
 		end
-
-		-- (Rolling sound removed)
 
 		-- Spin Animation
 		local connection
@@ -574,7 +588,6 @@ task.spawn(function()
 		local finalCF = camera.CFrame
 		local dicePos = (finalCF + finalCF.LookVector * 8).Position
 
-		-- Safety / Re-apply Fix
 		local safeRoll = rollResult
 		if not ROTATION_OFFSETS[safeRoll] then safeRoll = 1 end
 
@@ -588,12 +601,6 @@ task.spawn(function()
 
 		task.wait(1.5)
 		dice:Destroy()
-		-- ✅ reveal AFTER animation
-		if roller == player then
-			timerLabel.Text = "🎲 " .. rollResult .. "!"
-		else
-			timerLabel.Text = roller.Name .. " rolled " .. rollResult .. "!"
-		end
 		if roller == player and lockEvent then lockEvent:Fire(false) end
 	end)
 end)
@@ -603,24 +610,12 @@ local camera = workspace.CurrentCamera
 
 -- [[ 🧠 LOGIC ]] --
 
--- Logic: Roll Button
-rollButton.MouseButton1Click:Connect(function()
-	if isRolling then return end
-	-- Check button text/color to imply turn, or rely on server validation
-	if rollButton.Text == "WAIT..." or rollButton.Text == "Loading..." then return end
 
-	isRolling = true
-	rollButton.Visible = false 
-	timerLabel.Text = "Rolling..."
-
-	if rollEvent then rollEvent:FireServer() end
-end)
 
 -- Logic: End Turn Button
 endTurnButton.MouseButton1Click:Connect(function()
 	if endTurnButton.Visible and endTurnEvent then
 		endTurnButton.Visible = false
-		timerLabel.Text = "Ending Turn..."
 		endTurnEvent:FireServer()
 	end
 end)
@@ -649,13 +644,7 @@ task.spawn(function()
 					data.CardLbl.Text = tostring(#hand:GetChildren())
 				end
 
-				-- Highlight Active Player
-				if timerLabel.Text:find(pName) then -- Weak check, but simple
-					data.Stroke.Color = Color3.fromRGB(0, 255, 0)
-					data.Stroke.Transparency = 0
-				else
-					data.Stroke.Transparency = 1
-				end
+				-- NOTE: Player highlight now handled by UIHelpers in TurnManager
 			else
 				-- Player left? Remove box
 				if data.Box then data.Box:Destroy() end

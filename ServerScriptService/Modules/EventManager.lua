@@ -97,6 +97,9 @@ function EventManager.init()
 		PhaseUpdate = EventManager.getOrCreate("PhaseUpdateEvent"),
 		AdvancePhase = EventManager.getOrCreate("AdvancePhaseEvent"),
 		UseAbility = EventManager.getOrCreate("UseAbilityEvent"),
+
+		-- Status Effects
+		StatusChanged = EventManager.getOrCreate("StatusChangedEvent"),
 	}
 
 	print("✅ EventManager initialized with " .. #events .. " events")
