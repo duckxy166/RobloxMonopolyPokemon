@@ -656,7 +656,9 @@ task.spawn(function()
 				-- Cards (Count children in Hand folder)
 				local hand = p:FindFirstChild("Hand")
 				if hand and data.CardLbl then
-					data.CardLbl.Text = tostring(#hand:GetChildren())
+					local cardCount = #hand:GetChildren()
+					local handLimit = (p:GetAttribute("Job") == "Trainer") and 6 or 5
+					data.CardLbl.Text = cardCount .. "/" .. handLimit
 				end
 
 				-- NOTE: Player highlight now handled by UIHelpers in TurnManager

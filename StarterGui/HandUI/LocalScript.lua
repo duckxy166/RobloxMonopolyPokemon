@@ -249,7 +249,13 @@ local function connectHandListener()
 	end
 
 	print("✅ [HandUI] Hand folder connected.")
-	hand.ChildAdded:Connect(renderHand)
+	hand.ChildAdded:Connect(function(child)
+		renderHand()
+		-- Also connect Changed for newly added cards
+		if child:IsA("IntValue") then
+			child.Changed:Connect(renderHand)
+		end
+	end)
 	hand.ChildRemoved:Connect(renderHand)
 
 	-- Also listen to value changes (if stack size changes)
