@@ -194,9 +194,10 @@ function PlayerManager.onPlayerAdded(player)
 			local startTile = tilesFolder:FindFirstChild("0")
 			if startTile and character.PrimaryPart then
 				task.wait(0.5) -- Wait for character to fully load
-				local pos = PlayerManager.getPlayerTilePosition(player, startTile)
+				-- Fix: Force exact position (no offset) for start tile
+				local pos = startTile.Position + Vector3.new(0, 5, 0)
 				character:SetPrimaryPartCFrame(CFrame.new(pos))
-				print("📍 Teleported " .. player.Name .. " to starting tile 0")
+				print("📍 Teleported " .. player.Name .. " to starting tile 0 [EXACT]")
 			end
 		end
 	end

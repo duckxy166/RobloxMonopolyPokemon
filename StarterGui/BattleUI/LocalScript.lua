@@ -724,12 +724,6 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 	title.TextSize = 20
 	title.Parent = choiceFrame
 
-	if type == "PvE" then
-		title.Text = "Gym Battle! Fight?"
-	elseif type == "PvP" then
-		title.Text = "Player Encounter! Battle?"
-	end
-
 	local fightBtn = Instance.new("TextButton")
 	fightBtn.Size = UDim2.new(0, 120, 0, 50)
 	fightBtn.Position = UDim2.new(0, 20, 1, -60)
@@ -749,6 +743,17 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 	runBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	runBtn.Parent = choiceFrame
 	Instance.new("UICorner", runBtn).CornerRadius = UDim.new(0, 8)
+
+	if type == "PvE" then
+		title.Text = "Gym Battle! Fight?"
+	elseif type == "PvP" then
+		title.Text = "Player Encounter! Battle?"
+	elseif type == "Defend" then
+		local attackerName = data and data.AttackerName or "Unknown"
+		title.Text = "⚠️ Challenged by " .. attackerName .. "!"
+		fightBtn.Text = "⚔️ ACCEPT"
+		runBtn.Text = "🏳️ DECLINE"
+	end
 
 	fightBtn.MouseButton1Click:Connect(function()
 		choiceFrame.Visible = false
@@ -854,7 +859,11 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 				if type == "PvP" and data and data.Opponents then
 					responseData.Target = data.Opponents[1]
 				end
-				Events.BattleTriggerResponse:FireServer("Fight", responseData)
+				
+				local action = "Fight"
+				if type == "Defend" then action = "DefendFight" end
+				
+				Events.BattleTriggerResponse:FireServer(action, responseData)
 			end)
 		end
 
@@ -863,6 +872,8 @@ Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
 
 	runBtn.MouseButton1Click:Connect(function()
 		choiceFrame:Destroy()
-		Events.BattleTriggerResponse:FireServer("Run", nil)
+		local action = "Run"
+		if type == "Defend" then action = "DefendRun" end
+		Events.BattleTriggerResponse:FireServer(action, nil)
 	end)
 end)

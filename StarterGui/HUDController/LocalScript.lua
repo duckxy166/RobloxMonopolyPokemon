@@ -197,17 +197,26 @@ local function createPlayerBox(targetPlayer, index)
 		local slot = Instance.new("Frame")
 		slot.Name = "Slot_" .. i
 		slot.Size = UDim2.new(0, 42, 0, 42) -- Bigger slots!
-		slot.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-		slot.BackgroundTransparency = 0.5
+		slot.BackgroundColor3 = Color3.fromRGB(30, 30, 30) -- Darker background
+		slot.BackgroundTransparency = 0.3 -- More visible background
 		slot.Parent = partyRow
-		slot.ClipsDescendants = true -- Clip the zoomed in image
+		slot.ClipsDescendants = true 
 		Instance.new("UICorner", slot).CornerRadius = UDim.new(0, 6)
+		
+		-- New: Add Stroke
+		local slotStroke = Instance.new("UIStroke")
+		slotStroke.Color = Color3.fromRGB(255, 255, 255)
+		slotStroke.Transparency = 0.8 -- Subtle border
+		slotStroke.Thickness = 1
+		slotStroke.Parent = slot
 
 		local icon = Instance.new("ImageLabel")
 		icon.Name = "IconImg"
-		icon.Size = UDim2.new(2, 0, 2, 0) -- Zoom in (130%)
-		icon.Position = UDim2.new(0.5, 0, -0.1, 0) -- Center
-		icon.AnchorPoint = Vector2.new(0.5, 0.5) -- Center Anchor
+		-- FIX: Adjusted size to fit within the box instead of zooming in too much
+		icon.Size = UDim2.new(0.9, 0, 0.9, 0) 
+		-- FIX: Centered position
+		icon.Position = UDim2.new(0.5, 0, 0.5, 0) 
+		icon.AnchorPoint = Vector2.new(0.5, 0.5) 
 		icon.BackgroundTransparency = 1
 		icon.Image = ""
 		icon.ScaleType = Enum.ScaleType.Fit

@@ -407,15 +407,14 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 						})
 					end
 
-					-- Trigger tile event at new position (skips dice roll)
+					-- Trigger landing logic at new position (checks PvP first, then tile event)
+					-- Pass targetPlayer to FORCE PvP trigger (don't rely on position sync)
 					task.spawn(function()
 						task.wait(0.5)
-						local tilesFolder = game.Workspace:FindFirstChild("Tiles")
-						local tile = tilesFolder and tilesFolder:FindFirstChild(tostring(targetPos))
-						if tile and turnManager.processTileEvent then
-							turnManager.processTileEvent(player, targetPos, tile)
+						if turnManager.processLanding then
+							turnManager.processLanding(player, targetPos, targetPlayer)
 						else
-							-- Fallback to next turn if tile not found
+							-- Fallback to next turn if function not found
 							turnManager.nextTurn()
 						end
 					end)

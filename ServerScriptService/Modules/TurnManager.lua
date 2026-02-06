@@ -911,6 +911,12 @@ function TurnManager.processPlayerRoll(player)
 	if not TurnManager.isTurnActive then return end
 	if player ~= PlayerManager.playersInGame[TurnManager.currentTurnIndex] then return end
 
+	-- Fix: Prevent roll if battle is active or pending
+	if BattleSystem and (BattleSystem.activeBattles[player.UserId] or BattleSystem.pendingBattles[player.UserId]) then
+		print("❌ Cannot roll - Battle Active/Pending for " .. player.Name)
+		return
+	end
+
 	TurnManager.isTurnActive = false
 	if EncounterSystem then EncounterSystem.clearCenterStage() end
 
@@ -1098,6 +1104,49 @@ function TurnManager.resumeTurn(player)
 		warn("ResumeTurn: Tile not found!")
 		TurnManager.nextTurn()
 	end
+end
+
+-- CENTRALIZED LANDING LOGIC (PvP Check -> Tile Event)
+-- Used by: processPlayerRoll, Twisted Spoon Warp
+-- forceOpponent: Optional - if provided, always trigger PvP with this player (used by Twisted Spoon)
+function TurnManager.processLanding(player, currentPos, forceOpponent)
+	local landingTile = tilesFolder:FindFirstChild(tostring(currentPos))
+	if not landingTile then
+		TurnManager.nextTurn()
+		return
+	end
+
+	-- 🛑 SPECIAL: START TILE (Priority over PVP)
+	local isStartTile = (landingTile.Name == "0" or landingTile.Name == "Start")
+	if isStartTile then
+		TurnManager.processTileEvent(player, currentPos, landingTile)
+		return
+	end
+
+	-- 🔷 PVP CHECK
+	local opponents = {}
+	
+	-- If forceOpponent provided (Twisted Spoon warp), always include them
+	if forceOpponent and forceOpponent ~= player then
+		table.insert(opponents, forceOpponent)
+		print("⚔️ Twisted Spoon: Force PvP with " .. forceOpponent.Name)
+	else
+		-- Normal position-based check
+		for _, otherPlayer in ipairs(PlayerManager.playersInGame) do
+			if otherPlayer ~= player and PlayerManager.playerPositions[otherPlayer.UserId] == currentPos then
+				table.insert(opponents, otherPlayer)
+			end
+		end
+	end
+
+	if #opponents > 0 and Events.BattleTrigger then
+		print("⚔️ PvP Potential on landing! Triggering Selection...")
+		Events.BattleTrigger:FireClient(player, "PvP", { Opponents = opponents })
+		return
+	end
+
+	-- If no PvP, process tile normally
+	TurnManager.processTileEvent(player, currentPos, landingTile)
 end
 
 -- CENTRAL TILE EVENT HANDLER

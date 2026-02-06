@@ -27,7 +27,8 @@ local EvolutionSystem = require(script.Parent:WaitForChild("EvolutionSystem"))
 -- State
 BattleSystem.activeBattles = {} -- Key: PlayerId, Value: BattleData
 BattleSystem.lastRollTime = {}  -- Track last roll time per player (anti-spam)
-BattleSystem.lastBattleOpponent = {} -- Key: UserId, Value: OpponentUserId (clear when player moves)
+BattleSystem.lastBattleOpponent = {} -- Key: UserId, Value: OpponentUserId
+BattleSystem.pendingBattles = {} -- Key: DefenderUserId, Value: {Attacker, AttackerPokeName}
 
 -- ============================================================================
 -- ✅ STAGE / TELEPORT HELPERS (FIX)
@@ -360,15 +361,18 @@ function BattleSystem.startPvE(player, chosenPoke, desiredRarity)
 end
 
 -- Start PvP (Player vs Player)
-function BattleSystem.startPvP(player1, player2)
+function BattleSystem.startPvP(player1, player2, p1ChosenPoke, p2ChosenPoke)
 	print("⚔️ PvP Started: " .. player1.Name .. " vs " .. player2.Name)
 
-	local p1Poke = BattleSystem.getFirstAlivePokemon(player1)
-	local p2Poke = BattleSystem.getFirstAlivePokemon(player2)
+	local p1Poke = p1ChosenPoke or BattleSystem.getFirstAlivePokemon(player1)
+	local p2Poke = p2ChosenPoke or BattleSystem.getFirstAlivePokemon(player2)
 
 	if not p1Poke or not p2Poke then
-		if Events.Notify then Events.Notify:FireClient(player1, "❌ One of you has no alive Pokemon!") end
-		TurnManager.nextTurn()
+		if Events.Notify then 
+			if not p1Poke then Events.Notify:FireClient(player1, "❌ You have no alive Pokemon!") end
+			if not p2Poke then Events.Notify:FireClient(player1, "❌ " .. player2.Name .. " has no alive Pokemon!") end
+		end
+		TurnManager.resumeTurn(player1) -- Cancel PvP, resume turn
 		return
 	end
 
@@ -760,34 +764,86 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 	if action == "Fight" then
 		if data and data.Type == "PvE" then
 			local chosenPoke = nil
-
 			if data.SelectedPokemonName then
 				local inventory = player:FindFirstChild("PokemonInventory")
-				if inventory then
-					chosenPoke = inventory:FindFirstChild(data.SelectedPokemonName)
-				end
+				if inventory then chosenPoke = inventory:FindFirstChild(data.SelectedPokemonName) end
 			end
-
 			BattleSystem.startPvE(player, chosenPoke, data.Rarity)
 
 		elseif data and data.Type == "PvP" then
 			local target = data.Target
 			if target then
-				-- เช็คว่าเพิ่ง Battle กับคนนี้หรือไม่ (ต้องเดินก่อนถึงจะ Battle ได้อีก)
+				-- Check for recent battle
 				if BattleSystem.lastBattleOpponent[player.UserId] == target.UserId then
-					if Events.Notify then
-						Events.Notify:FireClient(player, "❌ เพิ่ง Battle กับคนนี้! ต้องเดินก่อน")
-					end
+					if Events.Notify then Events.Notify:FireClient(player, "❌ เพิ่ง Battle กับคนนี้! ต้องเดินก่อน") end
 					TurnManager.resumeTurn(player)
 					return
 				end
-				BattleSystem.startPvP(player, target)
+				
+				-- 1. Store Pending Request
+				BattleSystem.pendingBattles[target.UserId] = {
+					Attacker = player,
+					Defender = target,
+					AttackerPokeName = data.SelectedPokemonName
+				}
+				
+				-- 2. Send Challenge to Defender
+				if Events.BattleTrigger then
+					Events.BattleTrigger:FireClient(target, "Defend", { 
+						Attacker = player,
+						AttackerName = player.Name
+					})
+				end
+				
+				if Events.Notify then
+					Events.Notify:FireClient(player, "⏳ รอ " .. target.Name .. " เลือก Pokemon...")
+				end
 			end
 		end
+		
+	elseif action == "DefendFight" then
+		-- Defender Accepted
+		local pending = BattleSystem.pendingBattles[player.UserId]
+		if pending then
+			local attacker = pending.Attacker
+			local defender = player
+			
+			-- Get Pokemon Objects
+			local attackerPoke = nil
+			local defenderPoke = nil
+			
+			local aInv = attacker:FindFirstChild("PokemonInventory")
+			if aInv then attackerPoke = aInv:FindFirstChild(pending.AttackerPokeName) end
+			
+			local dInv = defender:FindFirstChild("PokemonInventory")
+			if dInv and data.SelectedPokemonName then 
+				defenderPoke = dInv:FindFirstChild(data.SelectedPokemonName) 
+			end
+			
+			-- Start actual PvP
+			BattleSystem.startPvP(attacker, defender, attackerPoke, defenderPoke)
+			
+			-- Clear pending
+			BattleSystem.pendingBattles[player.UserId] = nil
+		else
+			warn("⚠️ No pending battle found for " .. player.Name)
+		end
+
 	else
+		-- Run / Decline
 		if data and data.Type == "PvP" then
+			-- Attacker ran
 			print("🏃 Declined PvP. Resuming Tile Event.")
 			TurnManager.resumeTurn(player)
+		elseif action == "DefendRun" then
+			-- Defender ran (Automatic Forfeit? Or just Decline Conflict?)
+			-- For now, treat as decline -> Attacker resumes movement or turn ends
+			local pending = BattleSystem.pendingBattles[player.UserId]
+			if pending then
+				if Events.Notify then Events.Notify:FireClient(pending.Attacker, "🏃 " .. player.Name .. " หนีการต่อสู้!") end
+				TurnManager.resumeTurn(pending.Attacker)
+				BattleSystem.pendingBattles[player.UserId] = nil
+			end
 		else
 			TurnManager.nextTurn()
 		end
