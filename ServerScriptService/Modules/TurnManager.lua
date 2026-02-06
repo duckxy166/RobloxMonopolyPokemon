@@ -938,7 +938,7 @@ function TurnManager.processPlayerRoll(player)
 	
 	-- Apply Biker bonus (+2) AFTER dice animation
 	if bonusRoll > 0 then
-		task.wait(1.5) -- Wait for dice animation
+		task.wait(0.5) -- Short wait for dice animation (was 1.5)
 		roll = baseRoll + bonusRoll
 		player:SetAttribute("BonusDiceRoll", nil) -- Clear after use
 		print("🏍️ [Server] Biker bonus applied: +" .. bonusRoll .. " (Total: " .. roll .. ")")
@@ -947,9 +947,9 @@ function TurnManager.processPlayerRoll(player)
 		if Events.Notify then
 			Events.Notify:FireAllClients("🏍️ " .. player.Name .. " ใช้ Turbo Boost! +" .. bonusRoll .. " ช่อง (รวม " .. roll .. " ช่อง)")
 		end
-		task.wait(1) -- Extra wait for notification
+		task.wait(0.5) -- Extra wait for notification (was 1)
 	else
-		task.wait(2.5)
+		task.wait(1) -- Wait for dice animation (was 2.5)
 	end
 
 	print("🎲 [Server] Final move distance:", roll)
@@ -1010,8 +1010,20 @@ function TurnManager.processPlayerRoll(player)
 		end
 
 		if nextTile and humanoid then
-			humanoid:MoveTo(PlayerManager.getPlayerTilePosition(player, nextTile))
-			humanoid.MoveToFinished:Wait()
+			local targetPos = PlayerManager.getPlayerTilePosition(player, nextTile)
+			humanoid:MoveTo(targetPos)
+			
+			-- Fast arrival check instead of MoveToFinished:Wait (smoother movement)
+			local hrp = character:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				local maxWait = 2 -- Safety timeout
+				local startTime = tick()
+				while tick() - startTime < maxWait do
+					local dist = (hrp.Position - targetPos).Magnitude
+					if dist < 3 then break end -- Close enough
+					task.wait(0.05)
+				end
+			end
 
 			if repelLeft > 0 then 
 				repelLeft = repelLeft - 1
