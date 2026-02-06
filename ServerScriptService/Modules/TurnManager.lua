@@ -890,10 +890,11 @@ function TurnManager.startGame()
 
 	task.wait(2)
 
-	-- Unfreeze Everyone
+	-- Unfreeze Everyone (Biker gets bonus speed)
 	for _, p in ipairs(PlayerManager.playersInGame) do
 		if p.Character and p.Character:FindFirstChild("Humanoid") then
-			p.Character.Humanoid.WalkSpeed = 16
+			local isBiker = (p:GetAttribute("Job") == "Biker")
+			p.Character.Humanoid.WalkSpeed = isBiker and 32 or 24
 			p.Character.Humanoid.JumpPower = 50
 		end
 	end

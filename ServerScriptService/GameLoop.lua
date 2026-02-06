@@ -24,6 +24,14 @@
 -- SERVICES
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
+local PhysicsService = game:GetService("PhysicsService")
+
+-- COLLISION GROUP SETUP (Players don't collide with each other)
+local PLAYER_COLLISION_GROUP = "Players"
+pcall(function()
+	PhysicsService:RegisterCollisionGroup(PLAYER_COLLISION_GROUP)
+end)
+PhysicsService:CollisionGroupSetCollidable(PLAYER_COLLISION_GROUP, PLAYER_COLLISION_GROUP, false)
 
 -- MODULE REFERENCES
 local Modules = ServerScriptService:WaitForChild("Modules")
