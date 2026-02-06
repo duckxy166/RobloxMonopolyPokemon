@@ -126,18 +126,8 @@ function PlayerManager.onPlayerAdded(player)
 	hand.Name = "Hand"
 	hand.Parent = player
 
-	-- Draw starter cards (3 cards at game start)
-	if CardSystem then
-		for i = 1, 3 do
-			CardSystem.drawOneCard(player)
-		end
-		-- FIX: Validate hand to remove/swap legacy cards if any
-		task.delay(1, function()
-			if CardSystem.validateHand then
-				CardSystem.validateHand(player)
-			end
-		end)
-	end
+	-- Cards are dealt when player selects job (in TurnManager.handleStarterSelection)
+	-- No initial cards dealt here to avoid duplication
 
 	-- Create status folder
 	local status = Instance.new("Folder")

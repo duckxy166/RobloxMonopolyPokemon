@@ -483,7 +483,9 @@ Instance.new("UICorner", resetButton).CornerRadius = UDim.new(0, 12)
 -- NOTE: Status/Timer labels removed - PhaseUIController handles phase display now
 
 -- [[ 🔌 CONNECTION ]] --
-local rollEvent, updateTurnEvent, resetCamEvent, lockEvent, endTurnEvent
+local rollEvent, updateTurnEvent, resetCamEvent, lockEvent, endTurnEvent, notifyEvent
+
+local StarterGui = game:GetService("StarterGui")
 
 
 
@@ -495,7 +497,19 @@ task.spawn(function()
 	endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent", 5)
 	if not endTurnEvent then
 		warn("EndTurnEvent missing, waiting...")
-		endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent")
+		end
+
+	notifyEvent = ReplicatedStorage:WaitForChild("NotifyEvent", 5)
+	if notifyEvent then
+		notifyEvent.OnClientEvent:Connect(function(msg)
+			print("🔔 Notification:", msg)
+			StarterGui:SetCore("SendNotification", {
+				Title = "Game Notification";
+				Text = msg;
+				Duration = 3;
+			})
+		end)
+	endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent")
 	end
 
 	resetCamEvent = ReplicatedStorage:FindFirstChild("ResetCameraEvent") or Instance.new("BindableEvent")
@@ -588,6 +602,7 @@ task.spawn(function()
 		local finalCF = camera.CFrame
 		local dicePos = (finalCF + finalCF.LookVector * 8).Position
 
+		-- Server now sends base roll (1-6), bonus is handled separately
 		local safeRoll = rollResult
 		if not ROTATION_OFFSETS[safeRoll] then safeRoll = 1 end
 

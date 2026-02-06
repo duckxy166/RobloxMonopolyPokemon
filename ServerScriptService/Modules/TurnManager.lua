@@ -288,14 +288,8 @@ function TurnManager.enterItemPhase(player)
 	if Events.Notify then
 		Events.Notify:FireAllClients("🎒 " .. player.Name .. " อยู่ใน Item Phase")
 	end
-
-	-- Start Item Phase timer
-	TimerSystem.startPhaseTimer(TurnManager.ITEM_PHASE_TIMEOUT, "Item", function()
-		if TurnManager.turnPhase == "Item" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
-			print("⏱️ Timer: Item Phase timeout for " .. player.Name .. " -> Auto-advance")
-			TurnManager.enterAbilityPhase(player)
-		end
-	end)
+	
+	-- No forced timer - player can switch phases freely
 end
 
 -- Enter Ability Phase (Use class abilities)
@@ -333,14 +327,8 @@ function TurnManager.enterAbilityPhase(player)
 	if Events.Notify then
 		Events.Notify:FireAllClients("⚡ " .. player.Name .. " อยู่ใน Ability Phase (" .. playerJob .. ")")
 	end
-
-	-- Start Ability Phase timer
-	TimerSystem.startPhaseTimer(TurnManager.ABILITY_PHASE_TIMEOUT, "Ability", function()
-		if TurnManager.turnPhase == "Ability" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
-			print("⏱️ Timer: Ability Phase timeout for " .. player.Name .. " -> Auto-advance")
-			TurnManager.enterRollPhase(player)
-		end
-	end)
+	
+	-- No forced timer - player can switch phases freely
 end
 
 -- Enter roll phase
@@ -432,13 +420,40 @@ function TurnManager.connectEvents()
 
 			print("➡️ AdvancePhase from " .. player.Name .. " (current phase: " .. TurnManager.turnPhase .. ")")
 
-			-- Advance based on current phase
-			if TurnManager.turnPhase == "Item" then
-				TurnManager.enterAbilityPhase(player)
-			elseif TurnManager.turnPhase == "Ability" then
+			-- Advance to Roll phase from Item or Ability
+			if TurnManager.turnPhase == "Item" or TurnManager.turnPhase == "Ability" then
 				TurnManager.enterRollPhase(player)
 			else
 				print("⚠️ Cannot advance from phase: " .. TurnManager.turnPhase)
+			end
+		end)
+	end
+
+	-- Flexible Phase Switching Event (Item <-> Ability)
+	if Events.SwitchPhase then
+		Events.SwitchPhase.OnServerEvent:Connect(function(player, targetPhase)
+			-- Validate it's the current player's turn
+			if #PlayerManager.playersInGame == 0 then return end
+			if player ~= PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
+				print("⚠️ SwitchPhase rejected: Not " .. player.Name .. "'s turn")
+				return
+			end
+
+			-- Only allow switching between Item and Ability (not Roll or Draw)
+			local currentPhase = TurnManager.turnPhase
+			if currentPhase ~= "Item" and currentPhase ~= "Ability" then
+				if Events.Notify then
+					Events.Notify:FireClient(player, "❌ ไม่สามารถสลับ Phase ได้ในตอนนี้!")
+				end
+				return
+			end
+
+			if targetPhase == "Item" then
+				TurnManager.enterItemPhase(player)
+			elseif targetPhase == "Ability" then
+				TurnManager.enterAbilityPhase(player)
+			else
+				print("⚠️ Invalid target phase: " .. tostring(targetPhase))
 			end
 		end)
 	end
@@ -809,8 +824,10 @@ function TurnManager.handleStarterSelection(player, jobName)
 		end
 	end
 
-	-- Draw 1 Starter Card
-	CardSystem.drawOneCard(player)
+	-- Draw 3 Starter Cards (consolidated here - not in PlayerManager)
+	for i = 1, 3 do
+		CardSystem.drawOneCard(player)
+	end
 
 	-- Mark Ready
 	TurnManager.readyPlayers[player.UserId] = true
@@ -901,26 +918,40 @@ function TurnManager.processPlayerRoll(player)
 	local bonusRoll = player:GetAttribute("BonusDiceRoll") or 0
 
 	local roll
+	local baseRoll -- Store base roll for display
 	if fixedRoll and fixedRoll > 0 then
 		-- Esper: Use fixed roll (1 or 2)
 		roll = fixedRoll
+		baseRoll = fixedRoll
 		player:SetAttribute("FixedDiceRoll", nil) -- Clear after use
 		print("🔮 [Server] Esper fixed roll:", roll)
 	else
 		-- Normal random roll
 		roll = math.random(1, 6)
+		baseRoll = roll
 	end
 
-	-- Apply Biker bonus (+2)
+	-- Send base roll to client (dice shows 1-6)
+	print("🎲 [Server] Base roll result:", baseRoll)
+	Events.RollDice:FireAllClients(player, baseRoll)
+	
+	-- Apply Biker bonus (+2) AFTER dice animation
 	if bonusRoll > 0 then
-		roll = roll + bonusRoll
+		task.wait(1.5) -- Wait for dice animation
+		roll = baseRoll + bonusRoll
 		player:SetAttribute("BonusDiceRoll", nil) -- Clear after use
-		print("🏍️ [Server] Biker bonus applied: +" .. bonusRoll)
+		print("🏍️ [Server] Biker bonus applied: +" .. bonusRoll .. " (Total: " .. roll .. ")")
+		
+		-- Notify all players about bonus
+		if Events.Notify then
+			Events.Notify:FireAllClients("🏍️ " .. player.Name .. " ใช้ Turbo Boost! +" .. bonusRoll .. " ช่อง (รวม " .. roll .. " ช่อง)")
+		end
+		task.wait(1) -- Extra wait for notification
+	else
+		task.wait(2.5)
 	end
 
-	print("🎲 [Server] Final roll result:", roll)
-	Events.RollDice:FireAllClients(player, roll)
-	task.wait(2.5)
+	print("🎲 [Server] Final move distance:", roll)
 
 	local character = player.Character
 	local humanoid = character and character:FindFirstChild("Humanoid")

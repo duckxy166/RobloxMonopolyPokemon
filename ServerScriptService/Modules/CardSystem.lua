@@ -214,6 +214,14 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 				return
 			end
 			
+			-- Phase validation: Cards only allowed in Item Phase
+			if turnManager.turnPhase ~= "Item" then
+				if events.Notify then 
+					events.Notify:FireClient(player, "❌ ใช้การ์ดได้เฉพาะใน Item Phase เท่านั้น!") 
+				end
+				return
+			end
+			
 			-- Protective Goggles is passive only (auto-activates when attacked)
 			if cardName == "Protective Goggles" then
 				if events.Notify then

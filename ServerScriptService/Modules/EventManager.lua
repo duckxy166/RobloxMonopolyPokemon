@@ -97,6 +97,7 @@ function EventManager.init()
 		PhaseUpdate = EventManager.getOrCreate("PhaseUpdateEvent"),
 		AdvancePhase = EventManager.getOrCreate("AdvancePhaseEvent"),
 		UseAbility = EventManager.getOrCreate("UseAbilityEvent"),
+		SwitchPhase = EventManager.getOrCreate("SwitchPhaseEvent"),
 
 		-- Status Effects
 		StatusChanged = EventManager.getOrCreate("StatusChangedEvent"),
