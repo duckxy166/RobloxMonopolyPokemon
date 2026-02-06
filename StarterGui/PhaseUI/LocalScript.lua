@@ -825,6 +825,41 @@ UpdateTurnEvent.OnClientEvent:Connect(function(currentPlayerName, phase)
 	end
 end)
 
+-- BATTLE LOCK (New): Disable UI during battle
+local BattleStartEvent = ReplicatedStorage:WaitForChild("BattleStartEvent", 5)
+local BattleEndEvent = ReplicatedStorage:WaitForChild("BattleEndEvent", 5)
+local BattleTriggerEvent = ReplicatedStorage:WaitForChild("BattleTriggerEvent", 5)
+
+if BattleStartEvent then
+	BattleStartEvent.OnClientEvent:Connect(function()
+		print("🔒 [ModernUI] Battle Started - Locking UI")
+		updateActionButton("Wait")
+		isMyTurn = false -- Force lock
+		if HandUI then HandUI.Enabled = false end
+		phaseTabFrame.Visible = false
+		abilityButton.Visible = false
+	end)
+end
+
+if BattleTriggerEvent then
+	BattleTriggerEvent.OnClientEvent:Connect(function()
+		print("🔒 [ModernUI] Battle Triggered - Locking UI")
+		updateActionButton("Wait")
+		isMyTurn = false -- Force lock
+		if HandUI then HandUI.Enabled = false end
+	end)
+end
+
+if BattleEndEvent then
+	BattleEndEvent.OnClientEvent:Connect(function()
+		print("🔓 [ModernUI] Battle Ended - Unlocking UI if my turn")
+		if player.Name == player.Name then -- Re-check turn? Actually TurnManager sends UpdateTurn after battle
+			-- We wait for UpdateTurnEvent usually, but let's reset generic lock
+		end
+		-- Logic relies on UpdateTurn sending fresh state
+	end)
+end
+
 -- Button Interaction
 actionButton.MouseButton1Click:Connect(function()
 	if not isMyTurn then return end

@@ -1064,40 +1064,18 @@ function TurnManager.processPlayerRoll(player)
 	-- 🏁 LANDING LOGIC (ONLY AFTER MOVEMENT)
 	-- ==========================================
 	PlayerManager.playerPositions[player.UserId] = currentPos
-	local landingTile = tilesFolder:FindFirstChild(tostring(currentPos))
-
-	if landingTile then
-		-- 🛑 SPECIAL: START TILE (Priority over PVP)
-		local isStartTile = (landingTile.Name == "0" or landingTile.Name == "Start")
-		if isStartTile then
-			TurnManager.processTileEvent(player, currentPos, landingTile)
-			return
-		end
-
-		-- 🔷 PVP CHECK
-		local opponents = {}
-		for _, otherPlayer in ipairs(PlayerManager.playersInGame) do
-			if otherPlayer ~= player and PlayerManager.playerPositions[otherPlayer.UserId] == currentPos then
-				table.insert(opponents, otherPlayer)
-			end
-		end
-
-		if #opponents > 0 and Events.BattleTrigger then
-			print("⚔️ PvP Potential on landing! Triggering Selection...")
-			Events.BattleTrigger:FireClient(player, "PvP", { Opponents = opponents })
-			return 
-		end
-
-		-- If no PvP, process tile normally
-		TurnManager.processTileEvent(player, currentPos, landingTile)
-	else
-		TurnManager.nextTurn()
-	end
+	
+	-- Use centralized landing logic
+	TurnManager.processLanding(player, currentPos)
 end
 
 -- RESUME TURN (Called after declining PvP)
 function TurnManager.resumeTurn(player)
 	print("🔄 Resuming turn for " .. player.Name .. " | Caller: " .. debug.traceback())
+	
+	-- Clear any stuck flags
+	player:SetAttribute("ProcessingTile", nil)
+	
 	local currentPos = PlayerManager.playerPositions[player.UserId] or 0
 	local tile = tilesFolder:FindFirstChild(tostring(currentPos))
 
@@ -1131,6 +1109,7 @@ function TurnManager.processLanding(player, currentPos, forceOpponent)
 	-- 🛑 SPECIAL: START TILE (Priority over PVP)
 	local isStartTile = (landingTile.Name == "0" or landingTile.Name == "Start")
 	if isStartTile then
+		player:SetAttribute("ProcessingTile", nil)
 		TurnManager.processTileEvent(player, currentPos, landingTile)
 		return
 	end
@@ -1153,16 +1132,27 @@ function TurnManager.processLanding(player, currentPos, forceOpponent)
 
 	if #opponents > 0 and Events.BattleTrigger then
 		print("⚔️ PvP Potential on landing! Triggering Selection...")
+		-- Clear ProcessingTile since turn control is now with BattleSystem
+		player:SetAttribute("ProcessingTile", nil)
 		Events.BattleTrigger:FireClient(player, "PvP", { Opponents = opponents })
 		return
 	end
 
 	-- If no PvP, process tile normally
+	-- Clear ProcessingTile since processTileEvent will handle the rest
+	player:SetAttribute("ProcessingTile", nil)
 	TurnManager.processTileEvent(player, currentPos, landingTile)
 end
 
 -- CENTRAL TILE EVENT HANDLER
 function TurnManager.processTileEvent(player, currentPos, nextTile)
+	-- Check if player is busy (PvP, Pending, etc) to prevent double encounters
+	local BattleSystem = require(game.ServerScriptService.Modules.BattleSystem)
+	if BattleSystem.isPlayerBusy(player) then
+		warn("⛔ processTileEvent ABORTED for " .. player.Name .. " (Busy in Battle/Pending) | Caller: " .. debug.traceback())
+		return
+	end
+
 	local tileColorName = nextTile.BrickColor.Name
 	local tileColorLower = string.lower(tileColorName)
 	print("📍 [Server] Processing Tile: " .. nextTile.Name .. " | Color: " .. tileColorName)

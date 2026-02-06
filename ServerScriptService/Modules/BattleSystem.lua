@@ -98,6 +98,22 @@ function BattleSystem.init(events, timerSystem, turnManager, playerManager)
 	print("✅ BattleSystem initialized")
 end
 
+-- Check if player is busy (Active Battle or Pending PvP)
+function BattleSystem.isPlayerBusy(player)
+	-- 1. Active Battle
+	if BattleSystem.activeBattles[player.UserId] then return true end
+	
+	-- 2. Pending Battle (Defender)
+	if BattleSystem.pendingBattles[player.UserId] then return true end
+
+	-- 3. Pending Battle (Attacker)
+	for _, data in pairs(BattleSystem.pendingBattles) do
+		if data.Attacker == player then return true end
+	end
+	
+	return false
+end
+
 -- ============================================================================
 -- 🔷 HELPER FUNCTIONS
 -- ============================================================================

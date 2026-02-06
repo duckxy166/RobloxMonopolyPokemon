@@ -406,6 +406,10 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 							Message = "Teleported to " .. targetPlayer.Name .. "!"
 						})
 					end
+					
+					-- PAUSE PHASE TIMER! Critical to prevent phase leak
+					local TimerSystem = require(game.ServerScriptService.Modules.TimerSystem)
+					if TimerSystem then TimerSystem.cancelTimer() end
 
 					-- Trigger landing logic at new position (checks PvP first, then tile event)
 					-- Pass targetPlayer to FORCE PvP trigger (don't rely on position sync)
