@@ -110,7 +110,7 @@ function CardSystem.countHand(player)
 	return total
 end
 
--- Get player's hand limit (Trainer gets 6)
+-- Get player's hand limit (Trainer gets 6 - PASSIVE ability)
 function CardSystem.getHandLimit(player)
 	local job = player:GetAttribute("Job")
 	if job == "Trainer" then
@@ -199,6 +199,20 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 			print("🃏 Playing card: " .. cardName)
 			local cardDef = CardDB.Cards[cardName]
 			
+			-- Debounce Check (Prevent spam)
+			if player:GetAttribute("ProcessingCard") then
+				warn(player.Name .. " spammed card usage.")
+				return
+			end
+			player:SetAttribute("ProcessingCard", true)
+			
+			-- Ensure debounce is cleared even if errors occur
+			task.delay(1, function()
+				if player:GetAttribute("ProcessingCard") then
+					player:SetAttribute("ProcessingCard", nil)
+				end
+			end)
+			
 			-- Validate card exists in CardDB
 			if not cardDef then
 				if events.Notify then events.Notify:FireClient(player, "❌ Unknown card: " .. cardName) end
@@ -210,6 +224,14 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 			if currentPlayer and player ~= currentPlayer then
 				if events.Notify then 
 					events.Notify:FireClient(player, "❌ Cannot use cards during another player's turn!") 
+				end
+				return
+			end
+			
+			-- Phase validation: Cards only allowed in Item Phase
+			if turnManager.turnPhase ~= "Item" then
+				if events.Notify then 
+					events.Notify:FireClient(player, "❌ ใช้การ์ดได้เฉพาะใน Item Phase เท่านั้น!") 
 				end
 				return
 			end
@@ -484,6 +506,8 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 			end
 			
 			-- 5. Special logic if card affects movement or stats could go here
+			-- Clear debounce on successful execution
+			player:SetAttribute("ProcessingCard", nil)
 		end)
 	end
 

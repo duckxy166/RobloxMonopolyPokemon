@@ -30,10 +30,24 @@ function UIHelpers.CreateNameLabel(parent, name, rarity)
 
 	local color = UIHelpers.RarityColors[rarity] or UIHelpers.RarityColors["Common"] or Color3.fromRGB(255, 255, 255)
 
+	-- Calculate model height for proper label placement
+	local modelHeight = 5 -- default fallback
+	if parent:IsA("Model") then
+		local success, result = pcall(function()
+			local _, size = parent:GetBoundingBox()
+			return size.Y
+		end)
+		if success and result then
+			modelHeight = result
+		end
+	elseif parent:IsA("BasePart") then
+		modelHeight = parent.Size.Y
+	end
+
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "NameLabel"
 	billboard.Size = UDim2.new(0, 200, 0, 50)
-	billboard.StudsOffset = Vector3.new(0, 5, 0) -- Above model
+	billboard.StudsOffset = Vector3.new(0, (modelHeight / 2) + 2, 0) -- Above model top + 2 studs
 	billboard.AlwaysOnTop = false
 	billboard.LightInfluence = 0
 	billboard.Parent = parent

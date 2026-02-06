@@ -12,12 +12,29 @@
 --]]
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PhysicsService = game:GetService("PhysicsService")
 local PokemonDB = require(ReplicatedStorage:WaitForChild("PokemonDB"))
 
 local PlayerManager = {}
 
 -- Constants
 PlayerManager.MAX_PLAYERS = 4
+local PLAYER_COLLISION_GROUP = "Players"
+
+-- Set collision group for all character parts
+local function setPlayerCollision(character)
+	for _, part in pairs(character:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.CollisionGroup = PLAYER_COLLISION_GROUP
+		end
+	end
+	-- Also listen for new parts (accessories, etc.)
+	character.DescendantAdded:Connect(function(part)
+		if part:IsA("BasePart") then
+			part.CollisionGroup = PLAYER_COLLISION_GROUP
+		end
+	end)
+end
 
 -- State
 PlayerManager.playersInGame = {}
@@ -126,18 +143,8 @@ function PlayerManager.onPlayerAdded(player)
 	hand.Name = "Hand"
 	hand.Parent = player
 
-	-- Draw starter cards (3 cards at game start)
-	if CardSystem then
-		for i = 1, 3 do
-			CardSystem.drawOneCard(player)
-		end
-		-- FIX: Validate hand to remove/swap legacy cards if any
-		task.delay(1, function()
-			if CardSystem.validateHand then
-				CardSystem.validateHand(player)
-			end
-		end)
-	end
+	-- Cards are dealt when player selects job (in TurnManager.handleStarterSelection)
+	-- No initial cards dealt here to avoid duplication
 
 	-- Create status folder
 	local status = Instance.new("Folder")
@@ -173,6 +180,9 @@ function PlayerManager.onPlayerAdded(player)
 	local function teleportToStart(character)
 		local tilesFolder = game.Workspace:FindFirstChild("Tiles")
 		local humanoid = character:FindFirstChild("Humanoid")
+		
+		-- Set collision group so players don't collide with each other
+		setPlayerCollision(character)
 		
 		-- FREEZE PLAYER
 		if humanoid then

@@ -3,6 +3,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local PokemonDB = require(ReplicatedStorage:WaitForChild("PokemonDB"))
+local SoundManager = require(ReplicatedStorage:WaitForChild("SoundManager"))
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -134,9 +135,10 @@ local function createPlayerBox(targetPlayer, index)
 	-- REPLACE THESE IDs WITH YOUR UPLOADED IMAGE IDs
 	local COIN_ICON_ID = "rbxassetid://88871535760357" -- Put Coin Image ID here
 	local BALL_ICON_ID = "rbxassetid://136940926868953" -- Put Pokeball Image ID here
+	local CARD_ICON_ID = "rbxassetid://0" -- 🃏 Put Card Image ID here
 
 	createStat(COIN_ICON_ID, "Money", Color3.fromRGB(255, 220, 0))
-	createStat("C", "Cards", Color3.fromRGB(200, 200, 200)) -- Keep Cards as Text 'C' or change if needed
+	createStat(CARD_ICON_ID, "Cards", Color3.fromRGB(200, 200, 200)) 
 	createStat(BALL_ICON_ID, "Balls", Color3.fromRGB(255, 100, 100))
 
 	-- Status Effects Row (Sleep, Poison, Burn icons)
@@ -483,7 +485,9 @@ Instance.new("UICorner", resetButton).CornerRadius = UDim.new(0, 12)
 -- NOTE: Status/Timer labels removed - PhaseUIController handles phase display now
 
 -- [[ 🔌 CONNECTION ]] --
-local rollEvent, updateTurnEvent, resetCamEvent, lockEvent, endTurnEvent
+local rollEvent, updateTurnEvent, resetCamEvent, lockEvent, endTurnEvent, notifyEvent
+
+local StarterGui = game:GetService("StarterGui")
 
 
 
@@ -495,7 +499,19 @@ task.spawn(function()
 	endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent", 5)
 	if not endTurnEvent then
 		warn("EndTurnEvent missing, waiting...")
-		endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent")
+		end
+
+	notifyEvent = ReplicatedStorage:WaitForChild("NotifyEvent", 5)
+	if notifyEvent then
+		notifyEvent.OnClientEvent:Connect(function(msg)
+			print("🔔 Notification:", msg)
+			StarterGui:SetCore("SendNotification", {
+				Title = "Game Notification";
+				Text = msg;
+				Duration = 3;
+			})
+		end)
+	endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent")
 	end
 
 	resetCamEvent = ReplicatedStorage:FindFirstChild("ResetCameraEvent") or Instance.new("BindableEvent")
@@ -588,6 +604,7 @@ task.spawn(function()
 		local finalCF = camera.CFrame
 		local dicePos = (finalCF + finalCF.LookVector * 8).Position
 
+		-- Server now sends base roll (1-6), bonus is handled separately
 		local safeRoll = rollResult
 		if not ROTATION_OFFSETS[safeRoll] then safeRoll = 1 end
 
@@ -641,7 +658,9 @@ task.spawn(function()
 				-- Cards (Count children in Hand folder)
 				local hand = p:FindFirstChild("Hand")
 				if hand and data.CardLbl then
-					data.CardLbl.Text = tostring(#hand:GetChildren())
+					local cardCount = #hand:GetChildren()
+					local handLimit = (p:GetAttribute("Job") == "Trainer") and 6 or 5
+					data.CardLbl.Text = cardCount .. "/" .. handLimit
 				end
 
 				-- NOTE: Player highlight now handled by UIHelpers in TurnManager
@@ -658,6 +677,7 @@ end)
 -- [[ RESET BUTTON CLICK ]] --
 local resetCharEvent = ReplicatedStorage:WaitForChild("ResetCharacterEvent", 10)
 resetButton.MouseButton1Click:Connect(function()
+	SoundManager.Play("ResetClick") -- 🔊 Sound effect
 	-- 1. Fire ResetCameraEvent to BoardCamera
 	if resetCamEvent then 
 		resetCamEvent:Fire() 

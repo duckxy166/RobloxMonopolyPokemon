@@ -148,17 +148,19 @@ function EncounterSystem.spawnPokemonEncounter(player, tileColorName)
 			end
 	
 			local stageTopY = centerPos.Y + (centerSizeY / 2)
-			-- Create CFrame at stage top, facing +Z direction (no rotation)
-			local spawnCF = CFrame.new(centerPos.X, stageTopY, centerPos.Z)
-	
-			clonedModel:PivotTo(spawnCF)
+
+			-- Parent model first so we can calculate bounding box
 			clonedModel.Parent = Workspace
 			currentSpawnedPokemon = clonedModel
-	
-			-- Adjust height based on model's bounding box to prevent floating
-			local _, modelSize = clonedModel:GetBoundingBox()
-			local modelHalfHeight = modelSize.Y / 2
-			clonedModel:PivotTo(CFrame.new(centerPos.X, stageTopY + modelHalfHeight, centerPos.Z))
+
+			-- Calculate offset from pivot to bottom of model (like BattleSystem)
+			local modelCF, modelSize = clonedModel:GetBoundingBox()
+			local currentPivot = clonedModel:GetPivot()
+			local modelBottomY = modelCF.Position.Y - (modelSize.Y / 2)
+			local pivotToBottomOffset = currentPivot.Position.Y - modelBottomY
+
+			-- Place model so its bottom sits exactly on top of the stage
+			clonedModel:PivotTo(CFrame.new(centerPos.X, stageTopY + pivotToBottomOffset, centerPos.Z))
 	
 			local mainPart = clonedModel.PrimaryPart or clonedModel:FindFirstChild("HumanoidRootPart") or clonedModel:FindFirstChildWhichIsA("BasePart", true)
 	
@@ -238,8 +240,13 @@ function EncounterSystem.handleCatch(player)
 	-- Check if party is full (6/6)
 	local inventory = player:FindFirstChild("PokemonInventory")
 	if inventory and #inventory:GetChildren() >= MAX_PARTY_SIZE then
-		if Events.Notify then Events.Notify:FireClient(player, "❌ Party full! (6/6)") end
-		-- Restart encounter timer so they don't get stuck
+		if Events.Notify then
+			Events.Notify:FireClient(player, "❌ Party full! (6/6) - กด Run เพื่อหนี")
+		end
+		-- Send catch failed event so UI doesn't freeze
+		Events.CatchPokemon:FireAllClients(player, false, 0, 99, false) -- false = not finished, can still run
+
+		-- Set phase back to Encounter so Run button works
 		TurnManager.turnPhase = "Encounter"
 		TimerSystem.startPhaseTimer(TimerSystem.ENCOUNTER_TIMEOUT, "Encounter", function()
 			if TurnManager.turnPhase == "Encounter" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
