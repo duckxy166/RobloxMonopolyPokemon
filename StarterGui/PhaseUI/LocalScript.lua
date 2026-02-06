@@ -87,6 +87,47 @@ end
 
 local mainContainer
 local phaseNodes = {}
+local UserInputService = game:GetService("UserInputService")
+
+-- Draggable Utility
+local function makeDraggable(guiObject)
+	local dragging
+	local dragInput
+	local dragStart
+	local startPos
+
+	local function update(input)
+		local delta = input.Position - dragStart
+		guiObject.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+
+	guiObject.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = guiObject.Position
+
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	guiObject.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			update(input)
+		end
+	end)
+end
+
 local actionButton, actionLabel, actionIcon
 local messageLabel
 local abilityButton, abilityPopup
@@ -107,6 +148,9 @@ local function createModernUI()
 	mainContainer.BackgroundTransparency = 0.1
 	mainContainer.BorderSizePixel = 0
 	mainContainer.Parent = screenGui
+	
+	-- Enable Dragging
+	makeDraggable(mainContainer)
 
 	-- Glass blur effect (optional)
 	-- local uiBlur = Instance.new("BlurEffect", game.Lighting) -- Not good for specific frame

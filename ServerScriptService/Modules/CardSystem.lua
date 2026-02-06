@@ -199,6 +199,20 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 			print("🃏 Playing card: " .. cardName)
 			local cardDef = CardDB.Cards[cardName]
 			
+			-- Debounce Check (Prevent spam)
+			if player:GetAttribute("ProcessingCard") then
+				warn(player.Name .. " spammed card usage.")
+				return
+			end
+			player:SetAttribute("ProcessingCard", true)
+			
+			-- Ensure debounce is cleared even if errors occur
+			task.delay(1, function()
+				if player:GetAttribute("ProcessingCard") then
+					player:SetAttribute("ProcessingCard", nil)
+				end
+			end)
+			
 			-- Validate card exists in CardDB
 			if not cardDef then
 				if events.Notify then events.Notify:FireClient(player, "❌ Unknown card: " .. cardName) end
@@ -492,6 +506,8 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 			end
 			
 			-- 5. Special logic if card affects movement or stats could go here
+			-- Clear debounce on successful execution
+			player:SetAttribute("ProcessingCard", nil)
 		end)
 	end
 
