@@ -914,6 +914,11 @@ function TurnManager.processPlayerRoll(player)
 	TurnManager.isTurnActive = false
 	if EncounterSystem then EncounterSystem.clearCenterStage() end
 
+	-- Clear lastBattleOpponent เมื่อเริ่มเดิน (อนุญาตให้ Battle กับคนเดิมได้อีกหลังเดิน)
+	if BattleSystem and BattleSystem.lastBattleOpponent then
+		BattleSystem.lastBattleOpponent[player.UserId] = nil
+	end
+
 	-- Check for Esper's Fixed Roll (MindMove ability)
 	local fixedRoll = player:GetAttribute("FixedDiceRoll")
 	local bonusRoll = player:GetAttribute("BonusDiceRoll") or 0

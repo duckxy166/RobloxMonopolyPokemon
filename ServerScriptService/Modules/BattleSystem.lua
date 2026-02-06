@@ -27,6 +27,7 @@ local EvolutionSystem = require(script.Parent:WaitForChild("EvolutionSystem"))
 -- State
 BattleSystem.activeBattles = {} -- Key: PlayerId, Value: BattleData
 BattleSystem.lastRollTime = {}  -- Track last roll time per player (anti-spam)
+BattleSystem.lastBattleOpponent = {} -- Key: UserId, Value: OpponentUserId (clear when player moves)
 
 -- ============================================================================
 -- ✅ STAGE / TELEPORT HELPERS (FIX)
@@ -710,6 +711,10 @@ function BattleSystem.endBattle(battle, result)
 		BattleSystem.activeBattles[battle.Attacker.UserId] = nil
 		BattleSystem.activeBattles[battle.Defender.UserId] = nil
 
+		-- บันทึกว่าเพิ่ง Battle กับใคร (ต้องเดินก่อนถึงจะ Battle กันได้อีก)
+		BattleSystem.lastBattleOpponent[battle.Attacker.UserId] = battle.Defender.UserId
+		BattleSystem.lastBattleOpponent[battle.Defender.UserId] = battle.Attacker.UserId
+
 		if tilesFolder then
 			PlayerManager.teleportToLastTile(battle.Attacker, tilesFolder)
 			PlayerManager.teleportToLastTile(battle.Defender, tilesFolder)
@@ -768,6 +773,14 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 		elseif data and data.Type == "PvP" then
 			local target = data.Target
 			if target then
+				-- เช็คว่าเพิ่ง Battle กับคนนี้หรือไม่ (ต้องเดินก่อนถึงจะ Battle ได้อีก)
+				if BattleSystem.lastBattleOpponent[player.UserId] == target.UserId then
+					if Events.Notify then
+						Events.Notify:FireClient(player, "❌ เพิ่ง Battle กับคนนี้! ต้องเดินก่อน")
+					end
+					TurnManager.resumeTurn(player)
+					return
+				end
 				BattleSystem.startPvP(player, target)
 			end
 		end

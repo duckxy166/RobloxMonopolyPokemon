@@ -26,7 +26,7 @@ CardDB.Cards = {
 		Description = "Draw 2 cards",
 		Draw = 2,
 	},
-	
+
 	["Rare Candy"] = {
 		Name = "Rare Candy",
 		Description = "Evolve your pokemon",
