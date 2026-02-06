@@ -390,8 +390,9 @@ end)
 
 -- Battle Update (Damage)
 Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
-	-- FIX: Ignore if we're not in an active battle (spectator protection)
-	if not isBattleActive or isSpectator then
+	-- FIX: Ignore if we're not watching any battle (protection for non-participants)
+	-- Note: Spectators CAN see results, just can't roll
+	if not isBattleActive then
 		return
 	end
 	
@@ -637,17 +638,13 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 		return 
 	end
 
-	-- FIX: Skip UI creation entirely for spectators
-	if data.IsSpectator then
-		print("👁️ [BattleUI] Spectator mode - skipping UI creation")
-		return
-	end
-
-	print("⚔️ [Client] Battle Started!", type)
+	-- Check if spectator mode
+	isSpectator = data.IsSpectator or false
+	
+	print("⚔️ [Client] Battle Started!", type, isSpectator and "(Spectator)" or "(Active)")
 	isBattleActive = true
 	isRolling = false
 	battleResolved = false
-	isSpectator = false -- Ensure we're not a spectator
 	currentBattleData = data
 
 	createVSFrame()

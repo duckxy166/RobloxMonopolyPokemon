@@ -358,11 +358,22 @@ function BattleSystem.startPvE(player, chosenPoke, desiredRarity)
 		Events.Notify:FireAllClients("⚔️ " .. player.Name .. " entered a PvE battle!")
 	end
 
-	-- 5. Send Client Event to Active Player ONLY
-	-- FIX: Don't send to spectators - they don't need Battle UI
+	-- 5. Send Client Event to Active Player
 	Events.BattleStart:FireClient(player, "PvE", BattleSystem.activeBattles[player.UserId])
-	
-	-- NOTE: Removed spectator BattleStart firing to prevent UI showing for non-participants
+
+	-- 6. Send to Spectators (watch-only mode)
+	for _, spectator in ipairs(game.Players:GetPlayers()) do
+		if spectator ~= player then
+			local spectatorData = {
+				Type = "PvE",
+				Player = player,
+				MyStats = BattleSystem.activeBattles[player.UserId].MyStats,
+				EnemyStats = BattleSystem.activeBattles[player.UserId].EnemyStats,
+				IsSpectator = true  -- Flag to hide Roll button
+			}
+			Events.BattleStart:FireClient(spectator, "PvE", spectatorData)
+		end
+	end
 end
 
 -- Start PvP (Player vs Player)
