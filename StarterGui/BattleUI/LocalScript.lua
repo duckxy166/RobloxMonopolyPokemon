@@ -448,6 +448,7 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 	else
 		-- Show Damage
 		local iWon = false
+		if not currentBattleData then return end -- Safety check for race condition
 		if currentBattleData.Type == "PvE" then iWon = (winner == "Player")
 		elseif currentBattleData.Type == "PvP" then
 			local myRole = (player == currentBattleData.Attacker) and "Attacker" or "Defender"
