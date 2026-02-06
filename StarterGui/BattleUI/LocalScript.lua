@@ -44,6 +44,7 @@ local rollBtn = nil
 -- State
 local isBattleActive = false
 local isRolling = false
+local battleResolved = false
 local currentBattleData = nil
 local vsFrame = nil
 
@@ -233,16 +234,16 @@ local function createVSFrame()
 	stroke.Thickness = 3
 	stroke.Color = Color3.fromRGB(255, 100, 50)
 	stroke.Parent = rollBtn
-	
+
 	-- Connect rollBtn click handler
 	rollBtn.MouseButton1Click:Connect(function()
-		if not isBattleActive or isRolling then return end
+		if not isBattleActive or isRolling or battleResolved then return end
 		isRolling = true
 		rollBtn.Visible = false -- Hide button while rolling
-		
+
 		-- Cleanup previous dice before spawning new ones (for round 2+)
 		cleanupDice()
-		
+
 		-- Spawn player dice spinning immediately
 		local myDiceOffset = -1 -- Default left
 		if currentBattleData and currentBattleData.Type == "PvP" then
@@ -251,7 +252,7 @@ local function createVSFrame()
 			end
 		end
 		activeDice.Player = spawn3NDice(myDiceOffset)
-		
+
 		-- Fire server to roll
 		Events.BattleAttack:FireServer()
 	end)
@@ -354,14 +355,14 @@ UserInputService.InputBegan:Connect(function(input, gamProcessed)
 
 	if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space then
 		-- Attack
-		if not isRolling then
+		if not isRolling and not battleResolved then
 			isRolling = true
 			sendMsg("Rolling dice... 🎲", Color3.fromRGB(255, 255, 100))
 			Events.BattleAttack:FireServer()
 		end
 	elseif input.UserInputType == Enum.UserInputType.Touch then
 		-- Touch Attack
-		if not isRolling then
+		if not isRolling and not battleResolved then
 			isRolling = true
 			sendMsg("Rolling dice... 🎲", Color3.fromRGB(255, 255, 100))
 			Events.BattleAttack:FireServer()
@@ -374,6 +375,19 @@ end)
 -- Battle Update (Damage)
 Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 	isRolling = false
+
+	-- Check if battle is over (someone's HP reached 0)
+	local battleOver = false
+	if details then
+		if details.PlayerHP and details.PlayerHP <= 0 then battleOver = true end
+		if details.EnemyHP and details.EnemyHP <= 0 then battleOver = true end
+		if details.AttackerHP and details.AttackerHP <= 0 then battleOver = true end
+		if details.DefenderHP and details.DefenderHP <= 0 then battleOver = true end
+	end
+
+	if winner ~= "Draw" and battleOver then
+		battleResolved = true
+	end
 
 	local myName, enemyName, myRoll, enemyRoll
 
@@ -436,10 +450,60 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 
 	task.wait(1.5)
 
-	-- Only show roll button if battle is STILL active (not ended yet)
-	if isBattleActive and rollBtn then
+	-- Show battle result banner ONLY when battle is actually over (HP = 0)
+	if winner ~= "Draw" and battleOver and vsFrame then
+		local iWon = false
+		if currentBattleData then
+			if currentBattleData.Type == "PvE" then
+				iWon = (winner == "Player")
+			elseif currentBattleData.Type == "PvP" then
+				local myRole = (player == currentBattleData.Attacker) and "Attacker" or "Defender"
+				iWon = (winner == myRole)
+			end
+		end
+
+		local resultBanner = Instance.new("TextLabel")
+		resultBanner.Name = "ResultBanner"
+		resultBanner.Size = UDim2.new(0.5, 0, 0.12, 0)
+		resultBanner.Position = UDim2.new(0.25, 0, 0.35, 0)
+		resultBanner.BackgroundTransparency = 0.15
+		resultBanner.Font = Enum.Font.FredokaOne
+		resultBanner.TextSize = 48
+		resultBanner.TextScaled = true
+		resultBanner.TextStrokeTransparency = 0
+		resultBanner.Parent = screenGui
+		Instance.new("UICorner", resultBanner).CornerRadius = UDim.new(0, 16)
+
+		if iWon then
+			resultBanner.Text = "🏆 YOU WIN!"
+			resultBanner.TextColor3 = Color3.fromRGB(255, 215, 0)
+			resultBanner.BackgroundColor3 = Color3.fromRGB(30, 60, 30)
+		else
+			resultBanner.Text = "💀 YOU LOSE..."
+			resultBanner.TextColor3 = Color3.fromRGB(255, 80, 80)
+			resultBanner.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
+		end
+
+		-- Spectator sees winner name
+		if currentBattleData and currentBattleData.IsSpectator then
+			local winnerName = ""
+			if currentBattleData.Type == "PvE" then
+				winnerName = (winner == "Player") and currentBattleData.MyStats.Name or currentBattleData.EnemyStats.Name
+			elseif currentBattleData.Type == "PvP" then
+				winnerName = (winner == "Attacker") and currentBattleData.Attacker.Name or currentBattleData.Defender.Name
+			end
+			resultBanner.Text = "🏆 " .. winnerName .. " WINS!"
+			resultBanner.TextColor3 = Color3.fromRGB(255, 215, 0)
+			resultBanner.BackgroundColor3 = Color3.fromRGB(30, 40, 60)
+		end
+
+		Debris:AddItem(resultBanner, 3)
+	end
+
+	-- Always show roll button if battle is active and NOT resolved (for next round)
+	if isBattleActive and not battleResolved and rollBtn then
 		rollBtn.Visible = true
-		rollBtn.Text = "🎲 ROLL ATTACK"
+		rollBtn.Text = "🎲 ROLL AGAIN"
 		rollBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
 	end
 
@@ -448,7 +512,6 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 	else
 		-- Show Damage
 		local iWon = false
-		if not currentBattleData then return end -- Safety check for race condition
 		if currentBattleData.Type == "PvE" then iWon = (winner == "Player")
 		elseif currentBattleData.Type == "PvP" then
 			local myRole = (player == currentBattleData.Attacker) and "Attacker" or "Defender"
@@ -485,19 +548,28 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 				end
 			end
 
-			local myNewHP, enemyNewHP
+			local myNewHP, enemyNewHP, myMaxHP, enemyMaxHP
 			if currentBattleData.Type == "PvE" then
-				myNewHP = details.PlayerHP; enemyNewHP = details.EnemyHP
+				myNewHP = details.PlayerHP
+				enemyNewHP = details.EnemyHP
+				myMaxHP = details.PlayerMaxHP or currentBattleData.MyStats.MaxHP
+				enemyMaxHP = details.EnemyMaxHP or currentBattleData.EnemyStats.MaxHP
 			elseif currentBattleData.Type == "PvP" then
 				if player == currentBattleData.Attacker then
-					myNewHP = details.AttackerHP; enemyNewHP = details.DefenderHP
+					myNewHP = details.AttackerHP
+					enemyNewHP = details.DefenderHP
+					myMaxHP = details.AttackerMaxHP or currentBattleData.MyStats.MaxHP
+					enemyMaxHP = details.DefenderMaxHP or currentBattleData.EnemyStats.MaxHP
 				else
-					myNewHP = details.DefenderHP; enemyNewHP = details.AttackerHP
+					myNewHP = details.DefenderHP
+					enemyNewHP = details.AttackerHP
+					myMaxHP = details.DefenderMaxHP or currentBattleData.MyStats.MaxHP
+					enemyMaxHP = details.AttackerMaxHP or currentBattleData.EnemyStats.MaxHP
 				end
 			end
 
-			if myNewHP then updateSide("Left", myNewHP, currentBattleData.MyStats.MaxHP) end
-			if enemyNewHP then updateSide("Right", enemyNewHP, currentBattleData.EnemyStats.MaxHP) end
+			if myNewHP then updateSide("Left", myNewHP, myMaxHP) end
+			if enemyNewHP then updateSide("Right", enemyNewHP, enemyMaxHP) end
 		end
 	end
 end)
@@ -506,8 +578,9 @@ end)
 Events.BattleEnd.OnClientEvent:Connect(function(result)
 	isBattleActive = false
 	isRolling = false -- Reset rolling state
+	battleResolved = false
 	currentBattleData = nil
-	
+
 	-- Safe cleanup of UI
 	if rollBtn then 
 		rollBtn.Visible = false 
@@ -516,7 +589,7 @@ Events.BattleEnd.OnClientEvent:Connect(function(result)
 		vsFrame:Destroy() 
 		vsFrame = nil 
 	end
-	
+
 	-- Cleanup any remaining dice
 	cleanupDice()
 
@@ -531,19 +604,8 @@ Events.BattleEnd.OnClientEvent:Connect(function(result)
 
 	sendMsg(msgText, msgColor)
 
-	local resultLabel = Instance.new("TextLabel")
-	resultLabel.Size = UDim2.new(1, 0, 0.2, 0)
-	resultLabel.Position = UDim2.new(0, 0, 0.4, 0)
-	resultLabel.BackgroundTransparency = 1
-	resultLabel.Text = msgText
-	resultLabel.Font = Enum.Font.FredokaOne
-	resultLabel.TextSize = 48
-	resultLabel.TextScaled = true
-	resultLabel.TextColor3 = msgColor
-	resultLabel.TextStrokeTransparency = 0
-	resultLabel.Parent = screenGui
-
-	Debris:AddItem(resultLabel, 5)
+	-- NOTE: Result banner is already shown in BattleAttack handler (lines 455-490)
+	-- Removed duplicate result label to prevent showing win/lose message twice
 end)
 
 -- Battle Start
@@ -553,10 +615,11 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 		warn("⚠️ [BattleUI] Received nil battle data")
 		return 
 	end
-	
+
 	print("⚔️ [Client] Battle Started!", type)
 	isBattleActive = true
 	isRolling = false
+	battleResolved = false
 	currentBattleData = data
 
 	createVSFrame()
@@ -600,7 +663,7 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 
 	-- Check if spectator mode
 	local isSpectator = data.IsSpectator or false
-	
+
 	if isSpectator then
 		-- Add spectator label
 		local spectatorLabel = Instance.new("TextLabel")
@@ -615,7 +678,7 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 		spectatorLabel.Font = Enum.Font.GothamBold
 		spectatorLabel.TextScaled = true
 		spectatorLabel.Parent = screenGui
-		
+
 		-- Hide roll button for spectators
 		rollBtn.Visible = false
 		sendMsg("Spectating battle...", Color3.fromRGB(200, 200, 200))

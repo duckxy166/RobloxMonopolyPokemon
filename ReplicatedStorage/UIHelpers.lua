@@ -28,7 +28,7 @@ function UIHelpers.CreateNameLabel(parent, name, rarity)
 	local existing = parent:FindFirstChild("NameLabel")
 	if existing then existing:Destroy() end
 
-	local color = UIHelpers.RarityColors[rarity] or UIHelpers.RarityColors["None"]
+	local color = UIHelpers.RarityColors[rarity] or UIHelpers.RarityColors["Common"] or Color3.fromRGB(255, 255, 255)
 
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "NameLabel"
