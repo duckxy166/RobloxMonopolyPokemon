@@ -148,17 +148,19 @@ function EncounterSystem.spawnPokemonEncounter(player, tileColorName)
 			end
 	
 			local stageTopY = centerPos.Y + (centerSizeY / 2)
-			-- Create CFrame at stage top, facing +Z direction (no rotation)
-			local spawnCF = CFrame.new(centerPos.X, stageTopY, centerPos.Z)
-	
-			clonedModel:PivotTo(spawnCF)
+
+			-- Parent model first so we can calculate bounding box
 			clonedModel.Parent = Workspace
 			currentSpawnedPokemon = clonedModel
-	
-			-- Adjust height based on model's bounding box to prevent floating
-			local _, modelSize = clonedModel:GetBoundingBox()
-			local modelHalfHeight = modelSize.Y / 2
-			clonedModel:PivotTo(CFrame.new(centerPos.X, stageTopY + modelHalfHeight, centerPos.Z))
+
+			-- Calculate offset from pivot to bottom of model (like BattleSystem)
+			local modelCF, modelSize = clonedModel:GetBoundingBox()
+			local currentPivot = clonedModel:GetPivot()
+			local modelBottomY = modelCF.Position.Y - (modelSize.Y / 2)
+			local pivotToBottomOffset = currentPivot.Position.Y - modelBottomY
+
+			-- Place model so its bottom sits exactly on top of the stage
+			clonedModel:PivotTo(CFrame.new(centerPos.X, stageTopY + pivotToBottomOffset, centerPos.Z))
 	
 			local mainPart = clonedModel.PrimaryPart or clonedModel:FindFirstChild("HumanoidRootPart") or clonedModel:FindFirstChildWhichIsA("BasePart", true)
 	
