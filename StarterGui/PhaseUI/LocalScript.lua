@@ -23,7 +23,9 @@ local UpdateTurnEvent = ReplicatedStorage:WaitForChild("UpdateTurnEvent")
 local AdvancePhaseEvent = ReplicatedStorage:WaitForChild("AdvancePhaseEvent", 5)
 local RollDiceEvent = ReplicatedStorage:WaitForChild("RollDiceEvent")
 local UseAbilityEvent = ReplicatedStorage:WaitForChild("UseAbilityEvent", 5)
+local UseAbilityEvent = ReplicatedStorage:WaitForChild("UseAbilityEvent", 5)
 local SwitchPhaseEvent = ReplicatedStorage:WaitForChild("SwitchPhaseEvent", 5)
+local LapUpdateEvent = ReplicatedStorage:WaitForChild("LapUpdateEvent", 5)
 
 -- Sound Manager
 local SoundManager = require(ReplicatedStorage:WaitForChild("SoundManager"))
@@ -140,6 +142,32 @@ local function createModernUI()
 	if screenGui:FindFirstChild("MainContainer") then
 		screenGui.MainContainer:Destroy()
 	end
+	
+	-- 0. LAP COUNTER (Top Right)
+	local lapFrame = Instance.new("Frame")
+	lapFrame.Name = "LapFrame"
+	lapFrame.Size = UDim2.new(0, 100, 0, 40)
+	lapFrame.Position = UDim2.new(1, -20, 0, 20)
+	lapFrame.AnchorPoint = Vector2.new(1, 0)
+	lapFrame.BackgroundColor3 = COLORS.Backdrop
+	lapFrame.BackgroundTransparency = 0.2
+	lapFrame.Parent = screenGui
+	
+	Instance.new("UICorner", lapFrame).CornerRadius = UDim.new(0, 10)
+	local lapStroke = Instance.new("UIStroke")
+	lapStroke.Color = COLORS.Green
+	lapStroke.Thickness = 2
+	lapStroke.Parent = lapFrame
+	
+	local lapLabel = Instance.new("TextLabel")
+	lapLabel.Name = "LapLabel"
+	lapLabel.Size = UDim2.new(1, 0, 1, 0)
+	lapLabel.BackgroundTransparency = 1
+	lapLabel.Text = "LAP: 1/3"  -- Show current lap and total
+	lapLabel.Font = Enum.Font.FredokaOne
+	lapLabel.TextSize = 18
+	lapLabel.TextColor3 = COLORS.Green
+	lapLabel.Parent = lapFrame
 
 	-- 1. Main Container (Center of screen, near the circle)
 	mainContainer = Instance.new("Frame")
@@ -800,6 +828,39 @@ end
 -- Phase Update
 if PhaseUpdateEvent then
 	PhaseUpdateEvent.OnClientEvent:Connect(function(phase, message)
+		-- Update Phase UI
+		updateUI(phase, message)
+	end)
+end
+
+-- Lap Update
+if LapUpdateEvent then
+	LapUpdateEvent.OnClientEvent:Connect(function(newLap)
+		local lapLabel = screenGui:FindFirstChild("LapFrame", true) and screenGui.LapFrame:FindFirstChild("LapLabel")
+		if lapLabel then
+			-- FIX: Show lap in X/3 format (max 3 laps)
+			local displayLap = math.min(newLap, 3)  -- Cap at 3 for display
+			lapLabel.Text = "LAP: " .. tostring(displayLap) .. "/3"
+			
+			-- Pop effect + special color for final lap
+			local originalSize = UDim2.new(1, 0, 1, 0)
+			local popSize = UDim2.new(1.2, 0, 1.2, 0)
+			local flashColor = newLap >= 3 and Color3.fromRGB(255, 100, 100) or Color3.fromRGB(255, 255, 100)
+			
+			TweenService:Create(lapLabel, TweenInfo.new(0.2), {Size = popSize, TextColor3 = flashColor}):Play()
+			task.wait(0.2)
+			TweenService:Create(lapLabel, TweenInfo.new(0.2), {Size = originalSize, TextColor3 = COLORS.Green}):Play()
+			
+			-- Show finished message if completed all laps
+			if newLap > 3 then
+				lapLabel.Text = "🏆 FINISHED!"
+				lapLabel.TextColor3 = Color3.fromRGB(255, 215, 0)  -- Gold
+			end
+		end
+	end)
+end
+if PhaseUpdateEvent then
+	PhaseUpdateEvent.OnClientEvent:Connect(function(phase, message)
 		print("📍 [ModernUI] Phase:", phase)
 		isMyTurn = true
 		updateUI(phase, message)
@@ -824,6 +885,41 @@ UpdateTurnEvent.OnClientEvent:Connect(function(currentPlayerName, phase)
 		messageLabel.Text = "⏳ Waiting for " .. currentPlayerName .. "..."
 	end
 end)
+
+-- BATTLE LOCK (New): Disable UI during battle
+local BattleStartEvent = ReplicatedStorage:WaitForChild("BattleStartEvent", 5)
+local BattleEndEvent = ReplicatedStorage:WaitForChild("BattleEndEvent", 5)
+local BattleTriggerEvent = ReplicatedStorage:WaitForChild("BattleTriggerEvent", 5)
+
+if BattleStartEvent then
+	BattleStartEvent.OnClientEvent:Connect(function()
+		print("🔒 [ModernUI] Battle Started - Locking UI")
+		updateActionButton("Wait")
+		isMyTurn = false -- Force lock
+		if HandUI then HandUI.Enabled = false end
+		phaseTabFrame.Visible = false
+		abilityButton.Visible = false
+	end)
+end
+
+if BattleTriggerEvent then
+	BattleTriggerEvent.OnClientEvent:Connect(function()
+		print("🔒 [ModernUI] Battle Triggered - Locking UI")
+		updateActionButton("Wait")
+		isMyTurn = false -- Force lock
+		if HandUI then HandUI.Enabled = false end
+	end)
+end
+
+if BattleEndEvent then
+	BattleEndEvent.OnClientEvent:Connect(function()
+		print("🔓 [ModernUI] Battle Ended - Unlocking UI if my turn")
+		if player.Name == player.Name then -- Re-check turn? Actually TurnManager sends UpdateTurn after battle
+			-- We wait for UpdateTurnEvent usually, but let's reset generic lock
+		end
+		-- Logic relies on UpdateTurn sending fresh state
+	end)
+end
 
 -- Button Interaction
 actionButton.MouseButton1Click:Connect(function()

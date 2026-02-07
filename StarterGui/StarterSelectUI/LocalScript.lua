@@ -23,92 +23,93 @@ local JobDB = {
 	Gambler = {
 		Name = "Gambler",
 		Icon = "🎰",
-		ImageId = "rbxassetid://0", -- 🖼️ ใส่รูปที่นี่
+		ImageId = "rbxassetid://75942296838387",
 		Color = Color3.fromRGB(255, 200, 50), -- Gold
 		Description = "นักพนัน - เสี่ยงดวงเพื่อรางวัลใหญ่",
 		Ability = "Lucky Guess",
 		AbilityDesc = "ทายเลข 1-6 ถ้าถูกได้ 6 เหรียญ!",
-		PassiveDesc = "ความโชคดีอยู่ข้างคุณเสมอ",
+		PassiveDesc = "Starter: Meowth",
 		Starter = "Meowth"
 	},
 	Esper = {
 		Name = "Esper",
 		Icon = "🔮",
-		ImageId = "rbxassetid://0", -- 🖼️ ใส่รูปที่นี่
+		ImageId = "rbxassetid://100692577736569",
 		Color = Color3.fromRGB(200, 100, 255), -- Purple
-		Description = "จิตสัมผัส - ควบคุมโชคชะตา",
+		Description = "จิตสัมผัส - ควบคุมเส้นทางด้วยพลังจิต",
 		Ability = "Mind Move",
 		AbilityDesc = "กำหนดช่องเดินได้ 1 หรือ 2 ช่อง (แทนทอยเต๋า)",
-		PassiveDesc = "เลือกเส้นทางได้ตามใจ",
-		Starter = "Drowzee"
+		PassiveDesc = "Starter: Abra",
+		Starter = "Abra"
 	},
 	Shaman = {
 		Name = "Shaman",
 		Icon = "🌿",
-		ImageId = "rbxassetid://0", -- 🖼️ ใส่รูปที่นี่
+		ImageId = "rbxassetid://116483660737253",
 		Color = Color3.fromRGB(100, 200, 100), -- Green
-		Description = "หมอผี - สาปแช่งศัตรู",
+		Description = "หมอผี - สาปแช่งศัตรูด้วยคำสาป",
 		Ability = "Curse",
 		AbilityDesc = "สาปผู้เล่นคนอื่น: ทิ้งการ์ด 1 ใบ + เสียเงิน 1 เหรียญ",
-		PassiveDesc = "พลังแห่งความมืดคือเพื่อนของคุณ",
+		PassiveDesc = "Starter: Gastly",
 		Starter = "Gastly"
 	},
 	Biker = {
 		Name = "Biker",
 		Icon = "🏍️",
-		ImageId = "rbxassetid://0", -- 🖼️ ใส่รูปที่นี่
+		ImageId = "rbxassetid://78350643264994",
 		Color = Color3.fromRGB(255, 100, 100), -- Red
 		Description = "นักบิด - เร็วแรงทะลุนรก",
 		Ability = "Turbo Boost",
 		AbilityDesc = "เดินเพิ่ม +2 ช่อง ในเทิร์นนี้",
-		PassiveDesc = "ความเร็วคือพลัง",
-		Starter = "Cyclizar"
+		PassiveDesc = "Starter: Ponyta",
+		Starter = "Ponyta"
 	},
 	Trainer = {
 		Name = "Trainer",
 		Icon = "🎒",
-		ImageId = "rbxassetid://0", -- 🖼️ ใส่รูปที่นี่
+		ImageId = "rbxassetid://82402506050437",
 		Color = Color3.fromRGB(100, 150, 255), -- Blue
 		Description = "เทรนเนอร์ - ผู้เชี่ยวชาญการ์ด",
 		Ability = "Extra Hand",
-		AbilityDesc = "ถือการ์ดได้ 6 ใบ (ปกติ 5)",
-		PassiveDesc = "มาพร้อม Pikachu",
+		AbilityDesc = "ถือการ์ดได้ 6 ใบ (ปกติ 5) - Passive",
+		PassiveDesc = "Starter: Pikachu",
 		Starter = "Pikachu"
 	},
 	Fisherman = {
 		Name = "Fisherman",
 		Icon = "🎣",
-		ImageId = "rbxassetid://0", -- 🖼️ ใส่รูปที่นี่
+		ImageId = "rbxassetid://110045575465135",
 		Color = Color3.fromRGB(50, 150, 200), -- Cyan
-		Description = "นักตกปลา - ขโมยของคนอื่น",
+		Description = "นักตกปลา - ขโมยของจากคนอื่น",
 		Ability = "Steal Card",
 		AbilityDesc = "ขโมยการ์ด 1 ใบจากผู้เล่นคนอื่น",
-		PassiveDesc = "มาพร้อม Magikarp",
+		PassiveDesc = "Starter: Magikarp",
 		Starter = "Magikarp"
 	},
 	Rocket = {
 		Name = "Rocket",
 		Icon = "💀",
-		ImageId = "rbxassetid://0", -- 🖼️ ใส่รูปที่นี่
+		ImageId = "rbxassetid://94626837696256",
 		Color = Color3.fromRGB(80, 80, 80), -- Dark Gray
-		Description = "แก๊งร็อคเก็ต - ขโมยโปเกม่อน!",
+		Description = "แก๊งร็อคเก็ต - ขโมยโปเกม่อนศัตรู!",
 		Ability = "Steal Pokemon",
-		AbilityDesc = "เมื่อชนะ PvP ขโมยโปเกม่อน 1 ตัว",
-		PassiveDesc = "มาพร้อม Rattata",
+		AbilityDesc = "เมื่อชนะ PvP ขโมยโปเกม่อน 1 ตัว - Passive",
+		PassiveDesc = "Starter: Rattata",
 		Starter = "Rattata"
 	},
 	NurseJoy = {
 		Name = "NurseJoy",
 		Icon = "💖",
-		ImageId = "rbxassetid://0", -- 🖼️ ใส่รูปที่นี่
+		ImageId = "rbxassetid://114050032466781",
 		Color = Color3.fromRGB(255, 150, 200), -- Pink
-		Description = "คุณจอย - รักษาโปเกม่อน",
+		Description = "คุณจอย - รักษาโปเกม่อนที่ตาย",
 		Ability = "Revive",
 		AbilityDesc = "ฟื้นคืนชีพโปเกม่อนที่ตายได้ทุกเทิร์น",
-		PassiveDesc = "มาพร้อม Chansey",
-		Starter = "Chansey"
+		PassiveDesc = "Starter: Clefairy",
+		Starter = "Clefairy"
 	}
 }
+
 
 local JobOrder = {"Gambler", "Esper", "Shaman", "Biker", "Trainer", "Fisherman", "Rocket", "NurseJoy"}
 

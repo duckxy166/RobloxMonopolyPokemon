@@ -7,7 +7,7 @@
         - Player initialization on join
         - Leaderstats, inventory, hand, status folders
         - Player position tracking
-        - Player removal handling
+        - Player removal handlingฟ
 ================================================================================
 --]]
 local Players = game:GetService("Players")
@@ -178,25 +178,48 @@ function PlayerManager.onPlayerAdded(player)
 
 	-- Teleport player to starting tile when character loads
 	local function teleportToStart(character)
+		-- FIX: Wait for critical parts to load before attempting teleport
+		local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 10)
+		local humanoid = character:WaitForChild("Humanoid", 10)
+		
+		if not humanoidRootPart or not humanoid then
+			warn("⚠️ Character failed to load for " .. player.Name)
+			return
+		end
+		
+		-- FIX: Wait longer for physics and model to be fully ready
+		-- This is critical for players 2,3,4 who join after
+		task.wait(0.5)
+		
 		local tilesFolder = game.Workspace:FindFirstChild("Tiles")
-		local humanoid = character:FindFirstChild("Humanoid")
 		
 		-- Set collision group so players don't collide with each other
 		setPlayerCollision(character)
 		
 		-- FREEZE PLAYER
-		if humanoid then
-			humanoid.WalkSpeed = 0
-			humanoid.JumpPower = 0
-		end
+		humanoid.WalkSpeed = 0
+		humanoid.JumpPower = 0
 		
 		if tilesFolder then
 			local startTile = tilesFolder:FindFirstChild("0")
-			if startTile and character.PrimaryPart then
-				task.wait(0.5) -- Wait for character to fully load
-				local pos = PlayerManager.getPlayerTilePosition(player, startTile)
-				character:SetPrimaryPartCFrame(CFrame.new(pos))
-				print("📍 Teleported " .. player.Name .. " to starting tile 0")
+			if startTile then
+				-- FIX: Use TOKEN_OFFSETS so each player spawns at different position on tile 0
+				local slot = PlayerManager.playerSlots[player.UserId] or 1
+				local offset = TOKEN_OFFSETS[slot] or Vector3.new(0, 0, 0)
+				local pos = startTile.Position + offset + Vector3.new(0, 5, 0)
+				
+				-- FIX: Retry teleport multiple times to ensure it works
+				for attempt = 1, 3 do
+					character:PivotTo(CFrame.new(pos))
+					task.wait(0.1)
+					
+					-- Check if teleport was successful (character is near target)
+					local hrp = character:FindFirstChild("HumanoidRootPart")
+					if hrp and (hrp.Position - pos).Magnitude < 10 then
+						print("📍 Teleported " .. player.Name .. " to tile 0 (Slot " .. slot .. ") [Attempt " .. attempt .. "]")
+						break
+					end
+				end
 			end
 		end
 	end
@@ -204,9 +227,15 @@ function PlayerManager.onPlayerAdded(player)
 	-- Connect to CharacterAdded (handles respawn too)
 	player.CharacterAdded:Connect(teleportToStart)
 
-	-- Teleport if character already exists
+	-- FIX: If character doesn't exist yet, wait for it
 	if player.Character then
 		teleportToStart(player.Character)
+	else
+		-- Wait for character to spawn (important for late joiners)
+		task.spawn(function()
+			local char = player.CharacterAdded:Wait()
+			-- Note: teleportToStart will be called by the CharacterAdded connection above
+		end)
 	end
 	
 	-- Start Pre-Game Check

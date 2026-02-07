@@ -47,17 +47,29 @@ local isRolling = false
 local battleResolved = false
 local currentBattleData = nil
 local vsFrame = nil
+local lastRollTime = 0       -- Anti-spam: track last roll time
+local isSpectator = false    -- FIX: Module-level spectator flag
+local ROLL_COOLDOWN = 1      -- 1 second cooldown between rolls
 
 -- Active dice storage (must be declared before createVSFrame)
 local activeDice = {} -- {Player=?, Enemy=?}
 
 local function cleanupDice()
 	if activeDice.Player then
-		if activeDice.Player.Object then activeDice.Player.Object:Destroy() end
+		-- FIX: Use Cleanup method to disconnect RenderStepped and force destroy
+		if activeDice.Player.Cleanup then 
+			activeDice.Player.Cleanup() 
+		elseif activeDice.Player.Object then 
+			activeDice.Player.Object:Destroy() 
+		end
 		activeDice.Player = nil
 	end
 	if activeDice.Enemy then
-		if activeDice.Enemy.Object then activeDice.Enemy.Object:Destroy() end
+		if activeDice.Enemy.Cleanup then 
+			activeDice.Enemy.Cleanup() 
+		elseif activeDice.Enemy.Object then 
+			activeDice.Enemy.Object:Destroy() 
+		end
 		activeDice.Enemy = nil
 	end
 end
@@ -156,6 +168,7 @@ local function spawn3NDice(sideOffset)
 
 	return {
 		Object = dice,
+		Connection = connection, -- FIX: Store connection for cleanup
 		Stop = function(finalVal)
 			if connection then connection:Disconnect() end
 
@@ -191,8 +204,13 @@ local function spawn3NDice(sideOffset)
 			end
 
 			task.delay(3, function()
-				if dice then dice:Destroy() end
+				if dice and dice.Parent then dice:Destroy() end
 			end)
+		end,
+		-- FIX: Force cleanup method for immediate destruction
+		Cleanup = function()
+			if connection then connection:Disconnect() end
+			if dice and dice.Parent then dice:Destroy() end
 		end
 	}
 end
@@ -237,8 +255,15 @@ local function createVSFrame()
 
 	-- Connect rollBtn click handler
 	rollBtn.MouseButton1Click:Connect(function()
-		if not isBattleActive or isRolling or battleResolved then return end
+		-- FIX: Spectators cannot roll
+		if not isBattleActive or isRolling or battleResolved or isSpectator then return end
+
+		-- Anti-spam cooldown check
+		local now = tick()
+		if (now - lastRollTime) < ROLL_COOLDOWN then return end
+
 		isRolling = true
+		lastRollTime = now
 		rollBtn.Visible = false -- Hide button while rolling
 
 		-- Cleanup previous dice before spawning new ones (for round 2+)
@@ -353,10 +378,15 @@ UserInputService.InputBegan:Connect(function(input, gamProcessed)
 	if gamProcessed then return end
 	if not isBattleActive then return end
 
+	-- Anti-spam cooldown check
+	local now = tick()
+	if (now - lastRollTime) < ROLL_COOLDOWN then return end
+
 	if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space then
 		-- Attack
 		if not isRolling and not battleResolved then
 			isRolling = true
+			lastRollTime = now
 			sendMsg("Rolling dice... 🎲", Color3.fromRGB(255, 255, 100))
 			Events.BattleAttack:FireServer()
 		end
@@ -364,6 +394,7 @@ UserInputService.InputBegan:Connect(function(input, gamProcessed)
 		-- Touch Attack
 		if not isRolling and not battleResolved then
 			isRolling = true
+			lastRollTime = now
 			sendMsg("Rolling dice... 🎲", Color3.fromRGB(255, 255, 100))
 			Events.BattleAttack:FireServer()
 		end
@@ -374,6 +405,12 @@ end)
 
 -- Battle Update (Damage)
 Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
+	-- FIX: Ignore if we're not watching any battle (protection for non-participants)
+	-- Note: Spectators CAN see results, just can't roll
+	if not isBattleActive then
+		return
+	end
+	
 	isRolling = false
 
 	-- Check if battle is over (someone's HP reached 0)
@@ -428,24 +465,21 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 	end
 
 	-- Step B: Rolling sequence (Visuals)
-
-	-- Stop My Dice (it was already spinning from button click or spacebar)
-	if activeDice.Player then
-		activeDice.Player.Stop(myRoll or 1)
-	else
-		-- Cleanup any leftover dice first
-		cleanupDice()
-		-- If triggered by spacebar or lag, spawn it now
-		activeDice.Player = spawn3NDice(myDiceOffset)
-		task.wait(0.5) -- Short spin time
-		if activeDice.Player then activeDice.Player.Stop(myRoll or 1) end
-	end
-
+	-- FIX: Always cleanup and create fresh dice to handle any roll order in PvP
+	cleanupDice()
+	
+	-- Spawn and animate my dice
+	sendMsg("🎲 Rolling...", Color3.fromRGB(100, 200, 255))
+	activeDice.Player = spawn3NDice(myDiceOffset)
 	task.wait(1.0)
+	if activeDice.Player then activeDice.Player.Stop(myRoll or 1) end
 
-	sendMsg("🎲 " .. (enemyName or "Enemy") .. " is rolling...", Color3.fromRGB(255, 100, 100))
+	task.wait(0.5)
+
+	-- Spawn and animate enemy dice
+	sendMsg("🎲 " .. (enemyName or "Enemy") .. " rolled!", Color3.fromRGB(255, 100, 100))
 	activeDice.Enemy = spawn3NDice(enemyDiceOffset)
-	task.wait(1.2)
+	task.wait(1.0)
 	if activeDice.Enemy then activeDice.Enemy.Stop(enemyRoll or 1) end
 
 	task.wait(1.5)
@@ -500,8 +534,9 @@ Events.BattleAttack.OnClientEvent:Connect(function(winner, damage, details)
 		Debris:AddItem(resultBanner, 3)
 	end
 
-	-- Always show roll button if battle is active and NOT resolved (for next round)
-	if isBattleActive and not battleResolved and rollBtn then
+	-- Always show roll button if battle is active, NOT resolved, and NOT spectating
+	-- FIX: Added isSpectator check to prevent button showing for spectators
+	if isBattleActive and not battleResolved and not isSpectator and rollBtn then
 		rollBtn.Visible = true
 		rollBtn.Text = "🎲 ROLL AGAIN"
 		rollBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
@@ -590,8 +625,16 @@ Events.BattleEnd.OnClientEvent:Connect(function(result)
 		vsFrame = nil 
 	end
 
-	-- Cleanup any remaining dice
+	-- Cleanup any remaining dice (and scan workspace for stragglers)
 	cleanupDice()
+	
+	-- FIX: Aggressive cleanup - find and destroy ANY DiceModel clones left in workspace
+	-- This catches dice that got stuck due to timing issues
+	for _, obj in ipairs(workspace:GetChildren()) do
+		if obj.Name == "DiceModel" or (obj:IsA("Part") and obj.Size == Vector3.new(3, 3, 3)) then
+			obj:Destroy()
+		end
+	end
 
 	local msgText = result
 	local msgColor = Color3.fromRGB(255, 255, 255)
@@ -616,7 +659,10 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 		return 
 	end
 
-	print("⚔️ [Client] Battle Started!", type)
+	-- Check if spectator mode
+	isSpectator = data.IsSpectator or false
+	
+	print("⚔️ [Client] Battle Started!", type, isSpectator and "(Spectator)" or "(Active)")
 	isBattleActive = true
 	isRolling = false
 	battleResolved = false
@@ -661,8 +707,8 @@ Events.BattleStart.OnClientEvent:Connect(function(type, data)
 		end
 	end
 
-	-- Check if spectator mode
-	local isSpectator = data.IsSpectator or false
+	-- Check if spectator mode (use module-level variable)
+	isSpectator = data.IsSpectator or false
 
 	if isSpectator then
 		-- Add spectator label
@@ -691,164 +737,185 @@ end)
 
 -- Battle Trigger (Selection UI)
 Events.BattleTrigger.OnClientEvent:Connect(function(type, data)
-	print("⚔️ [Client] BattleTrigger Received! Type:", type)
+	print("⚔️ [BattleUI] BattleTrigger Received! Type:", type, " | Data:", data) -- EARLY DIAGNOSTIC
 
-	local choiceFrame = Instance.new("Frame")
-	choiceFrame.Size = UDim2.new(0, 300, 0, 150)
-	choiceFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-	choiceFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-	choiceFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-	choiceFrame.BorderSizePixel = 0
-	choiceFrame.Parent = screenGui
-	Instance.new("UICorner", choiceFrame).CornerRadius = UDim.new(0, 12)
+	local ok, err = pcall(function()
+		local choiceFrame = Instance.new("Frame")
+		choiceFrame.Size = UDim2.new(0, 300, 0, 150)
+		choiceFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+		choiceFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+		choiceFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+		choiceFrame.BorderSizePixel = 0
+		choiceFrame.Parent = screenGui
+		Instance.new("UICorner", choiceFrame).CornerRadius = UDim.new(0, 12)
 
-	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, 0, 0, 40)
-	title.BackgroundTransparency = 1
-	title.TextColor3 = Color3.fromRGB(255, 255, 255)
-	title.Font = Enum.Font.FredokaOne
-	title.TextSize = 20
-	title.Parent = choiceFrame
+		local title = Instance.new("TextLabel")
+		title.Size = UDim2.new(1, 0, 0, 40)
+		title.BackgroundTransparency = 1
+		title.TextColor3 = Color3.fromRGB(255, 255, 255)
+		title.Font = Enum.Font.FredokaOne
+		title.TextSize = 20
+		title.Parent = choiceFrame
 
-	if type == "PvE" then
-		title.Text = "Gym Battle! Fight?"
-	elseif type == "PvP" then
-		title.Text = "Player Encounter! Battle?"
-	end
+		local fightBtn = Instance.new("TextButton")
+		fightBtn.Size = UDim2.new(0, 120, 0, 50)
+		fightBtn.Position = UDim2.new(0, 20, 1, -60)
+		fightBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+		fightBtn.Text = "⚔️ FIGHT"
+		fightBtn.Font = Enum.Font.FredokaOne
+		fightBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		fightBtn.Parent = choiceFrame
+		Instance.new("UICorner", fightBtn).CornerRadius = UDim.new(0, 8)
 
-	local fightBtn = Instance.new("TextButton")
-	fightBtn.Size = UDim2.new(0, 120, 0, 50)
-	fightBtn.Position = UDim2.new(0, 20, 1, -60)
-	fightBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
-	fightBtn.Text = "⚔️ FIGHT"
-	fightBtn.Font = Enum.Font.FredokaOne
-	fightBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	fightBtn.Parent = choiceFrame
-	Instance.new("UICorner", fightBtn).CornerRadius = UDim.new(0, 8)
+		local runBtn = Instance.new("TextButton")
+		runBtn.Size = UDim2.new(0, 120, 0, 50)
+		runBtn.Position = UDim2.new(1, -140, 1, -60)
+		runBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+		runBtn.Text = "🏃 RUN"
+		runBtn.Font = Enum.Font.FredokaOne
+		runBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		runBtn.Parent = choiceFrame
+		Instance.new("UICorner", runBtn).CornerRadius = UDim.new(0, 8)
 
-	local runBtn = Instance.new("TextButton")
-	runBtn.Size = UDim2.new(0, 120, 0, 50)
-	runBtn.Position = UDim2.new(1, -140, 1, -60)
-	runBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-	runBtn.Text = "🏃 RUN"
-	runBtn.Font = Enum.Font.FredokaOne
-	runBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	runBtn.Parent = choiceFrame
-	Instance.new("UICorner", runBtn).CornerRadius = UDim.new(0, 8)
-
-	fightBtn.MouseButton1Click:Connect(function()
-		choiceFrame.Visible = false
-
-		-- OPEN SELECTION UI
-		local inventory = player:FindFirstChild("PokemonInventory")
-		local pokemons = inventory and inventory:GetChildren() or {}
-
-		local alivePokemons = {}
-		for _, poke in ipairs(pokemons) do
-			if poke:GetAttribute("Status") == "Alive" then
-				table.insert(alivePokemons, poke)
-			end
+		if type == "PvE" then
+			title.Text = "Gym Battle! Fight?"
+		elseif type == "PvP" then
+			title.Text = "Player Encounter! Battle?"
+		elseif type == "Defend" then
+			local attackerName = data and data.AttackerName or "Unknown"
+			title.Text = "⚠️ Challenged by " .. attackerName .. "!"
+			fightBtn.Text = "⚔️ ACCEPT"
+			runBtn.Text = "🏳️ DECLINE"
 		end
 
-		if #alivePokemons == 0 then
-			local warnFrame = Instance.new("Frame")
-			warnFrame.Size = UDim2.new(0, 320, 0, 180)
-			warnFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-			warnFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-			warnFrame.BackgroundColor3 = Color3.fromRGB(40, 20, 20)
-			warnFrame.BorderSizePixel = 0
-			warnFrame.Parent = screenGui
-			Instance.new("UICorner", warnFrame).CornerRadius = UDim.new(0, 12)
-			Instance.new("UIStroke", warnFrame).Color = Color3.fromRGB(255, 50, 50)
-			Instance.new("UIStroke", warnFrame).Thickness = 2
+		fightBtn.MouseButton1Click:Connect(function()
+			choiceFrame.Visible = false
 
-			local warnText = Instance.new("TextLabel")
-			warnText.Text = "🚫 NO POKEMON AVAILABLE!\n\nAll your Pokemon are fainted.\nYou cannot fight right now!"
-			warnText.Size = UDim2.new(0.9, 0, 0.6, 0)
-			warnText.Position = UDim2.new(0.05, 0, 0.1, 0)
-			warnText.BackgroundTransparency = 1
-			warnText.TextColor3 = Color3.fromRGB(255, 100, 100)
-			warnText.Font = Enum.Font.FredokaOne
-			warnText.TextSize = 20
-			warnText.TextWrapped = true
-			warnText.Parent = warnFrame
+			-- OPEN SELECTION UI
+			local inventory = player:FindFirstChild("PokemonInventory")
+			local pokemons = inventory and inventory:GetChildren() or {}
 
-			local forceRunBtn = Instance.new("TextButton")
-			forceRunBtn.Size = UDim2.new(0, 140, 0, 45)
-			forceRunBtn.Position = UDim2.new(0.5, -70, 0.75, 0)
-			forceRunBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-			forceRunBtn.Text = "🏃 RUN AWAY"
-			forceRunBtn.Font = Enum.Font.FredokaOne
-			forceRunBtn.TextSize = 18
-			forceRunBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-			forceRunBtn.Parent = warnFrame
-			Instance.new("UICorner", forceRunBtn).CornerRadius = UDim.new(0, 8)
-
-			forceRunBtn.MouseButton1Click:Connect(function()
-				warnFrame:Destroy()
-				Events.BattleTriggerResponse:FireServer("Run", nil)
-			end)
-			return
-		end
-
-		local selFrame = Instance.new("Frame")
-		selFrame.Size = UDim2.new(0, 400, 0, 300)
-		selFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-		selFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-		selFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-		selFrame.BorderSizePixel = 0
-		selFrame.Parent = screenGui
-		Instance.new("UICorner", selFrame).CornerRadius = UDim.new(0, 12)
-
-		local selTitle = Instance.new("TextLabel")
-		selTitle.Size = UDim2.new(1, 0, 0, 50)
-		selTitle.BackgroundTransparency = 1
-		selTitle.Text = "Choose your Pokemon!"
-		selTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-		selTitle.Font = Enum.Font.FredokaOne
-		selTitle.TextSize = 24
-		selTitle.Parent = selFrame
-
-		local scroll = Instance.new("ScrollingFrame")
-		scroll.Size = UDim2.new(0.9, 0, 0.7, 0)
-		scroll.Position = UDim2.new(0.05, 0, 0.2, 0)
-		scroll.BackgroundTransparency = 1
-		scroll.Parent = selFrame
-
-		local layout = Instance.new("UIListLayout")
-		layout.Parent = scroll
-		layout.Padding = UDim.new(0, 10)
-		layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-		for _, poke in ipairs(alivePokemons) do
-			local btn = Instance.new("TextButton")
-			btn.Size = UDim2.new(0.9, 0, 0, 50)
-			btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-			btn.Text = "  " .. poke.Name .. " (HP: " .. (poke:GetAttribute("CurrentHP") or "?") .. ")"
-			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-			btn.Font = Enum.Font.FredokaOne
-			btn.TextSize = 18
-			btn.TextXAlignment = Enum.TextXAlignment.Left
-			btn.Parent = scroll
-			Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-
-			btn.MouseButton1Click:Connect(function()
-				selFrame:Destroy()
-				choiceFrame:Destroy()
-
-				local responseData = { Type = type, SelectedPokemonName = poke.Name }
-				if type == "PvP" and data and data.Opponents then
-					responseData.Target = data.Opponents[1]
+			local alivePokemons = {}
+			for _, poke in ipairs(pokemons) do
+				if poke:GetAttribute("Status") == "Alive" then
+					table.insert(alivePokemons, poke)
 				end
-				Events.BattleTriggerResponse:FireServer("Fight", responseData)
-			end)
-		end
+			end
 
-		scroll.CanvasSize = UDim2.new(0, 0, 0, #alivePokemons * 60)
+			if #alivePokemons == 0 then
+				local warnFrame = Instance.new("Frame")
+				warnFrame.Size = UDim2.new(0, 320, 0, 180)
+				warnFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+				warnFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+				warnFrame.BackgroundColor3 = Color3.fromRGB(40, 20, 20)
+				warnFrame.BorderSizePixel = 0
+				warnFrame.Parent = screenGui
+				Instance.new("UICorner", warnFrame).CornerRadius = UDim.new(0, 12)
+				Instance.new("UIStroke", warnFrame).Color = Color3.fromRGB(255, 50, 50)
+				Instance.new("UIStroke", warnFrame).Thickness = 2
+
+				local warnText = Instance.new("TextLabel")
+				warnText.Text = "🚫 NO POKEMON AVAILABLE!\n\nAll your Pokemon are fainted.\nYou cannot fight right now!"
+				warnText.Size = UDim2.new(0.9, 0, 0.6, 0)
+				warnText.Position = UDim2.new(0.05, 0, 0.1, 0)
+				warnText.BackgroundTransparency = 1
+				warnText.TextColor3 = Color3.fromRGB(255, 100, 100)
+				warnText.Font = Enum.Font.FredokaOne
+				warnText.TextSize = 20
+				warnText.TextWrapped = true
+				warnText.Parent = warnFrame
+
+				local forceRunBtn = Instance.new("TextButton")
+				forceRunBtn.Size = UDim2.new(0, 140, 0, 45)
+				forceRunBtn.Position = UDim2.new(0.5, -70, 0.75, 0)
+				forceRunBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+				forceRunBtn.Text = "🏃 RUN AWAY"
+				forceRunBtn.Font = Enum.Font.FredokaOne
+				forceRunBtn.TextSize = 18
+				forceRunBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				forceRunBtn.Parent = warnFrame
+				Instance.new("UICorner", forceRunBtn).CornerRadius = UDim.new(0, 8)
+
+				forceRunBtn.MouseButton1Click:Connect(function()
+					warnFrame:Destroy()
+					choiceFrame:Destroy()  -- FIX: Also cleanup choiceFrame
+					-- FIX: Send correct action based on type
+					local action = "Run"
+					if type == "Defend" then action = "DefendRun" end
+					Events.BattleTriggerResponse:FireServer(action, nil)
+				end)
+				return
+			end
+
+			local selFrame = Instance.new("Frame")
+			selFrame.Size = UDim2.new(0, 400, 0, 300)
+			selFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+			selFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+			selFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+			selFrame.BorderSizePixel = 0
+			selFrame.Parent = screenGui
+			Instance.new("UICorner", selFrame).CornerRadius = UDim.new(0, 12)
+
+			local selTitle = Instance.new("TextLabel")
+			selTitle.Size = UDim2.new(1, 0, 0, 50)
+			selTitle.BackgroundTransparency = 1
+			selTitle.Text = "Choose your Pokemon!"
+			selTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+			selTitle.Font = Enum.Font.FredokaOne
+			selTitle.TextSize = 24
+			selTitle.Parent = selFrame
+
+			local scroll = Instance.new("ScrollingFrame")
+			scroll.Size = UDim2.new(0.9, 0, 0.7, 0)
+			scroll.Position = UDim2.new(0.05, 0, 0.2, 0)
+			scroll.BackgroundTransparency = 1
+			scroll.Parent = selFrame
+
+			local layout = Instance.new("UIListLayout")
+			layout.Parent = scroll
+			layout.Padding = UDim.new(0, 10)
+			layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+			for _, poke in ipairs(alivePokemons) do
+				local btn = Instance.new("TextButton")
+				btn.Size = UDim2.new(0.9, 0, 0, 50)
+				btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+				btn.Text = "  " .. poke.Name .. " (HP: " .. (poke:GetAttribute("CurrentHP") or "?") .. ")"
+				btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				btn.Font = Enum.Font.FredokaOne
+				btn.TextSize = 18
+				btn.TextXAlignment = Enum.TextXAlignment.Left
+				btn.Parent = scroll
+				Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+
+				btn.MouseButton1Click:Connect(function()
+					selFrame:Destroy()
+					choiceFrame:Destroy()
+
+					local responseData = { Type = type, SelectedPokemonName = poke.Name }
+					if type == "PvP" and data and data.Opponents then
+						responseData.Target = data.Opponents[1]
+					end
+					
+					local action = "Fight"
+					if type == "Defend" then action = "DefendFight" end
+					
+					Events.BattleTriggerResponse:FireServer(action, responseData)
+				end)
+			end
+
+			scroll.CanvasSize = UDim2.new(0, 0, 0, #alivePokemons * 60)
+		end)
+
+		runBtn.MouseButton1Click:Connect(function()
+			choiceFrame:Destroy()
+			local action = "Run"
+			if type == "Defend" then action = "DefendRun" end
+			Events.BattleTriggerResponse:FireServer(action, nil)
+		end)
 	end)
 
-	runBtn.MouseButton1Click:Connect(function()
-		choiceFrame:Destroy()
-		Events.BattleTriggerResponse:FireServer("Run", nil)
-	end)
+	if not ok then
+		warn("⚠️ [BattleUI] CRITICAL ERROR in BattleTrigger Handler:", err)
+	end
 end)

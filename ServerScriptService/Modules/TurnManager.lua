@@ -141,6 +141,9 @@ function TurnManager.nextTurn()
 			continue
 		end
 
+		-- Reset flags for new turn
+		p:SetAttribute("ProcessingTile", nil)
+
 		-- Process Active Player
 		local status = p:FindFirstChild("Status")
 		local sleep = status and status:FindFirstChild("SleepTurns")
@@ -289,7 +292,13 @@ function TurnManager.enterItemPhase(player)
 		Events.Notify:FireAllClients("🎒 " .. player.Name .. " อยู่ใน Item Phase")
 	end
 	
-	-- No forced timer - player can switch phases freely
+	-- FIX: Add timeout to prevent infinite wait (AI/AFK)
+	TimerSystem.startPhaseTimer(TurnManager.ITEM_PHASE_TIMEOUT, "Item", function()
+		if TurnManager.turnPhase == "Item" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
+			print("⏰ Item Phase Timeout for " .. player.Name .. ". Auto-advancing to Roll Phase.")
+			TurnManager.enterRollPhase(player)
+		end
+	end)
 end
 
 -- Enter Ability Phase (Use class abilities)
@@ -332,10 +341,29 @@ function TurnManager.enterAbilityPhase(player)
 end
 
 -- Enter roll phase
-function TurnManager.enterRollPhase(player)
+-- Optional: skipPvPCheck = true when called from Twisted Spoon to avoid triggering battles
+-- RESUME TURN (Called by BattleSystem when PvP is declined/skipped)
+function TurnManager.resumeTurn(player)
+	print("🔄 Resuming Turn for " .. player.Name)
+	local currentPos = PlayerManager.playerPositions[player.UserId] or 0
+	local landingTile = tilesFolder:FindFirstChild(tostring(currentPos))
+	
+	if not landingTile then
+		TurnManager.nextTurn()
+		return
+	end
+	
+	-- Clear process flag just in case
+	player:SetAttribute("ProcessingTile", nil)
+	
+	-- Process the tile event (Red/Green/White/etc.)
+	TurnManager.processTileEvent(player, currentPos, landingTile)
+end
+
+function TurnManager.enterRollPhase(player, skipPvPCheck)
 	TurnManager.turnPhase = "Roll"
 	TurnManager.isTurnActive = true  -- IMPORTANT: Allow player to roll
-	print("📍 Phase 4: ROLL Phase for:", player.Name)
+	print("📍 Phase 4: ROLL Phase for:", player.Name, skipPvPCheck and "(Skip PvP Check)" or "")
 
 	-- Fire PhaseUpdate to client
 	if Events.PhaseUpdate then
@@ -346,7 +374,8 @@ function TurnManager.enterRollPhase(player)
 	local currentPos = PlayerManager.playerPositions[player.UserId] or 0
 	
 	-- Skip battle check on start tile (tile 0) to prevent game-start battles
-	if currentPos == 0 then
+	-- Also skip if explicitly requested (e.g., from Twisted Spoon warp)
+	if currentPos == 0 or skipPvPCheck then
 		Events.UpdateTurn:FireAllClients(player.Name)
 		TimerSystem.startPhaseTimer(TimerSystem.ROLL_TIMEOUT, "Roll", function()
 			if TurnManager.turnPhase == "Roll" and player == PlayerManager.playersInGame[TurnManager.currentTurnIndex] then
@@ -364,11 +393,29 @@ function TurnManager.enterRollPhase(player)
 		end
 	end
 
+	-- FIX: Filter out opponents we just battled OR have no Pokemon (prevents useless UI)
 	if #opponents > 0 and Events.BattleTrigger then
-		print("⚔️ PvP Opportunity at turn start for " .. player.Name)
-		Events.BattleTrigger:FireClient(player, "PvP", { Opponents = opponents })
-		-- The BattleTriggerResponse handler will call resumeTurn or start battle
-		return
+		local validOpponents = {}
+		for _, opp in ipairs(opponents) do
+			-- Check 1: Recently battled?
+			if BattleSystem.lastBattleOpponent[player.UserId] == opp.UserId then
+				print("⏭️ [enterRollPhase] Skipping PvP UI for " .. opp.Name .. " (recent battle)")
+			-- Check 2: FIX - Opponent has alive Pokemon?
+			elseif not BattleSystem.getFirstAlivePokemon(opp) then
+				print("⏭️ [enterRollPhase] Skipping PvP UI for " .. opp.Name .. " (no alive Pokemon)")
+			else
+				table.insert(validOpponents, opp)
+			end
+		end
+		
+		if #validOpponents > 0 then
+			print("⚔️ PvP Opportunity at turn start for " .. player.Name)
+			Events.BattleTrigger:FireClient(player, "PvP", { Opponents = validOpponents })
+			-- The BattleTriggerResponse handler will call resumeTurn or start battle
+			return
+		else
+			print("⏭️ [enterRollPhase] All opponents filtered out. Skipping PvP UI.")
+		end
 	end
 
 	Events.UpdateTurn:FireAllClients(player.Name)
@@ -739,43 +786,43 @@ local ValidJobs = {
 	Gambler = {
 		Name = "Gambler",
 		Ability = "LuckyGuess",
-		Description = "นักพนัน - ทายเลข 1-6 ถูกได้ 6 เหรียญ"
+		Description = "นักพนัน (Meowth) - ทายเลข 1-6 ถูกได้ 6 เหรียญ"
 	},
 	Esper = {
 		Name = "Esper",
 		Ability = "MindMove",
-		Description = "จิตสัมผัส - กำหนดช่องเดินได้ 1-2 ช่อง"
+		Description = "จิตสัมผัส (Abra) - กำหนดช่องเดินได้ 1-2 ช่อง"
 	},
 	Shaman = {
 		Name = "Shaman",
 		Ability = "Curse",
-		Description = "หมอผี - สาปให้คนอื่นทิ้งการ์ด+เสียเงิน"
+		Description = "หมอผี (Gastly) - สาปให้คนอื่นทิ้งการ์ด+เสียเงิน"
 	},
 	Biker = {
 		Name = "Biker",
 		Ability = "TurboBoost",
-		Description = "นักบิด - เดินเพิ่ม +2 ช่อง"
+		Description = "นักบิด (Ponyta) - เดินเพิ่ม +2 ช่อง"
 	},
 	Trainer = {
 		Name = "Trainer",
 		Ability = "ExtraHand",
-		Description = "เทรนเนอร์ - ถือการ์ดได้ 6 ใบ (Passive)",
+		Description = "เทรนเนอร์ (Pikachu) - ถือการ์ดได้ 6 ใบ (Passive)",
 		HandLimit = 6
 	},
 	Fisherman = {
 		Name = "Fisherman",
 		Ability = "StealCard",
-		Description = "นักตกปลา - แย่งชิงการ์ดจากผู้เล่นอื่น"
+		Description = "นักตกปลา (Magikarp) - แย่งชิงการ์ดจากผู้เล่นอื่น"
 	},
 	Rocket = {
 		Name = "Rocket",
 		Ability = "StealPokemon",
-		Description = "แก็งร็อกเก็ต - ขโมย Pokemon เมื่อชนะ PvP (Passive)"
+		Description = "แก็งร็อกเก็ต (Rattata) - ขโมย Pokemon เมื่อชนะ PvP (Passive)"
 	},
 	NurseJoy = {
 		Name = "NurseJoy",
 		Ability = "Revive",
-		Description = "คุณจอย - ฟื้นฟู Pokemon ที่ตายได้ทุกเทิร์น"
+		Description = "คุณจอย (Clefairy) - ฟื้นฟู Pokemon ที่ตายได้ทุกเทิร์น"
 	}
 }
 
@@ -799,13 +846,13 @@ function TurnManager.handleStarterSelection(player, jobName)
 	-- Give starter Pokemon based on job
 	local starterPokemon = {
 		Gambler = "Meowth",    -- Money-related
-		Esper = "Drowzee",     -- Psychic/Sleep
+		Esper = "Abra",        -- Psychic (User Request)
 		Shaman = "Gastly",     -- Ghost/Spirit
-		Biker = "Cyclizar",    -- Fast/Motorcycle Pokemon
+		Biker = "Ponyta",      -- Fast/Horse (Cyclizar removed)
 		Trainer = "Pikachu",   -- Classic trainer
 		Fisherman = "Magikarp",-- Fishing
 		Rocket = "Rattata",    -- Team Rocket
-		NurseJoy = "Chansey"   -- Healing
+		NurseJoy = "Clefairy"  -- Healing (Chansey missing)
 	}
 
 	local starterName = starterPokemon[jobName] or "Pikachu"
@@ -888,16 +935,53 @@ function TurnManager.startGame()
 		print("📡 GameStarted event fired to all clients")
 	end
 
-	task.wait(2)
-
-	-- Unfreeze Everyone (Biker gets bonus speed)
+	-- FIX: Wait for ALL player characters to be ready before starting
+	print("⏳ Waiting for all player characters to spawn...")
+	local maxWaitTime = 10 -- Maximum 10 seconds to wait
+	local startWait = tick()
+	
 	for _, p in ipairs(PlayerManager.playersInGame) do
-		if p.Character and p.Character:FindFirstChild("Humanoid") then
-			local isBiker = (p:GetAttribute("Job") == "Biker")
-			p.Character.Humanoid.WalkSpeed = isBiker and 32 or 24
-			p.Character.Humanoid.JumpPower = 50
+		-- Wait for character to exist
+		while not p.Character and (tick() - startWait) < maxWaitTime do
+			task.wait(0.1)
+		end
+		
+		-- Wait for HumanoidRootPart (critical for positioning)
+		if p.Character then
+			local hrp = p.Character:WaitForChild("HumanoidRootPart", 5)
+			local humanoid = p.Character:WaitForChild("Humanoid", 5)
+			
+			if hrp and humanoid then
+				-- Extra wait for physics to stabilize
+				task.wait(0.3)
+				
+				-- FIX: Teleport player to tile 0 with proper offset (ensures correct spawn)
+				local slot = PlayerManager.playerSlots[p.UserId] or 1
+				local tilesFolder = game.Workspace:FindFirstChild("Tiles")
+				local startTile = tilesFolder and tilesFolder:FindFirstChild("0")
+				
+				if startTile then
+					local offset = PlayerManager.getPlayerTilePosition and 
+						PlayerManager.getPlayerTilePosition(p, startTile) or 
+						startTile.Position + Vector3.new(0, 5, 0)
+					p.Character:PivotTo(CFrame.new(offset))
+					print("📍 [startGame] Positioned " .. p.Name .. " at tile 0 (Slot " .. slot .. ")")
+				end
+				
+				-- Unfreeze player
+				local isBiker = (p:GetAttribute("Job") == "Biker")
+				humanoid.WalkSpeed = isBiker and 32 or 24
+				humanoid.JumpPower = 50
+			else
+				warn("⚠️ " .. p.Name .. " character not fully loaded!")
+			end
+		else
+			warn("⚠️ " .. p.Name .. " has no character after waiting!")
 		end
 	end
+	
+	print("✅ All characters ready! Starting turns...")
+	task.wait(0.5) -- Final stabilization wait
 
 	-- Start First Turn
 	TurnManager.currentTurnIndex = 0
@@ -911,8 +995,19 @@ function TurnManager.processPlayerRoll(player)
 	if not TurnManager.isTurnActive then return end
 	if player ~= PlayerManager.playersInGame[TurnManager.currentTurnIndex] then return end
 
+	-- Fix: Prevent roll if battle is active or pending
+	if BattleSystem and (BattleSystem.activeBattles[player.UserId] or BattleSystem.pendingBattles[player.UserId]) then
+		print("❌ Cannot roll - Battle Active/Pending for " .. player.Name)
+		return
+	end
+
 	TurnManager.isTurnActive = false
 	if EncounterSystem then EncounterSystem.clearCenterStage() end
+
+	-- Clear lastBattleOpponent เมื่อเริ่มเดิน (อนุญาตให้ Battle กับคนเดิมได้อีกหลังเดิน)
+	if BattleSystem and BattleSystem.lastBattleOpponent then
+		BattleSystem.lastBattleOpponent[player.UserId] = nil
+	end
 
 	-- Check for Esper's Fixed Roll (MindMove ability)
 	local fixedRoll = player:GetAttribute("FixedDiceRoll")
@@ -938,7 +1033,7 @@ function TurnManager.processPlayerRoll(player)
 	
 	-- Apply Biker bonus (+2) AFTER dice animation
 	if bonusRoll > 0 then
-		task.wait(1.5) -- Wait for dice animation
+		task.wait(0.5) -- Short wait for dice animation (was 1.5)
 		roll = baseRoll + bonusRoll
 		player:SetAttribute("BonusDiceRoll", nil) -- Clear after use
 		print("🏍️ [Server] Biker bonus applied: +" .. bonusRoll .. " (Total: " .. roll .. ")")
@@ -947,15 +1042,24 @@ function TurnManager.processPlayerRoll(player)
 		if Events.Notify then
 			Events.Notify:FireAllClients("🏍️ " .. player.Name .. " ใช้ Turbo Boost! +" .. bonusRoll .. " ช่อง (รวม " .. roll .. " ช่อง)")
 		end
-		task.wait(1) -- Extra wait for notification
+		task.wait(0.5) -- Extra wait for notification (was 1)
 	else
-		task.wait(2.5)
+		task.wait(1) -- Wait for dice animation (was 2.5)
 	end
 
 	print("🎲 [Server] Final move distance:", roll)
 
 	local character = player.Character
 	local humanoid = character and character:FindFirstChild("Humanoid")
+	
+	-- FIX: Safety check - abort if character isn't ready
+	-- This prevents "Player:Move called, but player currently has no character" error
+	if not character or not humanoid then
+		warn("⚠️ [Server] Cannot move " .. player.Name .. " - character not ready!")
+		TurnManager.isTurnActive = true -- Re-enable turn for retry
+		return
+	end
+	
 	local currentPos = PlayerManager.playerPositions[player.UserId] or 0
 	local repelLeft = PlayerManager.playerRepelSteps[player.UserId] or 0
 
@@ -969,10 +1073,16 @@ function TurnManager.processPlayerRoll(player)
 			currentPos = 0
 			nextTile = tilesFolder:FindFirstChild(tostring(currentPos))
 
-			-- Increment Lap
+			-- Increment Lap (only here, not in tile 0 landing)
 			local currentLap = PlayerManager.playerLaps[player.UserId] or 1
-			PlayerManager.playerLaps[player.UserId] = currentLap + 1
-			print("🏁 " .. player.Name .. " finished Lap " .. currentLap .. "!")
+			local newLap = currentLap + 1
+			PlayerManager.playerLaps[player.UserId] = newLap
+			print("🏁 " .. player.Name .. " finished Lap " .. currentLap .. "/3 -> Now on Lap " .. newLap .. "/3!")
+
+			-- FIX: Fire LapUpdate event to client for UI
+			if Events.LapUpdate then
+				Events.LapUpdate:FireClient(player, newLap)
+			end
 
 			-- Reward: 5 Pokeballs
 			local balls = player.leaderstats:FindFirstChild("Pokeballs")
@@ -980,8 +1090,44 @@ function TurnManager.processPlayerRoll(player)
 				balls.Value += 5
 			end
 
+			-- FIX: Check if player finished all 3 laps
+			if newLap > 3 then
+				print("🏆 " .. player.Name .. " FINISHED THE GAME!")
+				PlayerManager.playerFinished[player.UserId] = true
+				
+				if Events.Notify then
+					Events.Notify:FireAllClients("🏆 " .. player.Name .. " ครบ 3 รอบแล้ว! เกมจบสำหรับ " .. player.Name .. "!")
+				end
+				
+				-- Move to tile 0 and stop
+				if nextTile and humanoid then
+					humanoid:MoveTo(PlayerManager.getPlayerTilePosition(player, nextTile))
+					humanoid.MoveToFinished:Wait()
+				end
+				PlayerManager.playerPositions[player.UserId] = 0
+				
+				-- Check if all players finished
+				local allFinished = true
+				for _, p in ipairs(PlayerManager.playersInGame) do
+					if not PlayerManager.playerFinished[p.UserId] then
+						allFinished = false
+						break
+					end
+				end
+				
+				if allFinished then
+					print("🎉 ALL PLAYERS FINISHED! GAME OVER!")
+					if Events.Notify then
+						Events.Notify:FireAllClients("🎉 ทุกคนครบ 3 รอบแล้ว! เกมจบ!")
+					end
+				end
+				
+				TurnManager.nextTurn()
+				return
+			end
+
 			if Events.Notify then
-				Events.Notify:FireClient(player, "🏁 Lap Completed! +5 🔴 Pokeballs! Stopping at Sell Center.")
+				Events.Notify:FireClient(player, "🏁 Lap " .. currentLap .. "/3 Complete! +5 🔴 Pokeballs! (" .. newLap .. "/3)")
 			end
 
 			-- FORCE STOP AT START (Tile 0)
@@ -1010,8 +1156,20 @@ function TurnManager.processPlayerRoll(player)
 		end
 
 		if nextTile and humanoid then
-			humanoid:MoveTo(PlayerManager.getPlayerTilePosition(player, nextTile))
-			humanoid.MoveToFinished:Wait()
+			local targetPos = PlayerManager.getPlayerTilePosition(player, nextTile)
+			humanoid:MoveTo(targetPos)
+			
+			-- Fast arrival check instead of MoveToFinished:Wait (smoother movement)
+			local hrp = character:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				local maxWait = 2 -- Safety timeout
+				local startTime = tick()
+				while tick() - startTime < maxWait do
+					local dist = (hrp.Position - targetPos).Magnitude
+					if dist < 3 then break end -- Close enough
+					task.wait(0.05)
+				end
+			end
 
 			if repelLeft > 0 then 
 				repelLeft = repelLeft - 1
@@ -1038,40 +1196,18 @@ function TurnManager.processPlayerRoll(player)
 	-- 🏁 LANDING LOGIC (ONLY AFTER MOVEMENT)
 	-- ==========================================
 	PlayerManager.playerPositions[player.UserId] = currentPos
-	local landingTile = tilesFolder:FindFirstChild(tostring(currentPos))
-
-	if landingTile then
-		-- 🛑 SPECIAL: START TILE (Priority over PVP)
-		local isStartTile = (landingTile.Name == "0" or landingTile.Name == "Start")
-		if isStartTile then
-			TurnManager.processTileEvent(player, currentPos, landingTile)
-			return
-		end
-
-		-- 🔷 PVP CHECK
-		local opponents = {}
-		for _, otherPlayer in ipairs(PlayerManager.playersInGame) do
-			if otherPlayer ~= player and PlayerManager.playerPositions[otherPlayer.UserId] == currentPos then
-				table.insert(opponents, otherPlayer)
-			end
-		end
-
-		if #opponents > 0 and Events.BattleTrigger then
-			print("⚔️ PvP Potential on landing! Triggering Selection...")
-			Events.BattleTrigger:FireClient(player, "PvP", { Opponents = opponents })
-			return 
-		end
-
-		-- If no PvP, process tile normally
-		TurnManager.processTileEvent(player, currentPos, landingTile)
-	else
-		TurnManager.nextTurn()
-	end
+	
+	-- Use centralized landing logic
+	TurnManager.processLanding(player, currentPos)
 end
 
 -- RESUME TURN (Called after declining PvP)
 function TurnManager.resumeTurn(player)
-	print("🔄 Resuming turn for " .. player.Name)
+	print("🔄 Resuming turn for " .. player.Name .. " | Caller: " .. debug.traceback())
+	
+	-- Clear any stuck flags
+	player:SetAttribute("ProcessingTile", nil)
+	
 	local currentPos = PlayerManager.playerPositions[player.UserId] or 0
 	local tile = tilesFolder:FindFirstChild(tostring(currentPos))
 
@@ -1083,18 +1219,113 @@ function TurnManager.resumeTurn(player)
 	end
 end
 
+-- CENTRALIZED LANDING LOGIC (PvP Check -> Tile Event)
+-- Used by: processPlayerRoll, Twisted Spoon Warp
+-- forceOpponent: Optional - if provided, always trigger PvP with this player (used by Twisted Spoon)
+function TurnManager.processLanding(player, currentPos, forceOpponent)
+	-- Prevent re-entry if player is already handling an event
+	if player:GetAttribute("ProcessingTile") then
+		warn("⚠️ processLanding ignored for " .. player.Name .. " (Already processing)" .. " | Caller: " .. debug.traceback())
+		return
+	end
+	player:SetAttribute("ProcessingTile", true)
+	print("🛬 processLanding for " .. player.Name .. " at " .. currentPos .. " | Caller: " .. debug.traceback())
+
+	local landingTile = tilesFolder:FindFirstChild(tostring(currentPos))
+	if not landingTile then
+		player:SetAttribute("ProcessingTile", nil)
+		TurnManager.nextTurn()
+		return
+	end
+
+	-- 🛑 SPECIAL: START TILE (Priority over PVP)
+	local isStartTile = (landingTile.Name == "0" or landingTile.Name == "Start")
+	if isStartTile then
+		player:SetAttribute("ProcessingTile", nil)
+		TurnManager.processTileEvent(player, currentPos, landingTile)
+		return
+	end
+
+	-- 🔷 PVP CHECK
+	local opponents = {}
+	
+	-- If forceOpponent provided (Twisted Spoon warp), always include them
+	if forceOpponent and forceOpponent ~= player then
+		table.insert(opponents, forceOpponent)
+		print("⚔️ Twisted Spoon: Force PvP with " .. forceOpponent.Name)
+	else
+		-- Normal position-based check
+		for _, otherPlayer in ipairs(PlayerManager.playersInGame) do
+			if otherPlayer ~= player and PlayerManager.playerPositions[otherPlayer.UserId] == currentPos then
+				table.insert(opponents, otherPlayer)
+			end
+		end
+	end
+
+	if #opponents > 0 and Events.BattleTrigger then
+		-- FIX: Filter out opponents we just battled (prevents UI from showing when battle would be blocked)
+		local BattleSystem = require(game.ServerScriptService.Modules.BattleSystem)
+		local validOpponents = {}
+		for _, opp in ipairs(opponents) do
+			-- Check 1: Recently battled?
+			if BattleSystem.lastBattleOpponent[player.UserId] == opp.UserId then
+				print("⏭️ Skipping PvP UI for " .. opp.Name .. " (recent battle)")
+			-- Check 2: FIX - Opponent has alive Pokemon?
+			elseif not BattleSystem.getFirstAlivePokemon(opp) then
+				print("⏭️ Skipping PvP UI for " .. opp.Name .. " (no alive Pokemon)")
+			else
+				table.insert(validOpponents, opp)
+			end
+		end
+		
+		if #validOpponents > 0 then
+			print("⚔️ PvP Potential on landing! Triggering Selection...")
+			print("🔴 [Server] Firing BattleTrigger to " .. player.Name) -- Diagnostic
+			-- Clear ProcessingTile since turn control is now with BattleSystem
+			player:SetAttribute("ProcessingTile", nil)
+			Events.BattleTrigger:FireClient(player, "PvP", { Opponents = validOpponents })
+			return
+		else
+			print("⏭️ All opponents recently battled. Skipping PvP UI.")
+			-- FIX: Don't enter Roll Phase again (causes Double Roll)
+			-- Instead, process the tile event normally (White/Red/etc.)
+			player:SetAttribute("ProcessingTile", nil)
+			TurnManager.processTileEvent(player, currentPos, landingTile)
+			return
+		end
+	end
+
+	-- If no PvP, process tile normally
+	-- Clear ProcessingTile since processTileEvent will handle the rest
+	player:SetAttribute("ProcessingTile", nil)
+	TurnManager.processTileEvent(player, currentPos, landingTile)
+end
+
 -- CENTRAL TILE EVENT HANDLER
 function TurnManager.processTileEvent(player, currentPos, nextTile)
+	-- Check if player is busy (PvP, Pending, etc) to prevent double encounters
+	local BattleSystem = require(game.ServerScriptService.Modules.BattleSystem)
+	if BattleSystem.isPlayerBusy(player) then
+		warn("⛔ processTileEvent ABORTED for " .. player.Name .. " (Busy in Battle/Pending) | Caller: " .. debug.traceback())
+		return
+	end
+
 	local tileColorName = nextTile.BrickColor.Name
 	local tileColorLower = string.lower(tileColorName)
 	print("📍 [Server] Processing Tile: " .. nextTile.Name .. " | Color: " .. tileColorName)
 
-	-- 0. START TILE
+	-- 0. START TILE (Lap already incremented in board wrap - just open Sell UI)
 	local isStartTile = (nextTile.Name == "0" or nextTile.Name == "Start")
 	if isStartTile then
 		print("💰 Landed on Start! Opening Sell UI...")
 
 		local SellSystem = require(game.ServerScriptService.Modules.SellSystem)
+		
+		-- FIX: Do NOT increment lap here - it's already done in board wrap logic
+		-- This prevents double counting laps
+		local currentLap = PlayerManager.playerLaps[player.UserId] or 1
+		print("📍 Player " .. player.Name .. " at Start tile (Lap " .. currentLap .. "/3)")
+
 		if SellSystem then
 			SellSystem.openSellUI(player)
 			TimerSystem.startPhaseTimer(60, "Sell", function()
@@ -1204,6 +1435,20 @@ function TurnManager.processTileEvent(player, currentPos, nextTile)
 	-- 5. DEFAULT (Draw Card - if logic falls through)
 	-- Previously checked for PvP here. Now handled before.
 	CardSystem.drawOneCard(player)
+
+	-- FIX: Twisted Spoon Phase Leap
+	-- If we are in Item or Ability Phase (e.g. from Twisted Spoon warp), DO NOT end turn!
+	-- Only end turn if we are in Main/Roll/Encounter phase or if logic explicitly dictates.
+	if TurnManager.turnPhase == "Item" or TurnManager.turnPhase == "Ability" then
+		print("🔄 Landed on Tile during " .. TurnManager.turnPhase .. " Phase. Returning control to player.")
+		if Events.Notify then
+			Events.Notify:FireClient(player, "✅ Warped safely! Continue your turn.")
+		end
+		-- Maybe reset timer if it was cancelled? 
+		-- Actually, just let the player decide via "Next Phase".
+		return
+	end
+
 	TurnManager.nextTurn()
 end
 

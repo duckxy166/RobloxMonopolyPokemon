@@ -135,7 +135,7 @@ local function createPlayerBox(targetPlayer, index)
 	-- REPLACE THESE IDs WITH YOUR UPLOADED IMAGE IDs
 	local COIN_ICON_ID = "rbxassetid://88871535760357" -- Put Coin Image ID here
 	local BALL_ICON_ID = "rbxassetid://136940926868953" -- Put Pokeball Image ID here
-	local CARD_ICON_ID = "rbxassetid://0" -- 🃏 Put Card Image ID here
+	local CARD_ICON_ID = "rbxassetid://111087840496480" -- 🃏 Put Card Image ID here
 
 	createStat(COIN_ICON_ID, "Money", Color3.fromRGB(255, 220, 0))
 	createStat(CARD_ICON_ID, "Cards", Color3.fromRGB(200, 200, 200)) 
@@ -162,11 +162,11 @@ local function createPlayerBox(targetPlayer, index)
 	statusPill.AnchorPoint = Vector2.new(1, 0)
 	statusPill.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 	statusPill.Parent = box
-	
+
 	local pillCorner = Instance.new("UICorner")
 	pillCorner.CornerRadius = UDim.new(1, 0) -- Pill shape
 	pillCorner.Parent = statusPill
-	
+
 	local statusLbl = Instance.new("TextLabel")
 	statusLbl.Name = "StatusLabel"
 	statusLbl.Size = UDim2.new(1, 0, 1, 0)
@@ -197,17 +197,26 @@ local function createPlayerBox(targetPlayer, index)
 		local slot = Instance.new("Frame")
 		slot.Name = "Slot_" .. i
 		slot.Size = UDim2.new(0, 42, 0, 42) -- Bigger slots!
-		slot.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-		slot.BackgroundTransparency = 0.5
+		slot.BackgroundColor3 = Color3.fromRGB(30, 30, 30) -- Darker background
+		slot.BackgroundTransparency = 0.3 -- More visible background
 		slot.Parent = partyRow
-		slot.ClipsDescendants = true -- Clip the zoomed in image
+		slot.ClipsDescendants = true 
 		Instance.new("UICorner", slot).CornerRadius = UDim.new(0, 6)
+		
+		-- New: Add Stroke
+		local slotStroke = Instance.new("UIStroke")
+		slotStroke.Color = Color3.fromRGB(255, 255, 255)
+		slotStroke.Transparency = 0.8 -- Subtle border
+		slotStroke.Thickness = 1
+		slotStroke.Parent = slot
 
 		local icon = Instance.new("ImageLabel")
 		icon.Name = "IconImg"
-		icon.Size = UDim2.new(2, 0, 2, 0) -- Zoom in (130%)
-		icon.Position = UDim2.new(0.5, 0, -0.1, 0) -- Center
-		icon.AnchorPoint = Vector2.new(0.5, 0.5) -- Center Anchor
+		-- FIX: Adjusted size to fit within the box instead of zooming in too much
+		icon.Size = UDim2.new(0.9, 0, 0.9, 0) 
+		-- FIX: Centered position
+		icon.Position = UDim2.new(0.5, 0, 0.5, 0) 
+		icon.AnchorPoint = Vector2.new(0.5, 0.5) 
 		icon.BackgroundTransparency = 1
 		icon.Image = ""
 		icon.ScaleType = Enum.ScaleType.Fit
@@ -350,20 +359,20 @@ end
 local function updatePlayerStatus(pName, statusType, customText)
 	local data = playerFrames[pName]
 	if not data then return end
-	
+
 	local box = data.Box
 	local pill = data.StatusPill
 	local lbl = data.StatusLabel
 	local stroke = data.Stroke
-	
+
 	if not (box and pill and lbl and stroke) then return end
-	
+
 	-- Defaults
 	local pillColor = Color3.fromRGB(80, 80, 80)
 	local text = "WAITING"
 	local borderColor = Color3.fromRGB(255, 255, 255)
 	local strokeThickness = 2
-	
+
 	if statusType == "Active" then
 		pillColor = Color3.fromRGB(255, 200, 50) -- Gold/Orange
 		text = customText or "THINKING..."
@@ -381,7 +390,7 @@ local function updatePlayerStatus(pName, statusType, customText)
 		borderColor = Color3.fromRGB(100, 100, 120)
 		strokeThickness = 2
 	end
-	
+
 	-- Animate changes
 	TweenService:Create(pill, TweenInfo.new(0.3), {BackgroundColor3 = pillColor}):Play()
 	lbl.Text = text
@@ -499,7 +508,7 @@ task.spawn(function()
 	endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent", 5)
 	if not endTurnEvent then
 		warn("EndTurnEvent missing, waiting...")
-		end
+	end
 
 	notifyEvent = ReplicatedStorage:WaitForChild("NotifyEvent", 5)
 	if notifyEvent then
@@ -511,7 +520,7 @@ task.spawn(function()
 				Duration = 3;
 			})
 		end)
-	endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent")
+		endTurnEvent = ReplicatedStorage:WaitForChild("EndTurnEvent")
 	end
 
 	resetCamEvent = ReplicatedStorage:FindFirstChild("ResetCameraEvent") or Instance.new("BindableEvent")

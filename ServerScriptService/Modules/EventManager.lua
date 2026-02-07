@@ -101,6 +101,9 @@ function EventManager.init()
 
 		-- Status Effects
 		StatusChanged = EventManager.getOrCreate("StatusChangedEvent"),
+		
+		-- Laps
+		LapUpdate = EventManager.getOrCreate("LapUpdateEvent"),
 	}
 
 	print("✅ EventManager initialized with " .. #events .. " events")

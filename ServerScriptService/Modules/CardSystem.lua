@@ -44,7 +44,7 @@ function CardSystem.init(events)
 	end
 	CardDB = require(CardDBModule)
 	notifyEvent = events.Notify
-	
+
 	print("✅ CardSystem initialized")
 	print("📂 Loaded CardDB Contents:")
 	for name, _ in pairs(CardDB.Cards) do
@@ -74,14 +74,14 @@ end
 function CardSystem.validateHand(player)
 	local hand = CardSystem.getHandFolder(player)
 	if not hand then return end
-	
+
 	print("🔍 [CardSystem] Validating hand for " .. player.Name)
 	for _, card in ipairs(hand:GetChildren()) do
 		print("   🃏 Found card: " .. card.Name .. " (Count: " .. tostring(card.Value) .. ")")
-		
+
 		if card.Name == "Full Heal" then
 			print("🧹 [CardSystem] Removing legacy 'Full Heal' card from " .. player.Name)
-			
+
 			-- Check if they already have Revive
 			local reviveCard = hand:FindFirstChild("Revive")
 			if reviveCard then
@@ -198,27 +198,27 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 		events.PlayCard.OnServerEvent:Connect(function(player, cardName, targetInfo)
 			print("🃏 Playing card: " .. cardName)
 			local cardDef = CardDB.Cards[cardName]
-			
+
 			-- Debounce Check (Prevent spam)
 			if player:GetAttribute("ProcessingCard") then
 				warn(player.Name .. " spammed card usage.")
 				return
 			end
 			player:SetAttribute("ProcessingCard", true)
-			
+
 			-- Ensure debounce is cleared even if errors occur
 			task.delay(1, function()
 				if player:GetAttribute("ProcessingCard") then
 					player:SetAttribute("ProcessingCard", nil)
 				end
 			end)
-			
+
 			-- Validate card exists in CardDB
 			if not cardDef then
 				if events.Notify then events.Notify:FireClient(player, "❌ Unknown card: " .. cardName) end
 				return
 			end
-			
+
 			-- Turn validation: Block cards during other players' turns
 			local currentPlayer = playerManager.playersInGame[turnManager.currentTurnIndex]
 			if currentPlayer and player ~= currentPlayer then
@@ -227,7 +227,7 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 				end
 				return
 			end
-			
+
 			-- Phase validation: Cards only allowed in Item Phase
 			if turnManager.turnPhase ~= "Item" then
 				if events.Notify then 
@@ -235,7 +235,7 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 				end
 				return
 			end
-			
+
 			-- Protective Goggles is passive only (auto-activates when attacked)
 			if cardName == "Protective Goggles" then
 				if events.Notify then
@@ -243,14 +243,14 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 				end
 				return
 			end
-			
+
 			-- Consume the card from hand first
 			if not CardSystem.removeCardFromHand(player, cardName, 1) then
 				if events.Notify then events.Notify:FireClient(player, "❌ You don't have that card!") end
 				return
 			end
 			CardSystem.discardCard(cardName)
-			
+
 			-- [C] Revive (Single Pokemon)
 			if cardDef and cardDef.NeedsSelfPokemon then
 				local pokeName = targetInfo -- Pass pokemon name as targetInfo
@@ -265,9 +265,9 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 								poke:SetAttribute("CurrentHP", poke:GetAttribute("MaxHP"))
 								found = true
 								if events.Notify then 
-							events.Notify:FireClient(player, "💖 Revived " .. pokeName .. "!")
-							events.Notify:FireAllClients("💖 " .. player.Name .. " revived " .. pokeName .. "!")
-						end
+									events.Notify:FireClient(player, "💖 Revived " .. pokeName .. "!")
+									events.Notify:FireAllClients("💖 " .. player.Name .. " revived " .. pokeName .. "!")
+								end
 								break -- Only revive one
 							end
 						end
@@ -280,7 +280,7 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 					if events.Notify then events.Notify:FireClient(player, "❌ Select a pokemon to revive!") end
 				end
 			end
-			
+
 			-- [A] MoneyGain Cards (Nugget, etc.)
 			if cardDef.MoneyGain then
 				local amount = cardDef.MoneyGain
@@ -290,7 +290,7 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 					events.Notify:FireAllClients("💰 " .. player.Name .. " used " .. cardName .. " and gained " .. amount .. " coins!")
 				end
 			end
-			
+
 			-- [B] Draw Cards (Lucky Draw, etc.)
 			if cardDef.Draw then
 				local drawCount = cardDef.Draw
@@ -301,7 +301,7 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 					events.Notify:FireAllClients("🃏 " .. player.Name .. " used " .. cardName .. " and drew " .. drawCount .. " cards!")
 				end
 			end
-			
+
 			-- [C] Special Cards
 			if cardName == "Rare Candy" then
 				local EvolutionSystem = require(script.Parent:WaitForChild("EvolutionSystem"))
@@ -316,66 +316,66 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 					end
 				end
 			end
-			
+
 			-- TARGET CARD LOGIC
 			if cardDef and cardDef.NeedsTarget then
 				local targetPlayer = targetInfo
-				
+
 				-- Validation
 				if not targetPlayer or typeof(targetPlayer) ~= "Instance" or not targetPlayer:IsA("Player") then
 					if events.Notify then events.Notify:FireClient(player, "❌ Invalid Target!") end
 					-- Refund card? To simplify, we assume client handled it correctly.
 					return 
 				end
-				
+
 				if targetPlayer == player then
 					if events.Notify then events.Notify:FireClient(player, "❌ Cannot target yourself!") end
 					return
 				end
-				
+
 				print("🎯 " .. player.Name .. " used " .. cardName .. " on " .. targetPlayer.Name)
 
 				-- DEFENSE CHECK (Safety Goggles)
-                -- Concept: If target has Goggles, ask if they want to block.
-                local blocked = false
-                if cardName ~= "Twisted Spoon" then
-                    local targetHand = CardSystem.getHandFolder(targetPlayer)
-                    local goggles = targetHand and targetHand:FindFirstChild("Protective Goggles")
-                    
-                    if goggles and events.RequestReaction then
+				-- Concept: If target has Goggles, ask if they want to block.
+				local blocked = false
+				if cardName ~= "Twisted Spoon" then
+					local targetHand = CardSystem.getHandFolder(targetPlayer)
+					local goggles = targetHand and targetHand:FindFirstChild("Protective Goggles")
+
+					if goggles and events.RequestReaction then
 						-- Notify Attacker
 						if events.Notify then events.Notify:FireClient(player, "⏳ Waiting for response...") end
-						
-                        local decision = events.RequestReaction:InvokeClient(targetPlayer, player.Name, cardName)
-                        if decision then
-                            blocked = true
-                            CardSystem.removeCardFromHand(targetPlayer, "Protective Goggles", 1)
-                            
-                            if events.Notify then
-                                events.Notify:FireClient(player, "🛡️ Attack BLOCKED by Protective Goggles!")
-                                events.Notify:FireClient(targetPlayer, "🛡️ You blocked the attack!")
-                            end
-                            -- UI Notification to all players
-                            if events.CardNotification then
-                                events.CardNotification:FireAllClients({
-                                    CardName = "Protective Goggles",
-                                    UserName = targetPlayer.Name,
-                                    TargetName = player.Name,
-                                    CardType = "Defense",
-                                    Message = "Blocked " .. cardName .. " from " .. player.Name .. "!"
-                                })
-                            end
-                        end
-                    end
-                end
-                
-                if blocked then return end
+
+						local decision = events.RequestReaction:InvokeClient(targetPlayer, player.Name, cardName)
+						if decision then
+							blocked = true
+							CardSystem.removeCardFromHand(targetPlayer, "Protective Goggles", 1)
+
+							if events.Notify then
+								events.Notify:FireClient(player, "🛡️ Attack BLOCKED by Protective Goggles!")
+								events.Notify:FireClient(targetPlayer, "🛡️ You blocked the attack!")
+							end
+							-- UI Notification to all players
+							if events.CardNotification then
+								events.CardNotification:FireAllClients({
+									CardName = "Protective Goggles",
+									UserName = targetPlayer.Name,
+									TargetName = player.Name,
+									CardType = "Defense",
+									Message = "Blocked " .. cardName .. " from " .. player.Name .. "!"
+								})
+							end
+						end
+					end
+				end
+
+				if blocked then return end
 
 				-- 1. TWISTED SPOON (Teleport to Target + Trigger Tile Event) - Unblockable  
 				if cardName == "Twisted Spoon" then
 					local targetPos = playerManager.playerPositions[targetPlayer.UserId]
 					local currentPos = playerManager.playerPositions[player.UserId] or 0
-					
+
 					-- ANTI-EXPLOIT: Prevent warping to tile 0 (Sell Center) to avoid lap skipping
 					if targetPos == 0 then
 						if events.Notify then
@@ -386,12 +386,25 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 						return
 					end
 					
-					playerManager.playerPositions[player.UserId] = targetPos
+					-- FIX: Prevent cross-lap warping (must be on same lap)
+					local playerLap = playerManager.playerLaps[player.UserId] or 1
+					local targetLap = playerManager.playerLaps[targetPlayer.UserId] or 1
 					
+					if playerLap ~= targetLap then
+						if events.Notify then
+							events.Notify:FireClient(player, "❌ Cannot warp to " .. targetPlayer.Name .. "! They are on Lap " .. targetLap .. " (You: Lap " .. playerLap .. ")")
+						end
+						-- Refund the card
+						CardSystem.addCardToHand(player, cardName)
+						return
+					end
+
+					playerManager.playerPositions[player.UserId] = targetPos
+
 					if player.Character and targetPlayer.Character then
 						player.Character:SetPrimaryPartCFrame(targetPlayer.Character.PrimaryPart.CFrame + Vector3.new(3, 0, 0))
 					end
-					
+
 					if events.Notify then
 						events.Notify:FireClient(player, "🔮 Warped to " .. targetPlayer.Name .. "!")
 						events.Notify:FireClient(targetPlayer, "🔮 " .. player.Name .. " warped to you!")
@@ -407,21 +420,20 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 						})
 					end
 					
-					-- Trigger tile event at new position (skips dice roll)
+				-- PAUSE PHASE TIMER! Critical to prevent phase leak
+					local TimerSystem = require(game.ServerScriptService.Modules.TimerSystem)
+					if TimerSystem then TimerSystem.cancelTimer() end
+
+					-- FIX: Skip all landing logic (PvP/PvE), go directly to Roll Phase
+					-- This simplifies the flow and avoids phase confusion
 					task.spawn(function()
 						task.wait(0.5)
-						local tilesFolder = game.Workspace:FindFirstChild("Tiles")
-						local tile = tilesFolder and tilesFolder:FindFirstChild(tostring(targetPos))
-						if tile and turnManager.processTileEvent then
-							turnManager.processTileEvent(player, targetPos, tile)
-						else
-							-- Fallback to next turn if tile not found
-							turnManager.nextTurn()
-						end
+						print("🔮 [Twisted Spoon] Warp complete. Entering Roll Phase directly.")
+						turnManager.enterRollPhase(player, true) -- true = skip PvP check
 					end)
 					return -- Early return to skip "Used card" message since this card handles its own flow
 				end
-				
+
 				-- 2. SLEEP POWDER (Sleep 1 Turn)
 				if cardName == "Sleep Powder" then
 					local status = targetPlayer:FindFirstChild("Status")
@@ -444,16 +456,16 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 						end
 					end
 				end
-				
+
 				-- 3. GRABBER (Steal 5 Coins)
 				if cardName == "Grabber" then
 					local targetMoney = targetPlayer.leaderstats.Money
 					local stealAmount = math.min(5, targetMoney.Value)
-					
+
 					if stealAmount > 0 then
 						targetMoney.Value -= stealAmount
 						player.leaderstats.Money.Value += stealAmount
-						
+
 						if events.Notify then
 							events.Notify:FireClient(player, "💰 Stole " .. stealAmount .. " from " .. targetPlayer.Name .. "!")
 							events.Notify:FireClient(targetPlayer, "💸 " .. player.Name .. " stole " .. stealAmount .. " coins from you!")
@@ -472,16 +484,16 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 						if events.Notify then events.Notify:FireClient(player, "Target has no money!") end
 					end
 				end
-				
+
 				-- 4. AIR BALLOON (Move back 3 Spaces)
 				if cardName == "Air Balloon" then
 					local currentPos = playerManager.playerPositions[targetPlayer.UserId] or 0
 					local newPos = currentPos - 3
 					if newPos < 0 then newPos = 0 end -- Clamp to 0 (Start) for simplicity
-					
+
 					playerManager.playerPositions[targetPlayer.UserId] = newPos
 					playerManager.teleportToLastTile(targetPlayer, game.Workspace:WaitForChild("Tiles"))
-					
+
 					if events.Notify then
 						events.Notify:FireClient(player, "🎈 Pushed " .. targetPlayer.Name .. " back 3 spaces!")
 						events.Notify:FireClient(targetPlayer, "🎈 You were pushed back 3 spaces!")
@@ -500,11 +512,11 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 					end
 				end
 			end
-			
+
 			if events.Notify then
 				events.Notify:FireClient(player, "✅ Used " .. cardName .. "!")
 			end
-			
+
 			-- 5. Special logic if card affects movement or stats could go here
 			-- Clear debounce on successful execution
 			player:SetAttribute("ProcessingCard", nil)

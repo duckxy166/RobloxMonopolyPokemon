@@ -26,6 +26,9 @@ local EvolutionSystem = require(script.Parent:WaitForChild("EvolutionSystem"))
 
 -- State
 BattleSystem.activeBattles = {} -- Key: PlayerId, Value: BattleData
+BattleSystem.lastRollTime = {}  -- Track last roll time per player (anti-spam)
+BattleSystem.lastBattleOpponent = {} -- Key: UserId, Value: OpponentUserId
+BattleSystem.pendingBattles = {} -- Key: DefenderUserId, Value: {Attacker, AttackerPokeName}
 
 -- ============================================================================
 -- ✅ STAGE / TELEPORT HELPERS (FIX)
@@ -93,6 +96,22 @@ function BattleSystem.init(events, timerSystem, turnManager, playerManager)
 	PokemonDB = require(ReplicatedStorage:WaitForChild("PokemonDB"))
 
 	print("✅ BattleSystem initialized")
+end
+
+-- Check if player is busy (Active Battle or Pending PvP)
+function BattleSystem.isPlayerBusy(player)
+	-- 1. Active Battle
+	if BattleSystem.activeBattles[player.UserId] then return true end
+	
+	-- 2. Pending Battle (Defender)
+	if BattleSystem.pendingBattles[player.UserId] then return true end
+
+	-- 3. Pending Battle (Attacker)
+	for _, data in pairs(BattleSystem.pendingBattles) do
+		if data.Attacker == player then return true end
+	end
+	
+	return false
 end
 
 -- ============================================================================
@@ -342,7 +361,7 @@ function BattleSystem.startPvE(player, chosenPoke, desiredRarity)
 	-- 5. Send Client Event to Active Player
 	Events.BattleStart:FireClient(player, "PvE", BattleSystem.activeBattles[player.UserId])
 
-	-- 6. Send to Spectators (all other players)
+	-- 6. Send to Spectators (watch-only mode)
 	for _, spectator in ipairs(game.Players:GetPlayers()) do
 		if spectator ~= player then
 			local spectatorData = {
@@ -350,7 +369,7 @@ function BattleSystem.startPvE(player, chosenPoke, desiredRarity)
 				Player = player,
 				MyStats = BattleSystem.activeBattles[player.UserId].MyStats,
 				EnemyStats = BattleSystem.activeBattles[player.UserId].EnemyStats,
-				IsSpectator = true
+				IsSpectator = true  -- Flag to hide Roll button
 			}
 			Events.BattleStart:FireClient(spectator, "PvE", spectatorData)
 		end
@@ -358,17 +377,26 @@ function BattleSystem.startPvE(player, chosenPoke, desiredRarity)
 end
 
 -- Start PvP (Player vs Player)
-function BattleSystem.startPvP(player1, player2)
+function BattleSystem.startPvP(player1, player2, p1ChosenPoke, p2ChosenPoke)
 	print("⚔️ PvP Started: " .. player1.Name .. " vs " .. player2.Name)
 
-	local p1Poke = BattleSystem.getFirstAlivePokemon(player1)
-	local p2Poke = BattleSystem.getFirstAlivePokemon(player2)
+	local p1Poke = p1ChosenPoke or BattleSystem.getFirstAlivePokemon(player1)
+	local p2Poke = p2ChosenPoke or BattleSystem.getFirstAlivePokemon(player2)
 
 	if not p1Poke or not p2Poke then
-		if Events.Notify then Events.Notify:FireClient(player1, "❌ One of you has no alive Pokemon!") end
-		TurnManager.nextTurn()
+		if Events.Notify then 
+			if not p1Poke then Events.Notify:FireClient(player1, "❌ You have no alive Pokemon!") end
+			if not p2Poke then Events.Notify:FireClient(player1, "❌ " .. player2.Name .. " has no alive Pokemon!") end
+		end
+		TurnManager.resumeTurn(player1) -- Cancel PvP, resume turn
 		return
 	end
+
+	-- Force cleanup any existing encounter on Client/Server
+	if EncounterSystem then
+		EncounterSystem.clearCenterStage()
+	end
+	if TimerSystem then TimerSystem.cancelTimer() end
 
 	-- Reset both Pokemon HP to full before battle
 	local p1MaxHP = p1Poke:GetAttribute("MaxHP") or 10
@@ -479,6 +507,15 @@ function BattleSystem.processRoll(player, roll)
 	local battle = BattleSystem.activeBattles[player.UserId]
 	if not battle then return end
 	if battle.Resolved then return end
+
+	-- Anti-spam: Check cooldown (1 second between rolls)
+	local now = tick()
+	local lastRoll = BattleSystem.lastRollTime[player.UserId] or 0
+	if (now - lastRoll) < 1 then
+		warn("⚠️ Battle roll spam detected from " .. player.Name)
+		return
+	end
+	BattleSystem.lastRollTime[player.UserId] = now
 
 	if battle.Type == "PvE" then
 		local aiRoll = math.random(1, 6)
@@ -680,25 +717,64 @@ function BattleSystem.endBattle(battle, result)
 
 		finalMsg = "⚔️ PvP Result: " .. winnerName .. " defeated " .. loserName .. "!"
 
-		-- Winner gets evolution or money
+
+		-- Check for Team Rocket Passive (Steal Pokemon)
+		local stolen = false
+		if winner:GetAttribute("Job") == "Rocket" and loserPokeObj then
+			local wInv = winner:FindFirstChild("PokemonInventory")
+			if wInv and #wInv:GetChildren() < 6 then -- Check space
+				stolen = true
+				loserPokeObj.Parent = wInv
+				
+				-- FIX: Stolen Pokemon remains DEAD (0 HP)
+				loserPokeObj:SetAttribute("CurrentHP", 0) 
+				loserPokeObj:SetAttribute("Status", "Dead") -- Stolen as dead
+				
+				if Events.Notify then 
+					Events.Notify:FireClient(winner, "🚀 Team Rocket Passive! Stole " .. loserPokeName .. "!") 
+					Events.Notify:FireClient(loser, "🚀 Team Rocket stole your " .. loserPokeName .. "!") 
+				end
+				finalMsg = "🚀 " .. winnerName .. " (Team Rocket) stole " .. loserPokeName .. " from " .. loserName .. "!"
+			else
+				if Events.Notify then Events.Notify:FireClient(winner, "⚠️ Party full! Cannot steal Pokemon.") end
+			end
+		end
+
+		-- FIX: Wining Pokemon gets Full HP Recovery
+		if winnerPokeObj then
+			local maxHP = winnerPokeObj:GetAttribute("MaxHP") or 10
+			winnerPokeObj:SetAttribute("CurrentHP", maxHP)
+		end
+
+		-- Winner ALWAYS gets evolution check or money (Even if stole)
 		local success = EvolutionSystem.tryEvolve(winner)
 		if not success then
 			winner.leaderstats.Money.Value += 3
 			if Events.Notify then Events.Notify:FireClient(winner, "⭐ No evolution available. +3 Coins!") end
 		end
 
-		-- Loser loses money and Pokemon dies
+		-- Loser loses money and Pokemon dies (Unless stolen)
 		loser.leaderstats.Money.Value = math.max(0, loser.leaderstats.Money.Value - 5)
-		if loserPokeObj then
-			loserPokeObj:SetAttribute("Status", "Dead")
-			loserPokeObj:SetAttribute("CurrentHP", 0)
+		
+		if not stolen then
+			if loserPokeObj then
+				loserPokeObj:SetAttribute("Status", "Dead")
+				loserPokeObj:SetAttribute("CurrentHP", 0)
+				if Events.Notify then Events.Notify:FireClient(loser, "💀 Your " .. loserPokeName .. " fainted! -5 Coins") end
+			end
+		else
+			-- If stolen, still lose money but Pokemon is gone (already handled)
+			if Events.Notify then Events.Notify:FireClient(loser, "💸 You lost 5 Coins.") end
 		end
-		if Events.Notify then Events.Notify:FireClient(loser, "💀 Your " .. loserPokeName .. " fainted! -5 Coins") end
 
 		Events.BattleEnd:FireAllClients(finalMsg)
 
 		BattleSystem.activeBattles[battle.Attacker.UserId] = nil
 		BattleSystem.activeBattles[battle.Defender.UserId] = nil
+
+		-- บันทึกว่าเพิ่ง Battle กับใคร (ต้องเดินก่อนถึงจะ Battle กันได้อีก)
+		BattleSystem.lastBattleOpponent[battle.Attacker.UserId] = battle.Defender.UserId
+		BattleSystem.lastBattleOpponent[battle.Defender.UserId] = battle.Attacker.UserId
 
 		if tilesFolder then
 			PlayerManager.teleportToLastTile(battle.Attacker, tilesFolder)
@@ -725,6 +801,21 @@ end
 function BattleSystem.connectEvents()
 	if Events.BattleAttack then
 		Events.BattleAttack.OnServerEvent:Connect(function(player)
+			-- FIX: Validate player is actually in a battle before processing roll
+			local battle = BattleSystem.activeBattles[player.UserId]
+			if not battle then
+				warn("⚠️ [BattleSystem] " .. player.Name .. " tried to roll but is not in a battle!")
+				return
+			end
+			
+			-- For PvP, also check they are either Attacker or Defender
+			if battle.Type == "PvP" then
+				if player ~= battle.Attacker and player ~= battle.Defender then
+					warn("⚠️ [BattleSystem] " .. player.Name .. " tried to roll but is not part of this PvP battle!")
+					return
+				end
+			end
+			
 			local roll = math.random(1, 6)
 			BattleSystem.processRoll(player, roll)
 		end)
@@ -745,26 +836,133 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 	if action == "Fight" then
 		if data and data.Type == "PvE" then
 			local chosenPoke = nil
-
 			if data.SelectedPokemonName then
 				local inventory = player:FindFirstChild("PokemonInventory")
-				if inventory then
-					chosenPoke = inventory:FindFirstChild(data.SelectedPokemonName)
-				end
+				if inventory then chosenPoke = inventory:FindFirstChild(data.SelectedPokemonName) end
 			end
-
 			BattleSystem.startPvE(player, chosenPoke, data.Rarity)
 
 		elseif data and data.Type == "PvP" then
 			local target = data.Target
 			if target then
-				BattleSystem.startPvP(player, target)
+				-- Check for recent battle
+				if BattleSystem.lastBattleOpponent[player.UserId] == target.UserId then
+					if Events.Notify then Events.Notify:FireClient(player, "❌ เพิ่ง Battle กับคนนี้! ต้องเดินก่อน") end
+					-- FIX: Don't call resumeTurn (it triggers PvE on Red Tile)
+					-- Instead, go directly to Roll Phase
+					TurnManager.enterRollPhase(player, true) -- true = skip PvP check
+					return
+				end
+				
+				-- FIX: Check if defender has any alive Pokemon BEFORE sending challenge
+				local defenderHasPokemon = BattleSystem.getFirstAlivePokemon(target) ~= nil
+				if not defenderHasPokemon then
+					print("⚠️ Defender " .. target.Name .. " has no alive Pokemon! Skipping PvP.")
+					if Events.Notify then 
+						Events.Notify:FireClient(player, "❌ " .. target.Name .. " ไม่มี Pokemon ที่มีชีวิต! ข้ามการต่อสู้")
+					end
+					-- FIX: Go to Roll Phase directly, NOT resumeTurn (which would trigger tile event again)
+					TurnManager.enterRollPhase(player, true) -- true = skip PvP check
+					return
+				end
+				
+				-- 1. Store Pending Request
+				BattleSystem.pendingBattles[target.UserId] = {
+					Attacker = player,
+					Defender = target,
+					AttackerPokeName = data.SelectedPokemonName
+				}
+				
+				-- 2. Send Challenge to Defender
+				if Events.BattleTrigger then
+					print("⚔️ Sending PvP Challenge to " .. target.Name)
+					Events.BattleTrigger:FireClient(target, "Defend", { 
+						Attacker = player,
+						AttackerName = player.Name
+					})
+				end
+				
+				if Events.Notify then
+					print("Notification: Waiting for " .. target.Name)
+					Events.Notify:FireClient(player, "⏳ รอ " .. target.Name .. " เลือก Pokemon...")
+				end
+				
+	-- FIX: Add timeout for pending PvP (30 seconds)
+				-- If defender doesn't respond, auto-decline
+				task.delay(30, function()
+					local stillPending = BattleSystem.pendingBattles[target.UserId]
+					if stillPending and stillPending.Attacker == player then
+						print("⏰ PvP Timeout! " .. target.Name .. " did not respond. Auto-declining.")
+						BattleSystem.pendingBattles[target.UserId] = nil
+						if Events.Notify then
+							Events.Notify:FireClient(player, "⏰ " .. target.Name .. " ไม่ตอบ! ข้ามการต่อสู้")
+							Events.Notify:FireClient(target, "⏰ หมดเวลาตอบรับ Battle!")
+						end
+						TurnManager.resumeTurn(player)
+					end
+				end)
 			end
 		end
+		
+	elseif action == "DefendFight" then
+		-- Defender Accepted
+		local pending = BattleSystem.pendingBattles[player.UserId]
+		if pending then
+			local attacker = pending.Attacker
+			local defender = player
+			
+			-- Get Pokemon Objects
+			local attackerPoke = nil
+			local defenderPoke = nil
+			
+			local aInv = attacker:FindFirstChild("PokemonInventory")
+			if aInv then attackerPoke = aInv:FindFirstChild(pending.AttackerPokeName) end
+			
+			local dInv = defender:FindFirstChild("PokemonInventory")
+			if dInv and data.SelectedPokemonName then 
+				defenderPoke = dInv:FindFirstChild(data.SelectedPokemonName) 
+			end
+			
+			-- Start actual PvP
+			BattleSystem.startPvP(attacker, defender, attackerPoke, defenderPoke)
+			
+			-- Clear pending
+			BattleSystem.pendingBattles[player.UserId] = nil
+		else
+			warn("⚠️ No pending battle found for " .. player.Name)
+		end
+
 	else
+		-- Run / Decline
 		if data and data.Type == "PvP" then
+			-- Attacker ran/declined the PvP opportunity
 			print("🏃 Declined PvP. Resuming Tile Event.")
+			
+			-- FIX: Mark that these players had encounter (prevents defender from challenging on their turn)
+			if data.Target then
+				BattleSystem.lastBattleOpponent[player.UserId] = data.Target.UserId
+				BattleSystem.lastBattleOpponent[data.Target.UserId] = player.UserId
+				print("📝 Set lastBattleOpponent: " .. player.Name .. " <-> " .. data.Target.Name)
+			end
+			
 			TurnManager.resumeTurn(player)
+		elseif action == "DefendRun" then
+			-- Defender ran (Automatic Forfeit? Or just Decline Conflict?)
+			local pending = BattleSystem.pendingBattles[player.UserId]
+			if pending then
+				if Events.Notify then Events.Notify:FireClient(pending.Attacker, "🏃 " .. player.Name .. " หนีการต่อสู้!") end
+				
+				-- FIX: Mark that these players had encounter (prevents re-challenge)
+				BattleSystem.lastBattleOpponent[player.UserId] = pending.Attacker.UserId
+				BattleSystem.lastBattleOpponent[pending.Attacker.UserId] = player.UserId
+				print("📝 Set lastBattleOpponent: " .. player.Name .. " <-> " .. pending.Attacker.Name)
+				
+				-- FIX: Defender ran -> Attacker gets to process the tile event (e.g. Red Tile / Shop)
+				-- Old code called TurnManager.nextTurn() which skipped the event!
+				local attacker = pending.Attacker
+				BattleSystem.pendingBattles[player.UserId] = nil
+				TurnManager.resumeTurn(attacker)
+			end
 		else
 			TurnManager.nextTurn()
 		end

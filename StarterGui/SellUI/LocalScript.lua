@@ -210,37 +210,56 @@ local function createPokemonSlot(pokeData)
 	sellBtn.Size = UDim2.new(0, 100, 0, 40) -- Made wider
 	sellBtn.Position = UDim2.new(1, -10, 0.5, 0)
 	sellBtn.AnchorPoint = Vector2.new(1, 0.5)
-	sellBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
-	sellBtn.Text = "SELL ($" .. tostring(pokeData.Price) .. ")"
 	sellBtn.Font = Enum.Font.FredokaOne
 	sellBtn.TextSize = 16
 	sellBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	sellBtn.Parent = slot
 	Instance.new("UICorner", sellBtn).CornerRadius = UDim.new(0, 10)
 	
-	-- Sell Click Handler
-	sellBtn.MouseButton1Click:Connect(function()
-		-- Animate
-		local tween = TweenService:Create(sellBtn, TweenInfo.new(0.1), {Size = UDim2.new(0, 70, 0, 35)})
-		tween:Play()
-		tween.Completed:Wait()
-		TweenService:Create(sellBtn, TweenInfo.new(0.1), {Size = UDim2.new(0, 80, 0, 40)}):Play()
-		
-		-- Fire Server
-		if sellPokemonEvent then
-			SoundManager.Play("Sell") -- 🔊 Sound effect
-			sellPokemonEvent:FireServer(pokeData.Name)
+	-- FIX: Check if this is the last Pokemon (cannot sell)
+	local inventory = player:FindFirstChild("PokemonInventory")
+	local totalAlive = 0
+	if inventory then
+		for _, poke in ipairs(inventory:GetChildren()) do
+			if poke:GetAttribute("Status") == "Alive" then
+				totalAlive = totalAlive + 1
+			end
 		end
-		
-		-- Disable button temporarily
-		sellBtn.Active = false
+	end
+	
+	local isLastPokemon = (totalAlive <= 1)
+	
+	if isLastPokemon then
+		-- Cannot sell last Pokemon - disable button
 		sellBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-		sellBtn.Text = "SOLD!"
+		sellBtn.Text = "🚫 LAST!"
+		sellBtn.Active = false
+	else
+		-- Normal sellable state
+		sellBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+		sellBtn.Text = "SELL ($" .. tostring(pokeData.Price) .. ")"
 		
-		-- Remove slot after animation
-		task.wait(0.5)
-		slot:Destroy()
-	end)
+		-- Sell Click Handler (only for sellable Pokemon)
+		sellBtn.MouseButton1Click:Connect(function()
+			-- Animate
+			local tween = TweenService:Create(sellBtn, TweenInfo.new(0.1), {Size = UDim2.new(0, 70, 0, 35)})
+			tween:Play()
+			tween.Completed:Wait()
+			TweenService:Create(sellBtn, TweenInfo.new(0.1), {Size = UDim2.new(0, 80, 0, 40)}):Play()
+			
+			-- Disable button to prevent double-click
+			sellBtn.Active = false
+			sellBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+			sellBtn.Text = "Selling..."
+			
+			-- Fire Server (server will send updated list which will refresh UI)
+			if sellPokemonEvent then
+				SoundManager.Play("Sell") -- 🔊 Sound effect
+				sellPokemonEvent:FireServer(pokeData.Name)
+			end
+			-- Note: Slot removal now handled by server sending updated list via updateUI()
+		end)
+	end
 end
 
 -- Function: Update UI

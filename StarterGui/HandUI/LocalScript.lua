@@ -26,20 +26,20 @@ local SoundManager = require(ReplicatedStorage:WaitForChild("SoundManager"))
 
 local CARD_ASSETS = {
 	-- === BUFF/SUPPORT CARDS ===
-	["Lucky Energy"]       = "rbxassetid://138003285804084",  -- Draw 2 cards
-	["Rare Candy"]         = "rbxassetid://YOUR_ASSET_ID",    -- Evolve pokemon
-	["Nugget"]             = "rbxassetid://94398927196782",   -- Sell for 5 coins
-	
+	["Lucky Energy"]       = "rbxassetid://94330528751984",  -- Draw 2 cards
+	["Rare Candy"]         = "rbxassetid://134934557548114",    -- Evolve pokemon
+	["Nugget"]             = "rbxassetid://127915379498758",   -- Sell for 5 coins
+
 	-- === ATTACK CARDS ===
-	["Grabber"]            = "rbxassetid://138472885114608",  -- Steal 5 coins from target
-	["Air Balloon"]        = "rbxassetid://78200625874512",   -- Target moves back 3 tiles
-	["Sleep Powder"]       = "rbxassetid://83291246189733",   -- Target skips 1 turn
-	["Twisted Spoon"]      = "rbxassetid://YOUR_ASSET_ID",    -- Teleport to player
-	
+	["Grabber"]            = "rbxassetid://102978361714629",  -- Steal 5 coins from target
+	["Air Balloon"]        = "rbxassetid://78853229041145",   -- Target moves back 3 tiles
+	["Sleep Powder"]       = "rbxassetid://103020708422765",   -- Target skips 1 turn
+	["Twisted Spoon"]      = "rbxassetid://103173163239908",    -- Teleport to player
+
 	-- === DEFENSE CARDS ===
-	["Protective Goggles"] = "rbxassetid://81676374047060",   -- Block negative cards
-	["Revive"]             = "rbxassetid://138915839363218",  -- Revive fainted Pokemon
-	
+	["Protective Goggles"] = "rbxassetid://91072153411237",   -- Block negative cards
+	["Revive"]             = "rbxassetid://105681298761711",  -- Revive fainted Pokemon
+
 	-- === เพิ่มการ์ดใหม่ด้านล่างนี้ (Template) ===
 	-- ["Card Name"]       = "rbxassetid://YOUR_ASSET_ID",    -- Description
 }
@@ -185,7 +185,7 @@ local function renderHand()
 					tween.Completed:Wait()
 					local tweenBack = TweenService:Create(cardBtn, TweenInfo.new(0.1), {Size = UDim2.new(0, 100, 0, 140)})
 					tweenBack:Play()
-					
+
 					local cardData = CardDB.Cards[cardVal.Name]
 					if cardData and cardData.NeedsTarget then
 						-- Open Target Selection
@@ -244,7 +244,7 @@ end
 local function connectHandListener()
 	-- Wait for Hand folder reliably (Server might create it slightly later)
 	local hand = player:WaitForChild("Hand", 20) -- Wait up to 20 seconds
-	
+
 	if not hand then
 		warn("⚠️ [HandUI] Hand folder not found after waiting. Retrying in 5 seconds...")
 		task.delay(5, connectHandListener)
