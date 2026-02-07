@@ -393,14 +393,18 @@ function TurnManager.enterRollPhase(player, skipPvPCheck)
 		end
 	end
 
-	-- FIX: Filter out opponents we just battled (prevents UI from showing when turn comes back)
+	-- FIX: Filter out opponents we just battled OR have no Pokemon (prevents useless UI)
 	if #opponents > 0 and Events.BattleTrigger then
 		local validOpponents = {}
 		for _, opp in ipairs(opponents) do
-			if BattleSystem.lastBattleOpponent[player.UserId] ~= opp.UserId then
-				table.insert(validOpponents, opp)
-			else
+			-- Check 1: Recently battled?
+			if BattleSystem.lastBattleOpponent[player.UserId] == opp.UserId then
 				print("⏭️ [enterRollPhase] Skipping PvP UI for " .. opp.Name .. " (recent battle)")
+			-- Check 2: FIX - Opponent has alive Pokemon?
+			elseif not BattleSystem.getFirstAlivePokemon(opp) then
+				print("⏭️ [enterRollPhase] Skipping PvP UI for " .. opp.Name .. " (no alive Pokemon)")
+			else
+				table.insert(validOpponents, opp)
 			end
 		end
 		
@@ -410,7 +414,7 @@ function TurnManager.enterRollPhase(player, skipPvPCheck)
 			-- The BattleTriggerResponse handler will call resumeTurn or start battle
 			return
 		else
-			print("⏭️ [enterRollPhase] All opponents recently battled. Skipping PvP UI.")
+			print("⏭️ [enterRollPhase] All opponents filtered out. Skipping PvP UI.")
 		end
 	end
 
@@ -1263,10 +1267,14 @@ function TurnManager.processLanding(player, currentPos, forceOpponent)
 		local BattleSystem = require(game.ServerScriptService.Modules.BattleSystem)
 		local validOpponents = {}
 		for _, opp in ipairs(opponents) do
-			if BattleSystem.lastBattleOpponent[player.UserId] ~= opp.UserId then
-				table.insert(validOpponents, opp)
-			else
+			-- Check 1: Recently battled?
+			if BattleSystem.lastBattleOpponent[player.UserId] == opp.UserId then
 				print("⏭️ Skipping PvP UI for " .. opp.Name .. " (recent battle)")
+			-- Check 2: FIX - Opponent has alive Pokemon?
+			elseif not BattleSystem.getFirstAlivePokemon(opp) then
+				print("⏭️ Skipping PvP UI for " .. opp.Name .. " (no alive Pokemon)")
+			else
+				table.insert(validOpponents, opp)
 			end
 		end
 		

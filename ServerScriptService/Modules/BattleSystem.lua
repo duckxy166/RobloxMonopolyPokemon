@@ -861,8 +861,8 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 					if Events.Notify then 
 						Events.Notify:FireClient(player, "❌ " .. target.Name .. " ไม่มี Pokemon ที่มีชีวิต! ข้ามการต่อสู้")
 					end
-					-- Resume attacker's turn normally (process tile event)
-					TurnManager.resumeTurn(player)
+					-- FIX: Go to Roll Phase directly, NOT resumeTurn (which would trigger tile event again)
+					TurnManager.enterRollPhase(player, true) -- true = skip PvP check
 					return
 				end
 				
