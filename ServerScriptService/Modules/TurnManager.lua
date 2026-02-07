@@ -931,16 +931,53 @@ function TurnManager.startGame()
 		print("📡 GameStarted event fired to all clients")
 	end
 
-	task.wait(2)
-
-	-- Unfreeze Everyone (Biker gets bonus speed)
+	-- FIX: Wait for ALL player characters to be ready before starting
+	print("⏳ Waiting for all player characters to spawn...")
+	local maxWaitTime = 10 -- Maximum 10 seconds to wait
+	local startWait = tick()
+	
 	for _, p in ipairs(PlayerManager.playersInGame) do
-		if p.Character and p.Character:FindFirstChild("Humanoid") then
-			local isBiker = (p:GetAttribute("Job") == "Biker")
-			p.Character.Humanoid.WalkSpeed = isBiker and 32 or 24
-			p.Character.Humanoid.JumpPower = 50
+		-- Wait for character to exist
+		while not p.Character and (tick() - startWait) < maxWaitTime do
+			task.wait(0.1)
+		end
+		
+		-- Wait for HumanoidRootPart (critical for positioning)
+		if p.Character then
+			local hrp = p.Character:WaitForChild("HumanoidRootPart", 5)
+			local humanoid = p.Character:WaitForChild("Humanoid", 5)
+			
+			if hrp and humanoid then
+				-- Extra wait for physics to stabilize
+				task.wait(0.3)
+				
+				-- FIX: Teleport player to tile 0 with proper offset (ensures correct spawn)
+				local slot = PlayerManager.playerSlots[p.UserId] or 1
+				local tilesFolder = game.Workspace:FindFirstChild("Tiles")
+				local startTile = tilesFolder and tilesFolder:FindFirstChild("0")
+				
+				if startTile then
+					local offset = PlayerManager.getPlayerTilePosition and 
+						PlayerManager.getPlayerTilePosition(p, startTile) or 
+						startTile.Position + Vector3.new(0, 5, 0)
+					p.Character:PivotTo(CFrame.new(offset))
+					print("📍 [startGame] Positioned " .. p.Name .. " at tile 0 (Slot " .. slot .. ")")
+				end
+				
+				-- Unfreeze player
+				local isBiker = (p:GetAttribute("Job") == "Biker")
+				humanoid.WalkSpeed = isBiker and 32 or 24
+				humanoid.JumpPower = 50
+			else
+				warn("⚠️ " .. p.Name .. " character not fully loaded!")
+			end
+		else
+			warn("⚠️ " .. p.Name .. " has no character after waiting!")
 		end
 	end
+	
+	print("✅ All characters ready! Starting turns...")
+	task.wait(0.5) -- Final stabilization wait
 
 	-- Start First Turn
 	TurnManager.currentTurnIndex = 0
@@ -1010,6 +1047,15 @@ function TurnManager.processPlayerRoll(player)
 
 	local character = player.Character
 	local humanoid = character and character:FindFirstChild("Humanoid")
+	
+	-- FIX: Safety check - abort if character isn't ready
+	-- This prevents "Player:Move called, but player currently has no character" error
+	if not character or not humanoid then
+		warn("⚠️ [Server] Cannot move " .. player.Name .. " - character not ready!")
+		TurnManager.isTurnActive = true -- Re-enable turn for retry
+		return
+	end
+	
 	local currentPos = PlayerManager.playerPositions[player.UserId] or 0
 	local repelLeft = PlayerManager.playerRepelSteps[player.UserId] or 0
 
@@ -1023,10 +1069,16 @@ function TurnManager.processPlayerRoll(player)
 			currentPos = 0
 			nextTile = tilesFolder:FindFirstChild(tostring(currentPos))
 
-			-- Increment Lap
+			-- Increment Lap (only here, not in tile 0 landing)
 			local currentLap = PlayerManager.playerLaps[player.UserId] or 1
-			PlayerManager.playerLaps[player.UserId] = currentLap + 1
-			print("🏁 " .. player.Name .. " finished Lap " .. currentLap .. "!")
+			local newLap = currentLap + 1
+			PlayerManager.playerLaps[player.UserId] = newLap
+			print("🏁 " .. player.Name .. " finished Lap " .. currentLap .. "/3 -> Now on Lap " .. newLap .. "/3!")
+
+			-- FIX: Fire LapUpdate event to client for UI
+			if Events.LapUpdate then
+				Events.LapUpdate:FireClient(player, newLap)
+			end
 
 			-- Reward: 5 Pokeballs
 			local balls = player.leaderstats:FindFirstChild("Pokeballs")
@@ -1034,8 +1086,44 @@ function TurnManager.processPlayerRoll(player)
 				balls.Value += 5
 			end
 
+			-- FIX: Check if player finished all 3 laps
+			if newLap > 3 then
+				print("🏆 " .. player.Name .. " FINISHED THE GAME!")
+				PlayerManager.playerFinished[player.UserId] = true
+				
+				if Events.Notify then
+					Events.Notify:FireAllClients("🏆 " .. player.Name .. " ครบ 3 รอบแล้ว! เกมจบสำหรับ " .. player.Name .. "!")
+				end
+				
+				-- Move to tile 0 and stop
+				if nextTile and humanoid then
+					humanoid:MoveTo(PlayerManager.getPlayerTilePosition(player, nextTile))
+					humanoid.MoveToFinished:Wait()
+				end
+				PlayerManager.playerPositions[player.UserId] = 0
+				
+				-- Check if all players finished
+				local allFinished = true
+				for _, p in ipairs(PlayerManager.playersInGame) do
+					if not PlayerManager.playerFinished[p.UserId] then
+						allFinished = false
+						break
+					end
+				end
+				
+				if allFinished then
+					print("🎉 ALL PLAYERS FINISHED! GAME OVER!")
+					if Events.Notify then
+						Events.Notify:FireAllClients("🎉 ทุกคนครบ 3 รอบแล้ว! เกมจบ!")
+					end
+				end
+				
+				TurnManager.nextTurn()
+				return
+			end
+
 			if Events.Notify then
-				Events.Notify:FireClient(player, "🏁 Lap Completed! +5 🔴 Pokeballs! Stopping at Sell Center.")
+				Events.Notify:FireClient(player, "🏁 Lap " .. currentLap .. "/3 Complete! +5 🔴 Pokeballs! (" .. newLap .. "/3)")
 			end
 
 			-- FORCE STOP AT START (Tile 0)
@@ -1218,32 +1306,17 @@ function TurnManager.processTileEvent(player, currentPos, nextTile)
 	local tileColorLower = string.lower(tileColorName)
 	print("📍 [Server] Processing Tile: " .. nextTile.Name .. " | Color: " .. tileColorName)
 
-	-- 0. START TILE
+	-- 0. START TILE (Lap already incremented in board wrap - just open Sell UI)
 	local isStartTile = (nextTile.Name == "0" or nextTile.Name == "Start")
 	if isStartTile then
 		print("💰 Landed on Start! Opening Sell UI...")
 
 		local SellSystem = require(game.ServerScriptService.Modules.SellSystem)
 		
-		-- INCREMENT LAP
+		-- FIX: Do NOT increment lap here - it's already done in board wrap logic
+		-- This prevents double counting laps
 		local currentLap = PlayerManager.playerLaps[player.UserId] or 1
-		-- Logic: Laps increment when passing 0 (start). 
-		-- If landing on 0, it means we completed a lap.
-		-- Prevent double counting if "passing" logic already handled it?
-		-- Actually, movement logic handles position wrapping, but lap logic is best handled here or in movement.
-		-- Let's assume landing on 0 = completed lap.
-		
-		-- Warning: If we warped here, we might not want to count lap.
-		-- But for now, landing on Start usually implies a lap completion or at least a visit.
-		-- Let's stick to simple increment for now, unless exploit found.
-		
-		local newLap = currentLap + 1
-		PlayerManager.playerLaps[player.UserId] = newLap
-		print("🏁 " .. player.Name .. " completed Lap " .. currentLap .. " -> " .. newLap)
-		
-		if Events.LapUpdate then
-			Events.LapUpdate:FireClient(player, newLap)
-		end
+		print("📍 Player " .. player.Name .. " at Start tile (Lap " .. currentLap .. "/3)")
 
 		if SellSystem then
 			SellSystem.openSellUI(player)

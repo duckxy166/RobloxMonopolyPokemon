@@ -163,7 +163,7 @@ local function createModernUI()
 	lapLabel.Name = "LapLabel"
 	lapLabel.Size = UDim2.new(1, 0, 1, 0)
 	lapLabel.BackgroundTransparency = 1
-	lapLabel.Text = "LAP: 1"
+	lapLabel.Text = "LAP: 1/3"  -- Show current lap and total
 	lapLabel.Font = Enum.Font.FredokaOne
 	lapLabel.TextSize = 18
 	lapLabel.TextColor3 = COLORS.Green
@@ -838,15 +838,24 @@ if LapUpdateEvent then
 	LapUpdateEvent.OnClientEvent:Connect(function(newLap)
 		local lapLabel = screenGui:FindFirstChild("LapFrame", true) and screenGui.LapFrame:FindFirstChild("LapLabel")
 		if lapLabel then
-			lapLabel.Text = "LAP: " .. tostring(newLap)
+			-- FIX: Show lap in X/3 format (max 3 laps)
+			local displayLap = math.min(newLap, 3)  -- Cap at 3 for display
+			lapLabel.Text = "LAP: " .. tostring(displayLap) .. "/3"
 			
-			-- Pop effect
+			-- Pop effect + special color for final lap
 			local originalSize = UDim2.new(1, 0, 1, 0)
 			local popSize = UDim2.new(1.2, 0, 1.2, 0)
+			local flashColor = newLap >= 3 and Color3.fromRGB(255, 100, 100) or Color3.fromRGB(255, 255, 100)
 			
-			TweenService:Create(lapLabel, TweenInfo.new(0.2), {Size = popSize, TextColor3 = Color3.fromRGB(255, 255, 100)}):Play()
+			TweenService:Create(lapLabel, TweenInfo.new(0.2), {Size = popSize, TextColor3 = flashColor}):Play()
 			task.wait(0.2)
 			TweenService:Create(lapLabel, TweenInfo.new(0.2), {Size = originalSize, TextColor3 = COLORS.Green}):Play()
+			
+			-- Show finished message if completed all laps
+			if newLap > 3 then
+				lapLabel.Text = "🏆 FINISHED!"
+				lapLabel.TextColor3 = Color3.fromRGB(255, 215, 0)  -- Gold
+			end
 		end
 	end)
 end
