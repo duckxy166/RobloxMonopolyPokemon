@@ -935,14 +935,27 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 	else
 		-- Run / Decline
 		if data and data.Type == "PvP" then
-			-- Attacker ran
+			-- Attacker ran/declined the PvP opportunity
 			print("🏃 Declined PvP. Resuming Tile Event.")
+			
+			-- FIX: Mark that these players had encounter (prevents defender from challenging on their turn)
+			if data.Target then
+				BattleSystem.lastBattleOpponent[player.UserId] = data.Target.UserId
+				BattleSystem.lastBattleOpponent[data.Target.UserId] = player.UserId
+				print("📝 Set lastBattleOpponent: " .. player.Name .. " <-> " .. data.Target.Name)
+			end
+			
 			TurnManager.resumeTurn(player)
 		elseif action == "DefendRun" then
 			-- Defender ran (Automatic Forfeit? Or just Decline Conflict?)
 			local pending = BattleSystem.pendingBattles[player.UserId]
 			if pending then
 				if Events.Notify then Events.Notify:FireClient(pending.Attacker, "🏃 " .. player.Name .. " หนีการต่อสู้!") end
+				
+				-- FIX: Mark that these players had encounter (prevents re-challenge)
+				BattleSystem.lastBattleOpponent[player.UserId] = pending.Attacker.UserId
+				BattleSystem.lastBattleOpponent[pending.Attacker.UserId] = player.UserId
+				print("📝 Set lastBattleOpponent: " .. player.Name .. " <-> " .. pending.Attacker.Name)
 				
 				-- FIX: Defender ran -> Attacker gets to process the tile event (e.g. Red Tile / Shop)
 				-- Old code called TurnManager.nextTurn() which skipped the event!
