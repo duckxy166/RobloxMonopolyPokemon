@@ -23,7 +23,9 @@ local UpdateTurnEvent = ReplicatedStorage:WaitForChild("UpdateTurnEvent")
 local AdvancePhaseEvent = ReplicatedStorage:WaitForChild("AdvancePhaseEvent", 5)
 local RollDiceEvent = ReplicatedStorage:WaitForChild("RollDiceEvent")
 local UseAbilityEvent = ReplicatedStorage:WaitForChild("UseAbilityEvent", 5)
+local UseAbilityEvent = ReplicatedStorage:WaitForChild("UseAbilityEvent", 5)
 local SwitchPhaseEvent = ReplicatedStorage:WaitForChild("SwitchPhaseEvent", 5)
+local LapUpdateEvent = ReplicatedStorage:WaitForChild("LapUpdateEvent", 5)
 
 -- Sound Manager
 local SoundManager = require(ReplicatedStorage:WaitForChild("SoundManager"))
@@ -140,6 +142,32 @@ local function createModernUI()
 	if screenGui:FindFirstChild("MainContainer") then
 		screenGui.MainContainer:Destroy()
 	end
+	
+	-- 0. LAP COUNTER (Top Right)
+	local lapFrame = Instance.new("Frame")
+	lapFrame.Name = "LapFrame"
+	lapFrame.Size = UDim2.new(0, 100, 0, 40)
+	lapFrame.Position = UDim2.new(1, -20, 0, 20)
+	lapFrame.AnchorPoint = Vector2.new(1, 0)
+	lapFrame.BackgroundColor3 = COLORS.Backdrop
+	lapFrame.BackgroundTransparency = 0.2
+	lapFrame.Parent = screenGui
+	
+	Instance.new("UICorner", lapFrame).CornerRadius = UDim.new(0, 10)
+	local lapStroke = Instance.new("UIStroke")
+	lapStroke.Color = COLORS.Green
+	lapStroke.Thickness = 2
+	lapStroke.Parent = lapFrame
+	
+	local lapLabel = Instance.new("TextLabel")
+	lapLabel.Name = "LapLabel"
+	lapLabel.Size = UDim2.new(1, 0, 1, 0)
+	lapLabel.BackgroundTransparency = 1
+	lapLabel.Text = "LAP: 1"
+	lapLabel.Font = Enum.Font.FredokaOne
+	lapLabel.TextSize = 18
+	lapLabel.TextColor3 = COLORS.Green
+	lapLabel.Parent = lapFrame
 
 	-- 1. Main Container (Center of screen, near the circle)
 	mainContainer = Instance.new("Frame")
@@ -798,6 +826,30 @@ end
 -- ============================================================================
 
 -- Phase Update
+if PhaseUpdateEvent then
+	PhaseUpdateEvent.OnClientEvent:Connect(function(phase, message)
+		-- Update Phase UI
+		updateUI(phase, message)
+	end)
+end
+
+-- Lap Update
+if LapUpdateEvent then
+	LapUpdateEvent.OnClientEvent:Connect(function(newLap)
+		local lapLabel = screenGui:FindFirstChild("LapFrame", true) and screenGui.LapFrame:FindFirstChild("LapLabel")
+		if lapLabel then
+			lapLabel.Text = "LAP: " .. tostring(newLap)
+			
+			-- Pop effect
+			local originalSize = UDim2.new(1, 0, 1, 0)
+			local popSize = UDim2.new(1.2, 0, 1.2, 0)
+			
+			TweenService:Create(lapLabel, TweenInfo.new(0.2), {Size = popSize, TextColor3 = Color3.fromRGB(255, 255, 100)}):Play()
+			task.wait(0.2)
+			TweenService:Create(lapLabel, TweenInfo.new(0.2), {Size = originalSize, TextColor3 = COLORS.Green}):Play()
+		end
+	end)
+end
 if PhaseUpdateEvent then
 	PhaseUpdateEvent.OnClientEvent:Connect(function(phase, message)
 		print("📍 [ModernUI] Phase:", phase)

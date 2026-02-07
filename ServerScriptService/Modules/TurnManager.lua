@@ -782,43 +782,43 @@ local ValidJobs = {
 	Gambler = {
 		Name = "Gambler",
 		Ability = "LuckyGuess",
-		Description = "นักพนัน - ทายเลข 1-6 ถูกได้ 6 เหรียญ"
+		Description = "นักพนัน (Meowth) - ทายเลข 1-6 ถูกได้ 6 เหรียญ"
 	},
 	Esper = {
 		Name = "Esper",
 		Ability = "MindMove",
-		Description = "จิตสัมผัส - กำหนดช่องเดินได้ 1-2 ช่อง"
+		Description = "จิตสัมผัส (Abra) - กำหนดช่องเดินได้ 1-2 ช่อง"
 	},
 	Shaman = {
 		Name = "Shaman",
 		Ability = "Curse",
-		Description = "หมอผี - สาปให้คนอื่นทิ้งการ์ด+เสียเงิน"
+		Description = "หมอผี (Gastly) - สาปให้คนอื่นทิ้งการ์ด+เสียเงิน"
 	},
 	Biker = {
 		Name = "Biker",
 		Ability = "TurboBoost",
-		Description = "นักบิด - เดินเพิ่ม +2 ช่อง"
+		Description = "นักบิด (Ponyta) - เดินเพิ่ม +2 ช่อง"
 	},
 	Trainer = {
 		Name = "Trainer",
 		Ability = "ExtraHand",
-		Description = "เทรนเนอร์ - ถือการ์ดได้ 6 ใบ (Passive)",
+		Description = "เทรนเนอร์ (Pikachu) - ถือการ์ดได้ 6 ใบ (Passive)",
 		HandLimit = 6
 	},
 	Fisherman = {
 		Name = "Fisherman",
 		Ability = "StealCard",
-		Description = "นักตกปลา - แย่งชิงการ์ดจากผู้เล่นอื่น"
+		Description = "นักตกปลา (Magikarp) - แย่งชิงการ์ดจากผู้เล่นอื่น"
 	},
 	Rocket = {
 		Name = "Rocket",
 		Ability = "StealPokemon",
-		Description = "แก็งร็อกเก็ต - ขโมย Pokemon เมื่อชนะ PvP (Passive)"
+		Description = "แก็งร็อกเก็ต (Rattata) - ขโมย Pokemon เมื่อชนะ PvP (Passive)"
 	},
 	NurseJoy = {
 		Name = "NurseJoy",
 		Ability = "Revive",
-		Description = "คุณจอย - ฟื้นฟู Pokemon ที่ตายได้ทุกเทิร์น"
+		Description = "คุณจอย (Clefairy) - ฟื้นฟู Pokemon ที่ตายได้ทุกเทิร์น"
 	}
 }
 
@@ -842,13 +842,13 @@ function TurnManager.handleStarterSelection(player, jobName)
 	-- Give starter Pokemon based on job
 	local starterPokemon = {
 		Gambler = "Meowth",    -- Money-related
-		Esper = "Drowzee",     -- Psychic/Sleep
+		Esper = "Abra",        -- Psychic (User Request)
 		Shaman = "Gastly",     -- Ghost/Spirit
-		Biker = "Cyclizar",    -- Fast/Motorcycle Pokemon
+		Biker = "Ponyta",      -- Fast/Horse (Cyclizar removed)
 		Trainer = "Pikachu",   -- Classic trainer
 		Fisherman = "Magikarp",-- Fishing
 		Rocket = "Rattata",    -- Team Rocket
-		NurseJoy = "Chansey"   -- Healing
+		NurseJoy = "Clefairy"  -- Healing (Chansey missing)
 	}
 
 	local starterName = starterPokemon[jobName] or "Pikachu"
@@ -1224,6 +1224,27 @@ function TurnManager.processTileEvent(player, currentPos, nextTile)
 		print("💰 Landed on Start! Opening Sell UI...")
 
 		local SellSystem = require(game.ServerScriptService.Modules.SellSystem)
+		
+		-- INCREMENT LAP
+		local currentLap = PlayerManager.playerLaps[player.UserId] or 1
+		-- Logic: Laps increment when passing 0 (start). 
+		-- If landing on 0, it means we completed a lap.
+		-- Prevent double counting if "passing" logic already handled it?
+		-- Actually, movement logic handles position wrapping, but lap logic is best handled here or in movement.
+		-- Let's assume landing on 0 = completed lap.
+		
+		-- Warning: If we warped here, we might not want to count lap.
+		-- But for now, landing on Start usually implies a lap completion or at least a visit.
+		-- Let's stick to simple increment for now, unless exploit found.
+		
+		local newLap = currentLap + 1
+		PlayerManager.playerLaps[player.UserId] = newLap
+		print("🏁 " .. player.Name .. " completed Lap " .. currentLap .. " -> " .. newLap)
+		
+		if Events.LapUpdate then
+			Events.LapUpdate:FireClient(player, newLap)
+		end
+
 		if SellSystem then
 			SellSystem.openSellUI(player)
 			TimerSystem.startPhaseTimer(60, "Sell", function()
