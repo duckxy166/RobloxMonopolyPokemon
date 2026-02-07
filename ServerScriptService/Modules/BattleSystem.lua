@@ -720,7 +720,7 @@ function BattleSystem.endBattle(battle, result)
 
 		-- Check for Team Rocket Passive (Steal Pokemon)
 		local stolen = false
-		if winner:GetAttribute("Job") == "Team Rocket" and loserPokeObj then
+		if winner:GetAttribute("Job") == "Rocket" and loserPokeObj then
 			local wInv = winner:FindFirstChild("PokemonInventory")
 			if wInv and #wInv:GetChildren() < 6 then -- Check space
 				stolen = true

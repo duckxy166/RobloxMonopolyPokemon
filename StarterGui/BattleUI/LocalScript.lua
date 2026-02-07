@@ -56,11 +56,20 @@ local activeDice = {} -- {Player=?, Enemy=?}
 
 local function cleanupDice()
 	if activeDice.Player then
-		if activeDice.Player.Object then activeDice.Player.Object:Destroy() end
+		-- FIX: Use Cleanup method to disconnect RenderStepped and force destroy
+		if activeDice.Player.Cleanup then 
+			activeDice.Player.Cleanup() 
+		elseif activeDice.Player.Object then 
+			activeDice.Player.Object:Destroy() 
+		end
 		activeDice.Player = nil
 	end
 	if activeDice.Enemy then
-		if activeDice.Enemy.Object then activeDice.Enemy.Object:Destroy() end
+		if activeDice.Enemy.Cleanup then 
+			activeDice.Enemy.Cleanup() 
+		elseif activeDice.Enemy.Object then 
+			activeDice.Enemy.Object:Destroy() 
+		end
 		activeDice.Enemy = nil
 	end
 end
@@ -159,6 +168,7 @@ local function spawn3NDice(sideOffset)
 
 	return {
 		Object = dice,
+		Connection = connection, -- FIX: Store connection for cleanup
 		Stop = function(finalVal)
 			if connection then connection:Disconnect() end
 
@@ -194,8 +204,13 @@ local function spawn3NDice(sideOffset)
 			end
 
 			task.delay(3, function()
-				if dice then dice:Destroy() end
+				if dice and dice.Parent then dice:Destroy() end
 			end)
+		end,
+		-- FIX: Force cleanup method for immediate destruction
+		Cleanup = function()
+			if connection then connection:Disconnect() end
+			if dice and dice.Parent then dice:Destroy() end
 		end
 	}
 end

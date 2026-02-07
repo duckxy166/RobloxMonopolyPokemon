@@ -375,11 +375,25 @@ function TurnManager.enterRollPhase(player, skipPvPCheck)
 		end
 	end
 
+	-- FIX: Filter out opponents we just battled (prevents UI from showing when turn comes back)
 	if #opponents > 0 and Events.BattleTrigger then
-		print("⚔️ PvP Opportunity at turn start for " .. player.Name)
-		Events.BattleTrigger:FireClient(player, "PvP", { Opponents = opponents })
-		-- The BattleTriggerResponse handler will call resumeTurn or start battle
-		return
+		local validOpponents = {}
+		for _, opp in ipairs(opponents) do
+			if BattleSystem.lastBattleOpponent[player.UserId] ~= opp.UserId then
+				table.insert(validOpponents, opp)
+			else
+				print("⏭️ [enterRollPhase] Skipping PvP UI for " .. opp.Name .. " (recent battle)")
+			end
+		end
+		
+		if #validOpponents > 0 then
+			print("⚔️ PvP Opportunity at turn start for " .. player.Name)
+			Events.BattleTrigger:FireClient(player, "PvP", { Opponents = validOpponents })
+			-- The BattleTriggerResponse handler will call resumeTurn or start battle
+			return
+		else
+			print("⏭️ [enterRollPhase] All opponents recently battled. Skipping PvP UI.")
+		end
 	end
 
 	Events.UpdateTurn:FireAllClients(player.Name)
