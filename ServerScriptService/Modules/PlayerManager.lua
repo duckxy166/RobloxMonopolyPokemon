@@ -202,10 +202,12 @@ function PlayerManager.onPlayerAdded(player)
 		if tilesFolder then
 			local startTile = tilesFolder:FindFirstChild("0")
 			if startTile then
-				-- Fix: Force exact position (no offset) for start tile
-				local pos = startTile.Position + Vector3.new(0, 5, 0)
+				-- FIX: Use TOKEN_OFFSETS so each player spawns at different position on tile 0
+				local slot = PlayerManager.playerSlots[player.UserId] or 1
+				local offset = TOKEN_OFFSETS[slot] or Vector3.new(0, 0, 0)
+				local pos = startTile.Position + offset + Vector3.new(0, 5, 0)
 				character:PivotTo(CFrame.new(pos))
-				print("📍 Teleported " .. player.Name .. " to starting tile 0 [EXACT]")
+				print("📍 Teleported " .. player.Name .. " to starting tile 0 (Slot " .. slot .. ")")
 			end
 		end
 	end

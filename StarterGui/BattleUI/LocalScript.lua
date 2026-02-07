@@ -625,8 +625,16 @@ Events.BattleEnd.OnClientEvent:Connect(function(result)
 		vsFrame = nil 
 	end
 
-	-- Cleanup any remaining dice
+	-- Cleanup any remaining dice (and scan workspace for stragglers)
 	cleanupDice()
+	
+	-- FIX: Aggressive cleanup - find and destroy ANY DiceModel clones left in workspace
+	-- This catches dice that got stuck due to timing issues
+	for _, obj in ipairs(workspace:GetChildren()) do
+		if obj.Name == "DiceModel" or (obj:IsA("Part") and obj.Size == Vector3.new(3, 3, 3)) then
+			obj:Destroy()
+		end
+	end
 
 	local msgText = result
 	local msgColor = Color3.fromRGB(255, 255, 255)

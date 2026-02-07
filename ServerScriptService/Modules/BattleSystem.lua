@@ -854,6 +854,18 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 					return
 				end
 				
+				-- FIX: Check if defender has any alive Pokemon BEFORE sending challenge
+				local defenderHasPokemon = BattleSystem.getFirstAlivePokemon(target) ~= nil
+				if not defenderHasPokemon then
+					print("⚠️ Defender " .. target.Name .. " has no alive Pokemon! Skipping PvP.")
+					if Events.Notify then 
+						Events.Notify:FireClient(player, "❌ " .. target.Name .. " ไม่มี Pokemon ที่มีชีวิต! ข้ามการต่อสู้")
+					end
+					-- Resume attacker's turn normally (process tile event)
+					TurnManager.resumeTurn(player)
+					return
+				end
+				
 				-- 1. Store Pending Request
 				BattleSystem.pendingBattles[target.UserId] = {
 					Attacker = player,
