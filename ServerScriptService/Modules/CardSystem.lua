@@ -385,6 +385,19 @@ function CardSystem.connectEvents(events, turnManager, playerManager)
 						CardSystem.addCardToHand(player, cardName)
 						return
 					end
+					
+					-- FIX: Prevent cross-lap warping (must be on same lap)
+					local playerLap = playerManager.playerLaps[player.UserId] or 1
+					local targetLap = playerManager.playerLaps[targetPlayer.UserId] or 1
+					
+					if playerLap ~= targetLap then
+						if events.Notify then
+							events.Notify:FireClient(player, "❌ Cannot warp to " .. targetPlayer.Name .. "! They are on Lap " .. targetLap .. " (You: Lap " .. playerLap .. ")")
+						end
+						-- Refund the card
+						CardSystem.addCardToHand(player, cardName)
+						return
+					end
 
 					playerManager.playerPositions[player.UserId] = targetPos
 
