@@ -342,6 +342,24 @@ end
 
 -- Enter roll phase
 -- Optional: skipPvPCheck = true when called from Twisted Spoon to avoid triggering battles
+-- RESUME TURN (Called by BattleSystem when PvP is declined/skipped)
+function TurnManager.resumeTurn(player)
+	print("🔄 Resuming Turn for " .. player.Name)
+	local currentPos = PlayerManager.playerPositions[player.UserId] or 0
+	local landingTile = tilesFolder:FindFirstChild(tostring(currentPos))
+	
+	if not landingTile then
+		TurnManager.nextTurn()
+		return
+	end
+	
+	-- Clear process flag just in case
+	player:SetAttribute("ProcessingTile", nil)
+	
+	-- Process the tile event (Red/Green/White/etc.)
+	TurnManager.processTileEvent(player, currentPos, landingTile)
+end
+
 function TurnManager.enterRollPhase(player, skipPvPCheck)
 	TurnManager.turnPhase = "Roll"
 	TurnManager.isTurnActive = true  -- IMPORTANT: Allow player to roll

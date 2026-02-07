@@ -875,7 +875,7 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 					Events.Notify:FireClient(player, "⏳ รอ " .. target.Name .. " เลือก Pokemon...")
 				end
 				
-				-- FIX: Add timeout for pending PvP (30 seconds)
+	-- FIX: Add timeout for pending PvP (30 seconds)
 				-- If defender doesn't respond, auto-decline
 				task.delay(30, function()
 					local stillPending = BattleSystem.pendingBattles[target.UserId]
@@ -928,16 +928,15 @@ function BattleSystem.handleTriggerResponse(player, action, data)
 			TurnManager.resumeTurn(player)
 		elseif action == "DefendRun" then
 			-- Defender ran (Automatic Forfeit? Or just Decline Conflict?)
-			-- For now, treat as decline -> Attacker resumes movement or turn ends
 			local pending = BattleSystem.pendingBattles[player.UserId]
 			if pending then
 				if Events.Notify then Events.Notify:FireClient(pending.Attacker, "🏃 " .. player.Name .. " หนีการต่อสู้!") end
-				-- FIX: Defender ran, so Attacker wins by default (or just ends interaction)
-				-- Do NOT call enterRollPhase (causes double roll)
-				-- Do NOT call resumeTurn (causes PvE trigger)
-				-- Just end the turn
+				
+				-- FIX: Defender ran -> Attacker gets to process the tile event (e.g. Red Tile / Shop)
+				-- Old code called TurnManager.nextTurn() which skipped the event!
+				local attacker = pending.Attacker
 				BattleSystem.pendingBattles[player.UserId] = nil
-				TurnManager.nextTurn()
+				TurnManager.resumeTurn(attacker)
 			end
 		else
 			TurnManager.nextTurn()
