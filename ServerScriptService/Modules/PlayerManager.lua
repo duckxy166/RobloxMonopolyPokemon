@@ -178,25 +178,33 @@ function PlayerManager.onPlayerAdded(player)
 
 	-- Teleport player to starting tile when character loads
 	local function teleportToStart(character)
+		-- FIX: Wait for critical parts to load before attempting teleport
+		local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 10)
+		local humanoid = character:WaitForChild("Humanoid", 10)
+		
+		if not humanoidRootPart or not humanoid then
+			warn("⚠️ Character failed to load for " .. player.Name)
+			return
+		end
+		
+		-- Extra wait to ensure physics is ready
+		task.wait(0.2)
+		
 		local tilesFolder = game.Workspace:FindFirstChild("Tiles")
-		local humanoid = character:FindFirstChild("Humanoid")
 		
 		-- Set collision group so players don't collide with each other
 		setPlayerCollision(character)
 		
 		-- FREEZE PLAYER
-		if humanoid then
-			humanoid.WalkSpeed = 0
-			humanoid.JumpPower = 0
-		end
+		humanoid.WalkSpeed = 0
+		humanoid.JumpPower = 0
 		
 		if tilesFolder then
 			local startTile = tilesFolder:FindFirstChild("0")
-			if startTile and character.PrimaryPart then
-				task.wait(0.5) -- Wait for character to fully load
+			if startTile then
 				-- Fix: Force exact position (no offset) for start tile
 				local pos = startTile.Position + Vector3.new(0, 5, 0)
-				character:SetPrimaryPartCFrame(CFrame.new(pos))
+				character:PivotTo(CFrame.new(pos))
 				print("📍 Teleported " .. player.Name .. " to starting tile 0 [EXACT]")
 			end
 		end
